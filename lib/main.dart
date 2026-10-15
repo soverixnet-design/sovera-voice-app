@@ -6,7 +6,7 @@ import 'supabase_config.dart';
 Future<void> main() async {
  WidgetsFlutterBinding.ensureInitialized();
  try {
-  await Supabase.initialize(url: supabaseUrl, anonKey: supabasePublishableKey, authOptions: const FlutterAuthClientOptions(authFlowType: AuthFlowType.pkce));
+  await Supabase.initialize(url: supabaseUrl, publishableKey: supabasePublishableKey, authOptions: const FlutterAuthClientOptions(authFlowType: AuthFlowType.pkce));
   runApp(const Sovera());
  } catch (_) {
   runApp(const MaterialApp(home: Scaffold(body: Center(child: Text('Could not initialize sign-in. Please restart Sovera.')))));
@@ -99,7 +99,7 @@ class _HomeState extends State<Home> {
  if(!mounted||about==null)return;
  if(widget.profile!=null){
   try {
-   final row=await soveraClient.from('sovera_profiles').update({'display_name':name,'bio':about}).eq('id',widget.profile!['id']).select('display_name,bio').single();
+   final row=await soveraClient.from('sovera_profiles').update({'display_name':name,'bio':about}).eq('id',widget.profile!['id'] as String).select('display_name,bio').single();
    if(!mounted)return;
    setState((){displayName=row['display_name'] as String;bio=row['bio'] as String;});
    notice('Profile saved.');
