@@ -53,75 +53,88 @@ class Jewel extends StatelessWidget {
 }
 
 class Home extends StatefulWidget {
-  const Home({super.key});
-  @override
-  State<Home> createState() => _HomeState();
+ const Home({super.key});
+ @override State<Home> createState()=>_HomeState();
 }
 class _HomeState extends State<Home> {
-  int tab = 0;
-  String query = '';
-  final search = TextEditingController();
-  final rooms = <String, (IconData, Color, String)>{
-    'Moonlight Lounge': (Icons.nightlight_round, violet, 'Music & conversation'),
-    'Ocean Avenue': (Icons.waves_rounded, cyan, 'A little space to unwind'),
-    'Golden Hour': (Icons.wb_sunny_rounded, const Color(0xFFFFC477), 'Meet your next good friend'),
-    'Sovera Studio': (Icons.mic_rounded, const Color(0xFFFF8CAF), 'Your voice. Your stage.'),
-  };
-  void notice(String text) => ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(text)));
-  @override
-  void dispose() { search.dispose(); super.dispose(); }
-  void openRoom(String name) => Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => VoiceRoom(name: name)));
-  Widget heading(String title, String subtitle) => Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-    Text(title, style: const TextStyle(fontSize: 29, fontWeight: FontWeight.w800, letterSpacing: -.8)),
-    const SizedBox(height: 6), Text(subtitle, style: const TextStyle(color: Colors.white54)),
-  ]);
-  @override
-  Widget build(BuildContext context) => Scaffold(
-    body: Container(decoration: const BoxDecoration(gradient: LinearGradient(begin: Alignment.topLeft, end: Alignment.bottomRight, colors: [Color(0xFF882580), Color(0xFF43249A), Color(0xFF25116B)])), child: SafeArea(child: Center(child: ConstrainedBox(constraints: const BoxConstraints(maxWidth: 640), child: ListView(
-      padding: const EdgeInsets.fromLTRB(22, 20, 22, 28), children: [
-        Row(children: [const BrandLogo(size: 54), const SizedBox(width: 12), const Text('Sovera', style: TextStyle(fontSize: 27, fontWeight: FontWeight.w900, letterSpacing: -1)), const Spacer(), IconButton(tooltip: 'About this preview', onPressed: () => notice('Offline design preview. Voice, payments and login are not connected.'), icon: const Icon(Icons.info_outline_rounded))]),
-        const SizedBox(height: 14), const Chip(avatar: Icon(Icons.science_outlined, size: 16), label: Text('OFFLINE DESIGN PREVIEW')),
-        const SizedBox(height: 22),
-        if(tab == 0) ...[
-          heading('Your voice. Your world.', 'Meet · Connect · Celebrate'), const SizedBox(height: 24),
-          Glass(tint: violet, child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            const Row(children: [Chip(label: Text('POPULAR EVENTS')), Spacer(), BrandLogo(size: 70)]),
-            const SizedBox(height: 18), const Text('The party\nstarts with you.', style: TextStyle(fontSize: 34, height: 1.12, fontWeight: FontWeight.w800)),
-            const SizedBox(height: 14), const Text('Create your own corner of the world.', style: TextStyle(color: Colors.white60)),
-            const SizedBox(height: 20), FilledButton.icon(onPressed: createRoom, icon: const Icon(Icons.add_rounded), label: const Text('Create a room')),
-          ])), const SizedBox(height: 24),
-          TextField(controller: search, onChanged: (value) => setState(() => query = value), decoration: InputDecoration(prefixIcon: const Icon(Icons.search_rounded), hintText: 'Search preview rooms', filled: true, fillColor: Colors.white.withValues(alpha: .04), border: OutlineInputBorder(borderRadius: BorderRadius.circular(20), borderSide: BorderSide.none))),
-          const SizedBox(height: 18), Wrap(spacing: 8, children: [for (final label in ['Popular', 'Music', 'Adda', 'New']) ActionChip(label: Text(label), onPressed: () => notice('$label discovery requires the room directory backend.'))]), const SizedBox(height: 18), FilledButton.tonalIcon(onPressed: () => Navigator.push(context, MaterialPageRoute<void>(builder: (_) => const Rankings())), icon: const Icon(Icons.emoji_events_rounded, color: gold), label: const Text('Rankings & honors')), const SizedBox(height: 24), const Text('Explore rooms', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)), const SizedBox(height: 14),
-          for (final entry in rooms.entries.where((e) => e.key.toLowerCase().contains(query.toLowerCase()))) Padding(padding: const EdgeInsets.only(bottom: 14), child: Semantics(button: true, label: 'Open ${entry.key}', child: InkWell(borderRadius: BorderRadius.circular(26), onTap: () => openRoom(entry.key), child: Glass(tint: entry.value.$2, child: Row(children: [Jewel(entry.value.$1, color: entry.value.$2, size: 66), const SizedBox(width: 16), Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [Text(entry.key, style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w700)), const SizedBox(height: 5), Text(entry.value.$3, style: const TextStyle(color: Colors.white54, fontSize: 12)), const SizedBox(height: 10), const Text('PREVIEW ROOM', style: TextStyle(color: cyan, fontSize: 10, letterSpacing: 2))])), const Icon(Icons.arrow_forward_ios_rounded, size: 16)]))))),
-          if(rooms.keys.where((e) => e.toLowerCase().contains(query.toLowerCase())).isEmpty) const Padding(padding: EdgeInsets.all(24), child: Text('No rooms match your search.')),
-        ],
-        if(tab == 1) ...[heading('Moments', 'A space for stories worth sharing.'), const SizedBox(height: 24), const Glass(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [Jewel(Icons.auto_awesome_rounded, color: cyan), SizedBox(height: 24), Text('Welcome to Sovera', style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold)), SizedBox(height: 12), Text('This is a sample community post. Real posts and comments need the social backend.', style: TextStyle(color: Colors.white60))]))],
-        if(tab == 2) ...[heading('Messages', 'Your conversations, all together.'), const SizedBox(height: 24),
-          for(final item in [(Icons.support_agent_rounded, 'Official support', const Color(0xFFFFB782)), (Icons.campaign_rounded, 'Official notices', cyan), (Icons.account_balance_wallet_rounded, 'Recharge support', violet)]) Padding(padding: const EdgeInsets.only(bottom: 14), child: InkWell(onTap: () => notice('${item.$2} needs the support backend.'), child: Glass(tint: item.$3, child: Row(children: [Jewel(item.$1, color: item.$3), const SizedBox(width: 16), Expanded(child: Text(item.$2, style: const TextStyle(fontWeight: FontWeight.w700))), const Icon(Icons.chevron_right_rounded)])))),
-          const SizedBox(height: 22), const Text('No conversations yet. Sign-in and live messaging will be connected in the backend phase.', style: TextStyle(color: Colors.white54)),
-        ],
-        if(tab == 3) ...[heading('Your space', 'Make it feel like you.'), const SizedBox(height: 24),
-          const Glass(child: Column(children: [Jewel(Icons.person_rounded, size: 90), SizedBox(height: 18), Text('Preview guest', style: TextStyle(fontSize: 23, fontWeight: FontWeight.w700)), SizedBox(height: 8), Text('Not signed in', style: TextStyle(color: Colors.white54))])),
-          const SizedBox(height: 18), Glass(tint: cyan, child: Column(children: [const ListTile(leading: Icon(Icons.toll_rounded, color: Color(0xFFFFCC7E)), title: Text('Coins'), trailing: Text('0')), const ListTile(leading: Icon(Icons.diamond_outlined, color: cyan), title: Text('Diamonds'), trailing: Text('0')), const Divider(), const Text('100 Diamonds = 70 Coins', style: TextStyle(color: Colors.white60)), const SizedBox(height: 12), OutlinedButton(onPressed: () => notice('Exchange requires a signed-in account and server-verified balance.'), child: const Text('Exchange diamonds'))])),
-        ],
-      ],
-    ))))),
-    bottomNavigationBar: NavigationBar(selectedIndex: tab, backgroundColor: const Color(0xFF3C1A77), onDestinationSelected: (value) => setState(() => tab = value), destinations: const [
-      NavigationDestination(icon: Icon(Icons.spatial_audio_off_rounded), label: 'Rooms'), NavigationDestination(icon: Icon(Icons.auto_awesome_rounded), label: 'Moments'), NavigationDestination(icon: Icon(Icons.chat_bubble_outline_rounded), label: 'Messages'), NavigationDestination(icon: Icon(Icons.person_outline_rounded), label: 'Me'),
-    ]),
-  );
-  Future<void> createRoom() async {
-    final controller = TextEditingController();
-    final value = await showDialog<String>(context: context, builder: (context) => AlertDialog(title: const Text('Create preview room'), content: TextField(controller: controller, maxLength: 40, autofocus: true, decoration: const InputDecoration(labelText: 'Room name')), actions: [TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')), FilledButton(onPressed: () { if(controller.text.trim().isNotEmpty) Navigator.pop(context, controller.text.trim()); }, child: const Text('Create'))]));
-    // Let the dialog route finish its disposal before releasing the controller.
-    await Future<void>.delayed(const Duration(milliseconds: 300));
-    controller.dispose();
-    if(!mounted || value == null) return;
-    setState(() => rooms[value] = (Icons.mic_rounded, violet, 'Your local preview room'));
-    openRoom(value);
-  }
+ int tab=0, banner=0; String filter='Popular',query='',displayName='Preview guest',bio='';
+ final search=TextEditingController();
+ final rooms=<String,String>{'Moonlight Lounge':'Music','Ocean Avenue':'Adda','Golden Hour':'Friends','Sovera Studio':'Music'};
+ final followed=<String>{};
+ final posts=<String>[];
+ final banners=< (String,String,IconData,Color)>[
+ ('Your voice. Your world.','Create a room and make it yours.',Icons.mic_rounded,violet),
+ ('The Sovera Hall of Fame','Discover rankings and room honors.',Icons.emoji_events_rounded,gold),
+ ('Something worth celebrating','Events, rewards and community moments.',Icons.celebration_rounded,pink),
+ ];
+ @override void dispose(){search.dispose();super.dispose();}
+ void go(Widget screen)=>Navigator.push(context,MaterialPageRoute<void>(builder:(_)=>screen));
+ void notice(String message)=>ScaffoldMessenger.of(context).showSnackBar(SnackBar(content:Text(message)));
+ Widget title(String text)=>Padding(padding:const EdgeInsets.symmetric(vertical:16),child:Text(text,style:const TextStyle(fontSize:24,fontWeight:FontWeight.w800)));
+ Future<String?> ask(String name,{String initial='',int maxLength=100})async{
+ final c=TextEditingController(text:initial);
+ final value=await showDialog<String>(context:context,builder:(context)=>AlertDialog(title:Text(name),content:TextField(controller:c,maxLength:maxLength,autofocus:true),actions:[TextButton(onPressed:()=>Navigator.pop(context),child:const Text('Cancel')),FilledButton(onPressed:(){if(c.text.trim().isNotEmpty)Navigator.pop(context,c.text.trim());},child:const Text('Save'))]));
+ await Future<void>.delayed(const Duration(milliseconds:300));c.dispose();return value;
+ }
+ Future<void> createRoom()async{final name=await ask('Name your preview room',maxLength:40);if(!mounted||name==null)return;setState(()=>rooms[name]='Your room');go(VoiceRoom(name:name));}
+ Widget quick(IconData icon,String label,VoidCallback onTap,Color color)=>Expanded(child:InkWell(onTap:onTap,borderRadius:BorderRadius.circular(20),child:Padding(padding:const EdgeInsets.all(6),child:Column(children:[Jewel(icon,color:color,size:46),const SizedBox(height:9),Text(label,style:const TextStyle(fontSize:11,fontWeight:FontWeight.w600))]))));
+ Widget roomGrid(){
+ final entries=rooms.entries.where((e)=>e.key.toLowerCase().contains(query.toLowerCase())&&(filter!='Following'||followed.contains(e.key))).toList();
+ if(entries.isEmpty)return const Padding(padding:EdgeInsets.all(32),child:Text('No rooms here yet.',textAlign:TextAlign.center));
+ return GridView.builder(shrinkWrap:true,physics:const NeverScrollableScrollPhysics(),itemCount:entries.length,gridDelegate:const SliverGridDelegateWithFixedCrossAxisCount(crossAxisCount:2,mainAxisExtent:210,crossAxisSpacing:12,mainAxisSpacing:14),itemBuilder:(context,index){final e=entries[index];final color=[violet,cyan,gold,pink][index%4];return InkWell(onTap:()=>go(VoiceRoom(name:e.key)),borderRadius:BorderRadius.circular(24),child:Container(clipBehavior:Clip.antiAlias,decoration:BoxDecoration(borderRadius:BorderRadius.circular(24),gradient:LinearGradient(begin:Alignment.topLeft,end:Alignment.bottomRight,colors:[color.withValues(alpha:.45),const Color(0xFF191331)]),border:Border.all(color:Colors.white24)),child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[Expanded(child:Stack(children:[Center(child:Jewel([Icons.nightlight_round,Icons.waves_rounded,Icons.wb_sunny_rounded,Icons.mic_rounded][index%4],size:70,color:color)),Positioned(top:8,left:8,child:Container(padding:const EdgeInsets.symmetric(horizontal:8,vertical:4),decoration:BoxDecoration(color:Colors.black38,borderRadius:BorderRadius.circular(12)),child:Text(e.value,style:const TextStyle(fontSize:10)))),Positioned(top:0,right:0,child:IconButton(tooltip:followed.contains(e.key)?'Unfollow room':'Follow room',onPressed:()=>setState(()=>followed.contains(e.key)?followed.remove(e.key):followed.add(e.key)),icon:Icon(followed.contains(e.key)?Icons.favorite_rounded:Icons.favorite_border_rounded,size:19,color:Colors.white)))])),Padding(padding:const EdgeInsets.fromLTRB(12,10,12,12),child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[Text(e.key,maxLines:1,overflow:TextOverflow.ellipsis,style:const TextStyle(fontWeight:FontWeight.bold)),const SizedBox(height:5),const Text('Preview · members unavailable',style:TextStyle(fontSize:9,color:Colors.white54))]))])));});
+ }
+ @override Widget build(BuildContext context)=>Scaffold(
+ body:Container(decoration:const BoxDecoration(gradient:LinearGradient(begin:Alignment.topLeft,end:Alignment.bottomRight,colors:[Color(0xFF882580),Color(0xFF43249A),Color(0xFF25116B)])),child:SafeArea(child:Center(child:ConstrainedBox(constraints:const BoxConstraints(maxWidth:640),child:ListView(padding:const EdgeInsets.all(18),children:[
+ Row(children:[const BrandLogo(size:48),const SizedBox(width:10),const Text('Sovera',style:TextStyle(fontSize:27,fontWeight:FontWeight.w800)),const Spacer(),IconButton(tooltip:'Notifications',onPressed:()=>go(const Notices()),icon:const Icon(Icons.notifications_none_rounded)),IconButton(tooltip:'Settings',onPressed:()=>go(const AppSettings()),icon:const Icon(Icons.settings_outlined))]),
+ const Padding(padding:EdgeInsets.symmetric(vertical:8),child:Text('DESIGN PREVIEW · NOT SIGNED IN',style:TextStyle(fontSize:9,letterSpacing:1.8,color:Colors.white54))),
+ if(tab==0)...[
+ TextField(controller:search,onChanged:(value)=>setState(()=>query=value),decoration:InputDecoration(hintText:'Search rooms',prefixIcon:const Icon(Icons.search_rounded),filled:true,fillColor:Colors.white10,border:OutlineInputBorder(borderRadius:BorderRadius.circular(20),borderSide:BorderSide.none))),const SizedBox(height:18),
+ SizedBox(height:190,child:PageView.builder(itemCount:banners.length,onPageChanged:(value)=>setState(()=>banner=value),itemBuilder:(context,index){final b=banners[index];return Padding(padding:const EdgeInsets.only(right:4),child:InkWell(onTap:()=>index==0?createRoom():go(index==1?const Rankings():const Events()),child:Glass(tint:b.$4,child:Row(children:[Expanded(child:Column(crossAxisAlignment:CrossAxisAlignment.start,mainAxisAlignment:MainAxisAlignment.center,children:[const Text('SOVERA COMMUNITY',style:TextStyle(fontSize:9,letterSpacing:2,color:Colors.white60)),const SizedBox(height:10),Text(b.$1,style:const TextStyle(fontSize:24,fontWeight:FontWeight.w800,height:1.1)),const SizedBox(height:10),Text(b.$2,style:const TextStyle(fontSize:11,color:Colors.white60))])),const SizedBox(width:10),Jewel(b.$3,color:b.$4,size:62)]))))})),
+ const SizedBox(height:10),Row(mainAxisAlignment:MainAxisAlignment.center,children:[for(int i=0;i<banners.length;i++)Container(width:banner==i?20:6,height:6,margin:const EdgeInsets.symmetric(horizontal:3),decoration:BoxDecoration(color:banner==i?pink:Colors.white30,borderRadius:BorderRadius.circular(4)))]),const SizedBox(height:14),
+ Row(children:[quick(Icons.emoji_events_rounded,'Rankings',()=>go(const Rankings()),gold),quick(Icons.celebration_rounded,'Events',()=>go(const Events()),pink),quick(Icons.add_home_rounded,'My room',createRoom,cyan),quick(Icons.sports_esports_rounded,'Games',()=>go(const GamesHub()),violet)]),
+ const SizedBox(height:14),Wrap(spacing:8,children:['Popular','Following','New'].map((name)=>ChoiceChip(label:Text(name),selected:filter==name,onSelected:(_)=>setState(()=>filter=name))).toList()),const SizedBox(height:14),roomGrid(),
+ ],
+ if(tab==1)...[title('Moments'),FilledButton.icon(onPressed:()async{final text=await ask('Write a local preview post',maxLength:500);if(mounted&&text!=null)setState(()=>posts.insert(0,text));},icon:const Icon(Icons.edit_rounded),label:const Text('Write a moment')),const SizedBox(height:18),if(posts.isEmpty)const Glass(child:Text('Your community stories will appear here. Preview posts stay in this session.')),for(final post in posts)Padding(padding:const EdgeInsets.only(bottom:12),child:Glass(child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[Text(displayName,style:const TextStyle(fontWeight:FontWeight.bold)),const SizedBox(height:10),Text(post)])))],
+ if(tab==2)...[title('Messages'),for(final item in [(Icons.support_agent_rounded,'Official support',cyan),(Icons.campaign_rounded,'Official notices',gold),(Icons.account_balance_wallet_rounded,'Recharge support',pink)])Padding(padding:const EdgeInsets.only(bottom:12),child:InkWell(onTap:()=>go(item.$2=='Official notices'?const Notices():SupportPage(title:item.$2)),child:Glass(tint:item.$3,child:Row(children:[Jewel(item.$1,color:item.$3,size:46),const SizedBox(width:14),Expanded(child:Text(item.$2,style:const TextStyle(fontWeight:FontWeight.bold))),const Icon(Icons.chevron_right_rounded)])))),const SizedBox(height:20),const Text('Chats',style:TextStyle(fontSize:20,fontWeight:FontWeight.bold)),const SizedBox(height:12),const Text('Sign-in and the messaging backend are required for private conversations.',style:TextStyle(color:Colors.white54))],
+ if(tab==3)...[title('My profile'),Glass(child:Column(children:[const BrandLogo(size:100),const SizedBox(height:16),Text(displayName,style:const TextStyle(fontSize:24,fontWeight:FontWeight.bold)),const Text('UID: not assigned · Guest',style:TextStyle(color:Colors.white54)),if(bio.isNotEmpty)Padding(padding:const EdgeInsets.all(12),child:Text(bio)),const SizedBox(height:12),const Wrap(spacing:8,children:[Chip(label:Text('Followers —')),Chip(label:Text('Following —')),Chip(label:Text('Level —'))]),TextButton.icon(onPressed:()async{final name=await ask('Display name',initial:displayName,maxLength:40);if(!mounted||name==null)return;setState(()=>displayName=name);final about=await ask('Bio',initial:bio,maxLength:150);if(mounted&&about!=null)setState(()=>bio=about);},icon:const Icon(Icons.edit_outlined),label:const Text('Edit preview profile'))])),const SizedBox(height:16),for(final item in [(Icons.account_balance_wallet_rounded,'Wallet'),(Icons.workspace_premium_rounded,'VIP & frames'),(Icons.photo_library_outlined,'Gallery'),(Icons.add_home_rounded,'My room'),(Icons.settings_outlined,'Settings')])ListTile(leading:Icon(item.$1,color:gold),title:Text(item.$2),trailing:const Icon(Icons.chevron_right_rounded),onTap:(){switch(item.$2){case 'Wallet':go(const WalletPage());break;case 'Settings':go(const AppSettings());break;case 'My room':createRoom();break;default:go(FeaturePage(title:item.$2,icon:item.$1,description:item.$2=='Gallery'?'Your uploaded photos will appear here. Account storage is not connected.':'VIP frames, entry effects and profile badges will be managed through the store. Purchases are not enabled.'));}}),const Text('Profile edits are local and reset when the app restarts.',style:TextStyle(fontSize:11,color:Colors.white54))],
+ ]))))),
+ bottomNavigationBar:NavigationBar(backgroundColor:const Color(0xFF3C1A77),selectedIndex:tab,onDestinationSelected:(value)=>setState(()=>tab=value),destinations:const[NavigationDestination(icon:Icon(Icons.home_rounded),label:'Home'),NavigationDestination(icon:Icon(Icons.auto_awesome_rounded),label:'Moments'),NavigationDestination(icon:Icon(Icons.chat_bubble_outline_rounded),label:'Messages'),NavigationDestination(icon:Icon(Icons.person_outline_rounded),label:'Me')]),
+ );
 }
-
+class FeaturePage extends StatelessWidget{
+ final String title,description;final IconData icon;
+ const FeaturePage({super.key,required this.title,required this.description,required this.icon});
+ @override Widget build(BuildContext context)=>Scaffold(appBar:AppBar(title:Text(title)),body:ListView(padding:const EdgeInsets.all(24),children:[const Center(child:BrandLogo(size:76)),const SizedBox(height:30),Glass(child:Column(children:[Jewel(icon,color:gold,size:66),const SizedBox(height:22),Text(title,style:const TextStyle(fontSize:24,fontWeight:FontWeight.bold)),const SizedBox(height:14),Text(description,textAlign:TextAlign.center,style:const TextStyle(color:Colors.white60,height:1.6))]))]));
+}
+class GamesHub extends StatelessWidget{
+ const GamesHub({super.key});
+ @override Widget build(BuildContext context)=>const FeaturePage(title:'Games',icon:Icons.sports_esports_rounded,description:'Your game collection will appear here.\n\nGames will be added later. No games, bets or coin deductions are enabled in this version.');
+}
+class Events extends StatelessWidget{
+ const Events({super.key});
+ @override Widget build(BuildContext context)=>DefaultTabController(length:3,child:Scaffold(appBar:AppBar(title:const Text('Events'),bottom:const TabBar(tabs:[Tab(text:'Active'),Tab(text:'Upcoming'),Tab(text:'Winners')])),body:TabBarView(children:[for(final text in ['No active events. Event banners, rules, rewards and live scores will appear here.','Scheduled events will appear here when published by an admin.','Verified winners will appear here after an event is settled.'])Padding(padding:const EdgeInsets.all(24),child:Column(children:[const BrandLogo(size:86),const SizedBox(height:26),Glass(tint:gold,child:Text(text)),const SizedBox(height:16),const Text('Event server not connected',style:TextStyle(color:Colors.white54))]))])));
+}
+class Notices extends StatelessWidget{
+ const Notices({super.key});
+ @override Widget build(BuildContext context)=>const FeaturePage(title:'Official notices',icon:Icons.campaign_rounded,description:'Welcome to the Sovera design preview.\n\nOfficial announcements and notification history will appear here after the admin service is connected.');
+}
+class WalletPage extends StatelessWidget{
+ const WalletPage({super.key});
+ @override Widget build(BuildContext context)=>Scaffold(appBar:AppBar(title:const Text('Wallet')),body:ListView(padding:const EdgeInsets.all(22),children:[const Glass(tint:gold,child:Column(children:[BrandLogo(size:70),SizedBox(height:18),Text('No verified wallet',style:TextStyle(fontSize:22,fontWeight:FontWeight.bold)),ListTile(leading:Icon(Icons.toll_rounded,color:gold),title:Text('Coins'),trailing:Text('—')),ListTile(leading:Icon(Icons.diamond_rounded,color:cyan),title:Text('Diamonds'),trailing:Text('—'))])),const SizedBox(height:18),const Text('100 Diamonds = 70 Coins',textAlign:TextAlign.center,style:TextStyle(color:gold)),const SizedBox(height:18),for(final action in ['Recharge','Exchange','Transaction history'])Padding(padding:const EdgeInsets.only(bottom:10),child:OutlinedButton(onPressed:()=>ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content:Text('Sign-in and a verified wallet server are required.'))),child:Text(action))),const SizedBox(height:20),const Text('Payments and balance changes are not enabled. No payment details are collected.',style:TextStyle(color:Colors.white54))]));
+}
+class SupportPage extends StatefulWidget{
+ final String title;const SupportPage({super.key,required this.title});
+ @override State<SupportPage> createState()=>_SupportPageState();
+}
+class _SupportPageState extends State<SupportPage>{
+ final text=TextEditingController();String? draft;
+ @override void dispose(){text.dispose();super.dispose();}
+ @override Widget build(BuildContext context)=>Scaffold(appBar:AppBar(title:Text(widget.title)),body:ListView(padding:const EdgeInsets.all(22),children:[const BrandLogo(size:70),const SizedBox(height:20),const Text('Describe your issue. Support delivery is not connected yet.',style:TextStyle(color:Colors.white60)),const SizedBox(height:18),TextField(controller:text,maxLines:5,maxLength:1000,decoration:const InputDecoration(labelText:'Support message',border:OutlineInputBorder())),FilledButton(onPressed:(){if(text.text.trim().isEmpty)return;setState(()=>draft=text.text.trim());},child:const Text('Save local draft')),if(draft!=null)Padding(padding:const EdgeInsets.only(top:20),child:Glass(child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[const Text('LOCAL DRAFT · NOT SENT',style:TextStyle(color:gold,fontSize:11)),const SizedBox(height:10),Text(draft!)])))]));
+}
+class AppSettings extends StatelessWidget{
+ const AppSettings({super.key});
+ @override Widget build(BuildContext context)=>Scaffold(appBar:AppBar(title:const Text('Settings')),body:ListView(padding:const EdgeInsets.all(16),children:[const Center(child:BrandLogo(size:76)),const SizedBox(height:20),for(final item in [(Icons.language_rounded,'Language','This preview currently supports English. Full Bangla translation and saved language selection are pending.'),(Icons.mic_rounded,'Audio settings','Microphone permission, voice quality and audio routing will be available when the RTC engine is connected.'),(Icons.block_rounded,'Blocked users','No signed-in account. Your blocked-user list will be loaded from the account service.'),(Icons.shield_outlined,'Privacy','This preview does not connect to a login, payment or RTC service. Local profile, post and support drafts are not retained after restart. A production privacy policy is still required.'),(Icons.description_outlined,'Terms','This is an offline design preview. Purchases, cash rewards and live services are not available. Production terms have not been published.'),(Icons.delete_outline_rounded,'Delete account','No account has been created in this preview. Production account deletion needs an authenticated server flow.')])ListTile(leading:Icon(item.$1,color:gold),title:Text(item.$2),trailing:const Icon(Icons.chevron_right_rounded),onTap:()=>Navigator.push(context,MaterialPageRoute<void>(builder:(_)=>FeaturePage(title:item.$2,description:item.$3,icon:item.$1)))),const ListTile(leading:Icon(Icons.info_outline_rounded),title:Text('Sovera 0.3 · Design preview'),subtitle:Text('Not signed in · no live server'))]));
+}
 
 class BrandLogo extends StatelessWidget {
   final double size;
@@ -183,7 +196,7 @@ class _VoiceRoomState extends State<VoiceRoom> {
  const SizedBox(height:12),const Text('Welcome to Sovera. Take a seat and explore the room design.',style:TextStyle(color:Colors.white54,fontSize:12)),const SizedBox(height:12),
  for(final m in messages)Padding(padding:const EdgeInsets.only(bottom:8),child:Glass(tint:gold,padding:const EdgeInsets.all(12),child:Text('You: $m'))),
  ])),
- Padding(padding:const EdgeInsets.fromLTRB(10,6,10,14),child:Row(children:[IconButton(tooltip:'Microphone unavailable in preview',onPressed:()=>notice('RTC voice is not connected yet.'),icon:const Icon(Icons.mic_off_rounded,color:gold)),Expanded(child:TextField(controller:input,maxLength:300,decoration:const InputDecoration(hintText:'Say something…',counterText:'',border:InputBorder.none),onSubmitted:(_)=>send())),IconButton(tooltip:'Send local message',onPressed:send,icon:const Icon(Icons.send_rounded,color:gold)),IconButton.filled(tooltip:'Preview gifts',onPressed:gifts,style:IconButton.styleFrom(backgroundColor:const Color(0xFFB6642B)),icon:const Icon(Icons.card_giftcard_rounded)),IconButton(tooltip:'Games',onPressed:()=>notice('Games are not connected in this design preview.'),icon:const Icon(Icons.grid_view_rounded,color:gold))])),
+ Padding(padding:const EdgeInsets.fromLTRB(10,6,10,14),child:Row(children:[IconButton(tooltip:'Microphone unavailable in preview',onPressed:()=>notice('RTC voice is not connected yet.'),icon:const Icon(Icons.mic_off_rounded,color:gold)),Expanded(child:TextField(controller:input,maxLength:300,decoration:const InputDecoration(hintText:'Say something…',counterText:'',border:InputBorder.none),onSubmitted:(_)=>send())),IconButton(tooltip:'Send local message',onPressed:send,icon:const Icon(Icons.send_rounded,color:gold)),IconButton.filled(tooltip:'Preview gifts',onPressed:gifts,style:IconButton.styleFrom(backgroundColor:const Color(0xFFB6642B)),icon:const Icon(Icons.card_giftcard_rounded)),IconButton(tooltip:'Games',onPressed:()=>Navigator.push(context,MaterialPageRoute<void>(builder:(_)=>const GamesHub())),icon:const Icon(Icons.grid_view_rounded,color:gold))])),
  ])))),
  );
  void send(){if(input.text.trim().isEmpty)return;setState((){messages.add(input.text.trim());input.clear();});}
