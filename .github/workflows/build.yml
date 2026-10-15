@@ -20,8 +20,13 @@ jobs:
           cache: true
       - name: Generate native platform projects
         run: flutter create --platforms=android,ios --org com.sovera --project-name sovera .
+      - run: python3 scripts/configure_mobile_auth.py
       - run: flutter pub get
       - run: dart run flutter_launcher_icons
+      - uses: actions/upload-artifact@v4
+        with:
+          name: resolved-dependencies-${{ runner.os }}
+          path: pubspec.lock
       - run: dart format --output=none --set-exit-if-changed lib test || dart format lib test
       - run: flutter analyze
       - run: flutter test
@@ -39,8 +44,13 @@ jobs:
           channel: stable
           cache: true
       - run: flutter create --platforms=android,ios --org com.sovera --project-name sovera .
+      - run: python3 scripts/configure_mobile_auth.py
       - run: flutter pub get
       - run: dart run flutter_launcher_icons
+      - uses: actions/upload-artifact@v4
+        with:
+          name: resolved-dependencies-${{ runner.os }}
+          path: pubspec.lock
       - run: flutter build ios --simulator --debug
       - uses: actions/upload-artifact@v4
         with:

@@ -1,6 +1,17 @@
 import 'package:flutter/material.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
+import 'auth_gate.dart';
+import 'supabase_config.dart';
 
-void main() => runApp(const Sovera());
+Future<void> main() async {
+ WidgetsFlutterBinding.ensureInitialized();
+ try {
+  await Supabase.initialize(url: supabaseUrl, anonKey: supabasePublishableKey, authOptions: const FlutterAuthClientOptions(authFlowType: AuthFlowType.pkce));
+  runApp(const Sovera());
+ } catch (_) {
+  runApp(const MaterialApp(home: Scaffold(body: Center(child: Text('Could not initialize sign-in. Please restart Sovera.')))));
+ }
+}
 const violet = Color(0xFFA758EC);
 const gold = Color(0xFFECC58A);
 const pink = Color(0xFFFF39B7);
@@ -8,14 +19,15 @@ const ink = Color(0xFF29115C);
 const cyan = Color(0xFF69E4EB);
 
 class Sovera extends StatelessWidget {
-  const Sovera({super.key});
+  final bool preview;
+  const Sovera({super.key, this.preview=false});
   @override
   Widget build(BuildContext context) => MaterialApp(
     title: 'Sovera', debugShowCheckedModeBanner: false,
     theme: ThemeData.dark(useMaterial3: true).copyWith(
       scaffoldBackgroundColor: ink, colorScheme: const ColorScheme.dark(primary: violet, secondary: cyan),
       snackBarTheme: const SnackBarThemeData(behavior: SnackBarBehavior.floating),
-    ), home: const Home(),
+    ), home: preview ? const Home() : const AuthGate(),
   );
 }
 
@@ -53,7 +65,8 @@ class Jewel extends StatelessWidget {
 }
 
 class Home extends StatefulWidget {
- const Home({super.key});
+ final Map<String,dynamic>? profile;
+ const Home({super.key, this.profile});
  @override State<Home> createState()=>_HomeState();
 }
 class _HomeState extends State<Home> {
@@ -67,6 +80,7 @@ class _HomeState extends State<Home> {
  ('The Sovera Hall of Fame','Discover rankings and room honors.',Icons.emoji_events_rounded,gold),
  ('Something worth celebrating','Events, rewards and community moments.',Icons.celebration_rounded,pink),
  ];
+ @override void initState(){super.initState();displayName=widget.profile?['display_name'] as String? ?? 'Preview guest';bio=widget.profile?['bio'] as String? ?? '';}
  @override void dispose(){search.dispose();super.dispose();}
  void go(Widget screen)=>Navigator.push(context,MaterialPageRoute<void>(builder:(_)=>screen));
  void notice(String message)=>ScaffoldMessenger.of(context).showSnackBar(SnackBar(content:Text(message)));
@@ -78,6 +92,20 @@ class _HomeState extends State<Home> {
  }
  Future<void> createRoom()async{final name=await ask('Name your preview room',maxLength:40);if(!mounted||name==null)return;setState(()=>rooms[name]='Your room');go(VoiceRoom(name:name));}
  Widget quick(IconData icon,String label,VoidCallback onTap,Color color)=>Expanded(child:InkWell(onTap:onTap,borderRadius:BorderRadius.circular(20),child:Padding(padding:const EdgeInsets.all(6),child:Column(children:[Jewel(icon,color:color,size:46),const SizedBox(height:9),Text(label,style:const TextStyle(fontSize:11,fontWeight:FontWeight.w600))]))));
+ Future<void> editProfile() async {
+ final name=await ask('Display name',initial:displayName,maxLength:40);
+ if(!mounted||name==null)return;
+ final about=await ask('Bio',initial:bio,maxLength:150);
+ if(!mounted||about==null)return;
+ if(widget.profile!=null){
+  try {
+   final row=await soveraClient.from('sovera_profiles').update({'display_name':name,'bio':about}).eq('id',widget.profile!['id']).select('display_name,bio').single();
+   if(!mounted)return;
+   setState((){displayName=row['display_name'] as String;bio=row['bio'] as String;});
+   notice('Profile saved.');
+  }catch(_){if(mounted)notice('Profile was not saved. Check your connection and retry.');}
+ }else{setState((){displayName=name;bio=about;});}
+ }
  Widget roomGrid(){
  final entries=rooms.entries.where((e)=>e.key.toLowerCase().contains(query.toLowerCase())&&(filter!='Following'||followed.contains(e.key))).toList();
  if(entries.isEmpty)return const Padding(padding:EdgeInsets.all(32),child:Text('No rooms here yet.',textAlign:TextAlign.center));
@@ -86,7 +114,7 @@ class _HomeState extends State<Home> {
  @override Widget build(BuildContext context)=>Scaffold(
  body:Container(decoration:const BoxDecoration(gradient:LinearGradient(begin:Alignment.topLeft,end:Alignment.bottomRight,colors:[Color(0xFF882580),Color(0xFF43249A),Color(0xFF25116B)])),child:SafeArea(child:Center(child:ConstrainedBox(constraints:const BoxConstraints(maxWidth:640),child:ListView(padding:const EdgeInsets.all(18),children:[
  Row(children:[const BrandLogo(size:48),const SizedBox(width:10),const Text('Sovera',style:TextStyle(fontSize:27,fontWeight:FontWeight.w800)),const Spacer(),IconButton(tooltip:'Notifications',onPressed:()=>go(const Notices()),icon:const Icon(Icons.notifications_none_rounded)),IconButton(tooltip:'Settings',onPressed:()=>go(const AppSettings()),icon:const Icon(Icons.settings_outlined))]),
- const Padding(padding:EdgeInsets.symmetric(vertical:8),child:Text('DESIGN PREVIEW · NOT SIGNED IN',style:TextStyle(fontSize:9,letterSpacing:1.8,color:Colors.white54))),
+ Padding(padding:const EdgeInsets.symmetric(vertical:8),child:Text(widget.profile==null?'DESIGN PREVIEW · NOT SIGNED IN':'SIGNED IN · ROOM FEATURES IN PREVIEW',style:const TextStyle(fontSize:9,letterSpacing:1.8,color:Colors.white54))),
  if(tab==0)...[
  TextField(controller:search,onChanged:(value)=>setState(()=>query=value),decoration:InputDecoration(hintText:'Search rooms',prefixIcon:const Icon(Icons.search_rounded),filled:true,fillColor:Colors.white10,border:OutlineInputBorder(borderRadius:BorderRadius.circular(20),borderSide:BorderSide.none))),const SizedBox(height:18),
  SizedBox(height:240,child:PageView.builder(itemCount:banners.length,onPageChanged:(value)=>setState(()=>banner=value),itemBuilder:(context,index){final b=banners[index];return Padding(padding:const EdgeInsets.only(right:4),child:InkWell(onTap:()=>index==0?createRoom():go(index==1?const Rankings():const Events()),child:Glass(tint:b.$4,child:Row(children:[Expanded(child:Column(crossAxisAlignment:CrossAxisAlignment.start,mainAxisAlignment:MainAxisAlignment.center,children:[const Text('SOVERA COMMUNITY',style:TextStyle(fontSize:9,letterSpacing:2,color:Colors.white60)),const SizedBox(height:10),Text(b.$1,style:const TextStyle(fontSize:24,fontWeight:FontWeight.w800,height:1.1)),const SizedBox(height:10),Text(b.$2,style:const TextStyle(fontSize:11,color:Colors.white60))])),const SizedBox(width:10),Jewel(b.$3,color:b.$4,size:62)]))));})),
@@ -96,7 +124,7 @@ class _HomeState extends State<Home> {
  ],
  if(tab==1)...[title('Moments'),FilledButton.icon(onPressed:()async{final text=await ask('Write a local preview post',maxLength:500);if(mounted&&text!=null)setState(()=>posts.insert(0,text));},icon:const Icon(Icons.edit_rounded),label:const Text('Write a moment')),const SizedBox(height:18),if(posts.isEmpty)const Glass(child:Text('Your community stories will appear here. Preview posts stay in this session.')),for(final post in posts)Padding(padding:const EdgeInsets.only(bottom:12),child:Glass(child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[Text(displayName,style:const TextStyle(fontWeight:FontWeight.bold)),const SizedBox(height:10),Text(post)])))],
  if(tab==2)...[title('Messages'),for(final item in [(Icons.support_agent_rounded,'Official support',cyan),(Icons.campaign_rounded,'Official notices',gold),(Icons.account_balance_wallet_rounded,'Recharge support',pink)])Padding(padding:const EdgeInsets.only(bottom:12),child:InkWell(onTap:()=>go(item.$2=='Official notices'?const Notices():SupportPage(title:item.$2)),child:Glass(tint:item.$3,child:Row(children:[Jewel(item.$1,color:item.$3,size:46),const SizedBox(width:14),Expanded(child:Text(item.$2,style:const TextStyle(fontWeight:FontWeight.bold))),const Icon(Icons.chevron_right_rounded)])))),const SizedBox(height:20),const Text('Chats',style:TextStyle(fontSize:20,fontWeight:FontWeight.bold)),const SizedBox(height:12),const Text('Sign-in and the messaging backend are required for private conversations.',style:TextStyle(color:Colors.white54))],
- if(tab==3)...[title('My profile'),Glass(child:Column(children:[const BrandLogo(size:100),const SizedBox(height:16),Text(displayName,style:const TextStyle(fontSize:24,fontWeight:FontWeight.bold)),const Text('UID: not assigned · Guest',style:TextStyle(color:Colors.white54)),if(bio.isNotEmpty)Padding(padding:const EdgeInsets.all(12),child:Text(bio)),const SizedBox(height:12),const Wrap(spacing:8,children:[Chip(label:Text('Followers —')),Chip(label:Text('Following —')),Chip(label:Text('Level —'))]),TextButton.icon(onPressed:()async{final name=await ask('Display name',initial:displayName,maxLength:40);if(!mounted||name==null)return;setState(()=>displayName=name);final about=await ask('Bio',initial:bio,maxLength:150);if(mounted&&about!=null)setState(()=>bio=about);},icon:const Icon(Icons.edit_outlined),label:const Text('Edit preview profile'))])),const SizedBox(height:16),for(final item in [(Icons.account_balance_wallet_rounded,'Wallet'),(Icons.workspace_premium_rounded,'VIP & frames'),(Icons.photo_library_outlined,'Gallery'),(Icons.add_home_rounded,'My room'),(Icons.settings_outlined,'Settings')])ListTile(leading:Icon(item.$1,color:gold),title:Text(item.$2),trailing:const Icon(Icons.chevron_right_rounded),onTap:(){switch(item.$2){case 'Wallet':go(const WalletPage());break;case 'Settings':go(const AppSettings());break;case 'My room':createRoom();break;default:go(FeaturePage(title:item.$2,icon:item.$1,description:item.$2=='Gallery'?'Your uploaded photos will appear here. Account storage is not connected.':'VIP frames, entry effects and profile badges will be managed through the store. Purchases are not enabled.'));}}),const Text('Profile edits are local and reset when the app restarts.',style:TextStyle(fontSize:11,color:Colors.white54))],
+ if(tab==3)...[title('My profile'),Glass(child:Column(children:[if(widget.profile?['avatar_url'] is String) ClipOval(child:Image.network(widget.profile!['avatar_url'] as String,width:96,height:96,fit:BoxFit.cover,errorBuilder:(_,__,___)=>const BrandLogo(size:100))) else const BrandLogo(size:100),const SizedBox(height:16),Text(displayName,style:const TextStyle(fontSize:24,fontWeight:FontWeight.bold)),Text(widget.profile==null?'UID: not assigned · Guest':'UID: ${widget.profile!['uid']} · User',style:const TextStyle(color:Colors.white54)),if(bio.isNotEmpty)Padding(padding:const EdgeInsets.all(12),child:Text(bio)),const SizedBox(height:12),const Wrap(spacing:8,children:[Chip(label:Text('Followers —')),Chip(label:Text('Following —')),Chip(label:Text('Level —'))]),TextButton.icon(onPressed:editProfile,icon:const Icon(Icons.edit_outlined),label:const Text('Edit profile'))])),const SizedBox(height:16),for(final item in [(Icons.account_balance_wallet_rounded,'Wallet'),(Icons.workspace_premium_rounded,'VIP & frames'),(Icons.photo_library_outlined,'Gallery'),(Icons.add_home_rounded,'My room'),(Icons.settings_outlined,'Settings')])ListTile(leading:Icon(item.$1,color:gold),title:Text(item.$2),trailing:const Icon(Icons.chevron_right_rounded),onTap:(){switch(item.$2){case 'Wallet':go(const WalletPage());break;case 'Settings':go(const AppSettings());break;case 'My room':createRoom();break;default:go(FeaturePage(title:item.$2,icon:item.$1,description:item.$2=='Gallery'?'Your uploaded photos will appear here. Account storage is not connected.':'VIP frames, entry effects and profile badges will be managed through the store. Purchases are not enabled.'));}}),Text(widget.profile==null?'Profile edits are local and reset when the app restarts.':'Profile edits are saved to your Supabase account.',style:const TextStyle(fontSize:11,color:Colors.white54)),if(widget.profile!=null) TextButton.icon(onPressed:() async { try { await soveraClient.auth.signOut(scope:SignOutScope.local); } catch(_) {notice('Could not sign out. Please retry.');} },icon:const Icon(Icons.logout_rounded),label:const Text('Sign out'))],
  ]))))),
  bottomNavigationBar:NavigationBar(backgroundColor:const Color(0xFF3C1A77),selectedIndex:tab,onDestinationSelected:(value)=>setState(()=>tab=value),destinations:const[NavigationDestination(icon:Icon(Icons.home_rounded),label:'Home'),NavigationDestination(icon:Icon(Icons.auto_awesome_rounded),label:'Moments'),NavigationDestination(icon:Icon(Icons.chat_bubble_outline_rounded),label:'Messages'),NavigationDestination(icon:Icon(Icons.person_outline_rounded),label:'Me')]),
  );

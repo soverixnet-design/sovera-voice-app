@@ -1,10 +1,13 @@
 name: sovera
 description: Sovera premium voice party app — offline design preview.
 publish_to: none
-version: 0.3.1+4
+version: 0.4.0+5
 environment:
   sdk: '>=3.4.0 <4.0.0'
 dependencies:
+  supabase_flutter: 2.18.3
+  http: 1.6.0
+  url_launcher: 6.3.3
   flutter:
     sdk: flutter
 dev_dependencies:
