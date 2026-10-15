@@ -1,7 +1,7 @@
 name: sovera
 description: Sovera premium voice party app — offline design preview.
 publish_to: none
-version: 0.3.0+3
+version: 0.3.1+4
 environment:
   sdk: '>=3.4.0 <4.0.0'
 dependencies:
@@ -14,10 +14,13 @@ dev_dependencies:
 flutter:
   uses-material-design: true
   assets:
-    - assets/sovera-logo.png
+    - assets/sovera-logo-transparent.png
 
 flutter_launcher_icons:
   android: true
   ios: true
-  image_path: assets/sovera-logo.png
+  image_path: assets/sovera-logo-transparent.png
   remove_alpha_ios: true
+  background_color_ios: '#37166E'
+  adaptive_icon_background: '#37166E'
+  adaptive_icon_foreground: assets/sovera-logo-transparent.png

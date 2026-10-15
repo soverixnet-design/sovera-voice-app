@@ -140,7 +140,22 @@ class BrandLogo extends StatelessWidget {
   final double size;
   const BrandLogo({super.key, this.size = 56});
   @override
-  Widget build(BuildContext context) => ClipRRect(borderRadius: BorderRadius.circular(size*.25), child: Image.asset('assets/sovera-logo.png', width: size, height: size, fit: BoxFit.contain));
+  Widget build(BuildContext context) => Semantics(
+    label: 'Sovera logo',
+    image: true,
+    child: Container(
+      width: size, height: size,
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        boxShadow: [
+          BoxShadow(color: cyan.withValues(alpha: .12), blurRadius: size*.38),
+          BoxShadow(color: violet.withValues(alpha: .10), blurRadius: size*.55),
+        ],
+      ),
+      child: Image.asset('assets/sovera-logo-transparent.png',
+        width: size, height: size, fit: BoxFit.contain, filterQuality: FilterQuality.high),
+    ),
+  );
 }
 class RoyalAvatar extends StatelessWidget {
  final double size; final String label; final bool active;
