@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 
 void main() => runApp(const Sovera());
-const violet = Color(0xFF8C69FF);
-const ink = Color(0xFF0C0D1C);
+const violet = Color(0xFFA758EC);
+const gold = Color(0xFFECC58A);
+const pink = Color(0xFFFF39B7);
+const ink = Color(0xFF29115C);
 const cyan = Color(0xFF69E4EB);
 
 class Sovera extends StatelessWidget {
@@ -75,21 +77,21 @@ class _HomeState extends State<Home> {
   ]);
   @override
   Widget build(BuildContext context) => Scaffold(
-    body: SafeArea(child: Center(child: ConstrainedBox(constraints: const BoxConstraints(maxWidth: 640), child: ListView(
+    body: Container(decoration: const BoxDecoration(gradient: LinearGradient(begin: Alignment.topLeft, end: Alignment.bottomRight, colors: [Color(0xFF882580), Color(0xFF43249A), Color(0xFF25116B)])), child: SafeArea(child: Center(child: ConstrainedBox(constraints: const BoxConstraints(maxWidth: 640), child: ListView(
       padding: const EdgeInsets.fromLTRB(22, 20, 22, 28), children: [
-        Row(children: [const Jewel(Icons.graphic_eq_rounded, size: 42), const SizedBox(width: 12), const Text('sovera', style: TextStyle(fontSize: 27, fontWeight: FontWeight.w900, letterSpacing: -1)), const Spacer(), IconButton(tooltip: 'About this preview', onPressed: () => notice('Offline design preview. Voice, payments and login are not connected.'), icon: const Icon(Icons.info_outline_rounded))]),
+        Row(children: [const BrandLogo(size: 54), const SizedBox(width: 12), const Text('Sovera', style: TextStyle(fontSize: 27, fontWeight: FontWeight.w900, letterSpacing: -1)), const Spacer(), IconButton(tooltip: 'About this preview', onPressed: () => notice('Offline design preview. Voice, payments and login are not connected.'), icon: const Icon(Icons.info_outline_rounded))]),
         const SizedBox(height: 14), const Chip(avatar: Icon(Icons.science_outlined, size: 16), label: Text('OFFLINE DESIGN PREVIEW')),
         const SizedBox(height: 22),
         if(tab == 0) ...[
-          heading('Find your people.', 'Beautiful rooms. Better conversations.'), const SizedBox(height: 24),
+          heading('Your voice. Your world.', 'Meet · Connect · Celebrate'), const SizedBox(height: 24),
           Glass(tint: violet, child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            const Row(children: [Chip(label: Text('THE SOVERA EXPERIENCE')), Spacer(), Jewel(Icons.auto_awesome_rounded, color: cyan)]),
-            const SizedBox(height: 18), const Text('Every voice\nhas a place.', style: TextStyle(fontSize: 34, height: 1.12, fontWeight: FontWeight.w800)),
+            const Row(children: [Chip(label: Text('POPULAR EVENTS')), Spacer(), BrandLogo(size: 70)]),
+            const SizedBox(height: 18), const Text('The party\nstarts with you.', style: TextStyle(fontSize: 34, height: 1.12, fontWeight: FontWeight.w800)),
             const SizedBox(height: 14), const Text('Create your own corner of the world.', style: TextStyle(color: Colors.white60)),
             const SizedBox(height: 20), FilledButton.icon(onPressed: createRoom, icon: const Icon(Icons.add_rounded), label: const Text('Create a room')),
           ])), const SizedBox(height: 24),
           TextField(controller: search, onChanged: (value) => setState(() => query = value), decoration: InputDecoration(prefixIcon: const Icon(Icons.search_rounded), hintText: 'Search preview rooms', filled: true, fillColor: Colors.white.withValues(alpha: .04), border: OutlineInputBorder(borderRadius: BorderRadius.circular(20), borderSide: BorderSide.none))),
-          const SizedBox(height: 24), const Text('Explore rooms', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)), const SizedBox(height: 14),
+          const SizedBox(height: 18), Wrap(spacing: 8, children: [for (final label in ['Popular', 'Music', 'Adda', 'New']) ActionChip(label: Text(label), onPressed: () => notice('$label discovery requires the room directory backend.'))]), const SizedBox(height: 18), FilledButton.tonalIcon(onPressed: () => Navigator.push(context, MaterialPageRoute<void>(builder: (_) => const Rankings())), icon: const Icon(Icons.emoji_events_rounded, color: gold), label: const Text('Rankings & honors')), const SizedBox(height: 24), const Text('Explore rooms', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)), const SizedBox(height: 14),
           for (final entry in rooms.entries.where((e) => e.key.toLowerCase().contains(query.toLowerCase()))) Padding(padding: const EdgeInsets.only(bottom: 14), child: Semantics(button: true, label: 'Open ${entry.key}', child: InkWell(borderRadius: BorderRadius.circular(26), onTap: () => openRoom(entry.key), child: Glass(tint: entry.value.$2, child: Row(children: [Jewel(entry.value.$1, color: entry.value.$2, size: 66), const SizedBox(width: 16), Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [Text(entry.key, style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w700)), const SizedBox(height: 5), Text(entry.value.$3, style: const TextStyle(color: Colors.white54, fontSize: 12)), const SizedBox(height: 10), const Text('PREVIEW ROOM', style: TextStyle(color: cyan, fontSize: 10, letterSpacing: 2))])), const Icon(Icons.arrow_forward_ios_rounded, size: 16)]))))),
           if(rooms.keys.where((e) => e.toLowerCase().contains(query.toLowerCase())).isEmpty) const Padding(padding: EdgeInsets.all(24), child: Text('No rooms match your search.')),
         ],
@@ -103,8 +105,8 @@ class _HomeState extends State<Home> {
           const SizedBox(height: 18), Glass(tint: cyan, child: Column(children: [const ListTile(leading: Icon(Icons.toll_rounded, color: Color(0xFFFFCC7E)), title: Text('Coins'), trailing: Text('0')), const ListTile(leading: Icon(Icons.diamond_outlined, color: cyan), title: Text('Diamonds'), trailing: Text('0')), const Divider(), const Text('100 Diamonds = 70 Coins', style: TextStyle(color: Colors.white60)), const SizedBox(height: 12), OutlinedButton(onPressed: () => notice('Exchange requires a signed-in account and server-verified balance.'), child: const Text('Exchange diamonds'))])),
         ],
       ],
-    )))),
-    bottomNavigationBar: NavigationBar(selectedIndex: tab, backgroundColor: const Color(0xFF141527), onDestinationSelected: (value) => setState(() => tab = value), destinations: const [
+    ))))),
+    bottomNavigationBar: NavigationBar(selectedIndex: tab, backgroundColor: const Color(0xFF3C1A77), onDestinationSelected: (value) => setState(() => tab = value), destinations: const [
       NavigationDestination(icon: Icon(Icons.spatial_audio_off_rounded), label: 'Rooms'), NavigationDestination(icon: Icon(Icons.auto_awesome_rounded), label: 'Moments'), NavigationDestination(icon: Icon(Icons.chat_bubble_outline_rounded), label: 'Messages'), NavigationDestination(icon: Icon(Icons.person_outline_rounded), label: 'Me'),
     ]),
   );
@@ -120,48 +122,82 @@ class _HomeState extends State<Home> {
   }
 }
 
-class VoiceRoom extends StatefulWidget {
-  final String name;
-  const VoiceRoom({super.key, required this.name});
+
+class BrandLogo extends StatelessWidget {
+  final double size;
+  const BrandLogo({super.key, this.size = 56});
   @override
-  State<VoiceRoom> createState() => _VoiceRoomState();
+  Widget build(BuildContext context) => ClipRRect(borderRadius: BorderRadius.circular(size*.25), child: Image.asset('assets/sovera-logo.png', width: size, height: size, fit: BoxFit.contain));
+}
+class RoyalAvatar extends StatelessWidget {
+ final double size; final String label; final bool active;
+ const RoyalAvatar({super.key, this.size = 66, this.label = '', this.active = false});
+ @override
+ Widget build(BuildContext context) => SizedBox(width: size+24, height: size+28, child: Stack(alignment: Alignment.center, children: [
+ Positioned(left: 0, child: Transform.rotate(angle: -.4, child: Icon(Icons.eco_rounded, color: gold, size: size*.55))),
+ Positioned(right: 0, child: Transform.flip(flipX: true, child: Transform.rotate(angle: -.4, child: Icon(Icons.eco_rounded, color: gold, size: size*.55)))),
+ Container(width: size, height: size, decoration: BoxDecoration(shape: BoxShape.circle, gradient: const LinearGradient(colors: [gold, Color(0xFF8F542A), Color(0xFFFFE7BA)]), boxShadow: [BoxShadow(color: gold.withValues(alpha: .25), blurRadius: 14)]), padding: const EdgeInsets.all(3), child: CircleAvatar(backgroundColor: const Color(0xFF15131B), child: active ? const BrandLogo(size: 42) : Icon(Icons.chair_alt_rounded, color: gold, size: size*.4))),
+ Positioned(top: 0, child: Icon(Icons.workspace_premium_rounded, color: gold, size: size*.38)),
+ Positioned(bottom: 0, child: Icon(Icons.diamond_rounded, color: gold, size: size*.24)),
+ ]));
+}
+class Rankings extends StatefulWidget {
+ const Rankings({super.key});
+ @override
+ State<Rankings> createState() => _RankingsState();
+}
+class _RankingsState extends State<Rankings> {
+ String period='Weekly';
+ @override
+ Widget build(BuildContext context) => Scaffold(appBar: AppBar(title: const Text('Rankings'), backgroundColor: Colors.transparent), backgroundColor: const Color(0xFF101027), body: ListView(padding: const EdgeInsets.all(22), children: [
+ const Center(child: BrandLogo(size: 74)), const SizedBox(height: 22),
+ Wrap(alignment: WrapAlignment.center, spacing: 8, children: ['Daily','Weekly','Monthly'].map((p) => ChoiceChip(label: Text(p), selected: period==p, onSelected: (_) => setState(() => period=p))).toList()),
+ const SizedBox(height: 28), const Text('The Sovera Hall of Fame', textAlign: TextAlign.center, style: TextStyle(fontSize: 23, fontWeight: FontWeight.bold, color: gold)),
+ const SizedBox(height: 24), Row(mainAxisAlignment: MainAxisAlignment.spaceEvenly, crossAxisAlignment: CrossAxisAlignment.end, children: [for (final rank in [2,1,3]) Expanded(child: Column(children: [RoyalAvatar(size: rank==1?82:62), const SizedBox(height: 8), Text('TOP $rank', style: const TextStyle(color: gold, fontWeight: FontWeight.bold)), const SizedBox(height: 6), const Text('Unclaimed', style: TextStyle(color: Colors.white54, fontSize: 12)), SizedBox(height: rank==1?32:8)]))]),
+ const Divider(color: gold), const SizedBox(height: 20),
+ for(final name in ['Recharge honors','Gifts sent','Charm','Room gifts','Room tier']) Padding(padding: const EdgeInsets.only(bottom: 12), child: Glass(tint: gold, child: Row(children: [const Jewel(Icons.emoji_events_rounded, color: gold), const SizedBox(width: 16), Expanded(child: Text(name)), const Text('—', style: TextStyle(color: gold))]))),
+ Text('$period preview · Real rankings need server event totals.', textAlign: TextAlign.center, style: const TextStyle(color: Colors.white54)),
+ ]));
+}
+class VoiceRoom extends StatefulWidget {
+ final String name;
+ const VoiceRoom({super.key, required this.name});
+ @override
+ State<VoiceRoom> createState() => _VoiceRoomState();
 }
 class _VoiceRoomState extends State<VoiceRoom> {
-  int seats = 9;
-  int? mySeat;
-  final messages = <String>[];
-  final input = TextEditingController();
-  void notice(String text) => ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(text)));
-  @override
-  void dispose() { input.dispose(); super.dispose(); }
-  @override
-  Widget build(BuildContext context) => Scaffold(
-    appBar: AppBar(title: Text(widget.name), backgroundColor: ink, actions: [IconButton(tooltip: 'Seat settings', onPressed: settings, icon: const Icon(Icons.tune_rounded))]),
-    body: SafeArea(child: Center(child: ConstrainedBox(constraints: const BoxConstraints(maxWidth: 640), child: Column(children: [
-      Expanded(child: ListView(padding: const EdgeInsets.all(22), children: [
-        const Center(child: Chip(avatar: Icon(Icons.headphones_rounded, size: 18), label: Text('PREVIEW • AUDIO NOT CONNECTED'))), const SizedBox(height: 18),
-        const Glass(tint: cyan, child: Row(children: [Jewel(Icons.workspace_premium_rounded, color: Color(0xFFFFC477), size: 48), SizedBox(width: 14), Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [Text('A room for good energy', style: TextStyle(fontWeight: FontWeight.bold)), SizedBox(height: 4), Text('Tap an empty seat to try the layout.', style: TextStyle(color: Colors.white54, fontSize: 12))]))])),
-        const SizedBox(height: 28),
-        GridView.builder(shrinkWrap: true, physics: const NeverScrollableScrollPhysics(), itemCount: seats, gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(crossAxisCount: 3, mainAxisExtent: 118, mainAxisSpacing: 10, crossAxisSpacing: 10), itemBuilder: (context, index) => Semantics(button: true, label: 'Seat ${index+1}', child: InkWell(borderRadius: BorderRadius.circular(26), onTap: () => setState(() => mySeat = mySeat == index ? null : index), child: Glass(padding: const EdgeInsets.all(10), tint: mySeat == index ? cyan : violet, child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [Jewel(mySeat == index ? Icons.person_rounded : Icons.add_rounded, color: mySeat == index ? cyan : violet, size: 46), const SizedBox(height: 8), Text(mySeat == index ? 'You · preview' : 'Seat ${index+1}', style: const TextStyle(fontSize: 11, color: Colors.white60))]))))),
-        const SizedBox(height: 26), const Text('Room conversation', style: TextStyle(fontWeight: FontWeight.bold)), const SizedBox(height: 12),
-        const Text('Messages below are local to this preview session.', style: TextStyle(color: Colors.white38, fontSize: 12)), const SizedBox(height: 12),
-        for(final message in messages) Padding(padding: const EdgeInsets.only(bottom: 8), child: Glass(padding: const EdgeInsets.all(12), child: Text('You: $message'))),
-      ])),
-      Padding(padding: const EdgeInsets.fromLTRB(18, 8, 18, 18), child: Row(children: [
-        IconButton.filledTonal(tooltip: 'Microphone unavailable in preview', onPressed: () => notice('Voice is not connected. An RTC token server and Agora SDK integration are required.'), icon: const Icon(Icons.mic_off_rounded)), const SizedBox(width: 8),
-        Expanded(child: TextField(controller: input, maxLength: 300, decoration: const InputDecoration(hintText: 'Local preview message', counterText: '', border: InputBorder.none), onSubmitted: (_) => send())),
-        IconButton(tooltip: 'Send local message', onPressed: send, icon: const Icon(Icons.send_rounded, color: cyan)),
-        IconButton.filled(tooltip: 'Preview gifts', onPressed: gifts, icon: const Icon(Icons.card_giftcard_rounded)),
-      ])),
-    ])))),
-  );
-  void send() { if(input.text.trim().isEmpty) return; setState(() { messages.add(input.text.trim()); input.clear(); }); }
-  Future<void> settings() async {
-    int draft = seats;
-    final selected = await showModalBottomSheet<int>(context: context, showDragHandle: true, isScrollControlled: true, builder: (context) => StatefulBuilder(builder: (context, update) => SafeArea(child: Padding(padding: const EdgeInsets.all(24), child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [const Text('Room seats', style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold)), const SizedBox(height: 8), const Text('Changes apply after you save.'), const SizedBox(height: 20), Wrap(spacing: 10, children: [5,6,9,12].map((count) => ChoiceChip(label: Text('$count seats'), selected: draft == count, onSelected: (_) => update(() => draft = count))).toList()), const SizedBox(height: 22), SizedBox(width: double.infinity, child: FilledButton(onPressed: () => Navigator.pop(context, draft), child: const Text('Save seat layout')))])))));
-    if(!mounted || selected == null) return;
-    setState(() { seats = selected; if(mySeat != null && mySeat! >= seats) mySeat = null; });
-    notice('Seat layout saved for this preview session.');
-  }
-  void gifts() => showModalBottomSheet<void>(context: context, showDragHandle: true, isScrollControlled: true, builder: (context) => SafeArea(child: Padding(padding: const EdgeInsets.all(24), child: Column(mainAxisSize: MainAxisSize.min, children: [const Text('The gift collection', style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold)), const SizedBox(height: 10), const Text('Visual preview · no wallet transaction', style: TextStyle(color: Colors.white54)), const SizedBox(height: 24), Row(mainAxisAlignment: MainAxisAlignment.spaceAround, children: [for(final item in [(Icons.favorite_rounded, 'Heart', const Color(0xFFFF8CAF)), (Icons.diamond_rounded, 'Diamond', cyan), (Icons.castle_rounded, 'Castle', violet)]) Column(children: [Jewel(item.$1, color: item.$3, size: 70), const SizedBox(height: 10), Text(item.$2)])]), const SizedBox(height: 24)]))));
+ int seats=9; int? mySeat; int giftTab=0; String? selectedGift;
+ final messages=<String>[]; final input=TextEditingController();
+ void notice(String text) => ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(text)));
+ @override
+ void dispose(){input.dispose();super.dispose();}
+ @override
+ Widget build(BuildContext context) => Scaffold(backgroundColor: const Color(0xFF0C0D0F),
+ appBar: AppBar(backgroundColor: const Color(0xFF0C0D0F), titleSpacing: 0, title: Row(children: [const BrandLogo(size: 38), const SizedBox(width: 10), Expanded(child: Text(widget.name, style: const TextStyle(fontSize: 16)))]), actions: [IconButton(tooltip:'Seat settings',onPressed:settings,icon:const Icon(Icons.settings_outlined,color:gold)),IconButton(tooltip:'Invite',onPressed:()=>notice('Live room invitations require the server connection.'),icon:const Icon(Icons.ios_share_rounded,color:gold))]),
+ body: SafeArea(child: Center(child: ConstrainedBox(constraints: const BoxConstraints(maxWidth:640),child: Column(children:[
+ Expanded(child: ListView(padding:const EdgeInsets.symmetric(horizontal:18,vertical:12),children:[
+ Row(children:[ActionChip(avatar:const Icon(Icons.emoji_events_rounded,color:gold,size:18),label:const Text('Room honors'),onPressed:()=>Navigator.push(context,MaterialPageRoute<void>(builder:(_)=>const Rankings()))),const Spacer(),const Text('OFFLINE PREVIEW',style:TextStyle(color:Colors.white38,fontSize:10))]),
+ const Center(child:RoyalAvatar(size:94,active:true)),const Center(child:Text('Sovera Host',style:TextStyle(color:gold,fontWeight:FontWeight.bold))),const SizedBox(height:18),
+ GridView.builder(shrinkWrap:true,physics:const NeverScrollableScrollPhysics(),itemCount:seats,gridDelegate:const SliverGridDelegateWithFixedCrossAxisCount(crossAxisCount:3,mainAxisExtent:110),itemBuilder:(context,index)=>InkWell(onTap:()=>setState(()=>mySeat=mySeat==index?null:index),onLongPress:()=>profile(index),borderRadius:BorderRadius.circular(24),child:Column(children:[RoyalAvatar(size:52,active:mySeat==index),Text(mySeat==index?'You':'${index+1}',style:const TextStyle(color:Colors.white60,fontSize:11))]))),
+ const SizedBox(height:16),const Wrap(spacing:14,children:[Chip(label:Text('All')),Chip(label:Text('Chat')),Chip(label:Text('Gift')),Chip(label:Text('Notice'))]),
+ const SizedBox(height:12),const Text('Welcome to Sovera. Take a seat and explore the room design.',style:TextStyle(color:Colors.white54,fontSize:12)),const SizedBox(height:12),
+ for(final m in messages)Padding(padding:const EdgeInsets.only(bottom:8),child:Glass(tint:gold,padding:const EdgeInsets.all(12),child:Text('You: $m'))),
+ ])),
+ Padding(padding:const EdgeInsets.fromLTRB(10,6,10,14),child:Row(children:[IconButton(tooltip:'Microphone unavailable in preview',onPressed:()=>notice('RTC voice is not connected yet.'),icon:const Icon(Icons.mic_off_rounded,color:gold)),Expanded(child:TextField(controller:input,maxLength:300,decoration:const InputDecoration(hintText:'Say something…',counterText:'',border:InputBorder.none),onSubmitted:(_)=>send())),IconButton(tooltip:'Send local message',onPressed:send,icon:const Icon(Icons.send_rounded,color:gold)),IconButton.filled(tooltip:'Preview gifts',onPressed:gifts,style:IconButton.styleFrom(backgroundColor:const Color(0xFFB6642B)),icon:const Icon(Icons.card_giftcard_rounded)),IconButton(tooltip:'Games',onPressed:()=>notice('Games are not connected in this design preview.'),icon:const Icon(Icons.grid_view_rounded,color:gold))])),
+ ])))),
+ );
+ void send(){if(input.text.trim().isEmpty)return;setState((){messages.add(input.text.trim());input.clear();});}
+ Future<void> settings()async{
+ int draft=seats;
+ final value=await showModalBottomSheet<int>(context:context,isScrollControlled:true,showDragHandle:true,builder:(context)=>StatefulBuilder(builder:(context,update)=>SafeArea(child:Padding(padding:const EdgeInsets.all(24),child:Column(mainAxisSize:MainAxisSize.min,crossAxisAlignment:CrossAxisAlignment.start,children:[const Text('Room seats',style:TextStyle(fontSize:24,fontWeight:FontWeight.bold)),const SizedBox(height:20),Wrap(spacing:8,children:[5,6,9,12].map((n)=>ChoiceChip(label:Text('$n seats'),selected:draft==n,onSelected:(_)=>update(()=>draft=n))).toList()),const SizedBox(height:20),FilledButton(onPressed:()=>Navigator.pop(context,draft),child:const Text('Save seat layout'))])))));
+ if(!mounted||value==null)return;setState((){seats=value;if(mySeat!=null&&mySeat!>=seats)mySeat=null;});notice('Seat layout saved for this preview session.');
+ }
+ void profile(int index)=>showModalBottomSheet<void>(context:context,isScrollControlled:true,showDragHandle:true,backgroundColor:const Color(0xFF1B191C),builder:(context)=>SafeArea(child:Padding(padding:const EdgeInsets.all(24),child:Column(mainAxisSize:MainAxisSize.min,children:[RoyalAvatar(size:96,active:mySeat==index),Text(mySeat==index?'You':'Empty seat ${index+1}',style:const TextStyle(fontSize:24,fontWeight:FontWeight.bold)),const SizedBox(height:12),const Text('Preview profile · no live user account',style:TextStyle(color:Colors.white54)),const SizedBox(height:22),const Wrap(spacing:10,children:[Chip(label:Text('Wealth —')),Chip(label:Text('Charm —')),Chip(label:Text('VIP —'))]),const SizedBox(height:20),FilledButton(onPressed:(){Navigator.pop(context);gifts();},child:const Text('Open gift collection'))]))));
+ void gifts()=>showModalBottomSheet<void>(context:context,isScrollControlled:true,showDragHandle:true,backgroundColor:const Color(0xFF111113),builder:(context)=>StatefulBuilder(builder:(context,update)=>SafeArea(child:SizedBox(height:MediaQuery.sizeOf(context).height*.72,child:Padding(padding:const EdgeInsets.all(18),child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
+ Container(padding:const EdgeInsets.all(14),decoration:BoxDecoration(gradient:const LinearGradient(colors:[Color(0xFFFFA323),Color(0xFFED541F)]),borderRadius:BorderRadius.circular(18)),child:const Row(children:[Icon(Icons.card_giftcard_rounded),SizedBox(width:10),Text('Sovera Gift Collection',style:TextStyle(fontWeight:FontWeight.bold)),Spacer(),BrandLogo(size:32)])),
+ const SizedBox(height:14),const Text('Preview only · no coins will be spent',style:TextStyle(color:Colors.white54,fontSize:12)),const SizedBox(height:14),
+ Wrap(spacing:8,children:[for(final i in [0,1,2,3])ChoiceChip(label:Text(['Gift','Hot','Event','Exclusive'][i]),selected:giftTab==i,onSelected:(_)=>update(()=>giftTab=i))]),
+ const SizedBox(height:16),Expanded(child:GridView.count(crossAxisCount:3,mainAxisSpacing:10,crossAxisSpacing:10,childAspectRatio:.85,children:[for(final item in [(Icons.favorite_rounded,'Heart',pink),(Icons.diamond_rounded,'Diamond',cyan),(Icons.castle_rounded,'Castle',gold),(Icons.local_florist_rounded,'Rose',pink),(Icons.directions_car_rounded,'Royal car',gold),(Icons.auto_awesome_rounded,'Starlight',violet)])InkWell(onTap:()=>update(()=>selectedGift=item.$2),child:Container(decoration:BoxDecoration(color:selectedGift==item.$2?gold.withValues(alpha:.18):Colors.white.withValues(alpha:.03),border:Border.all(color:selectedGift==item.$2?gold:Colors.white12),borderRadius:BorderRadius.circular(16)),child:Column(mainAxisAlignment:MainAxisAlignment.center,children:[Jewel(item.$1,color:item.$3,size:48),const SizedBox(height:10),Text(item.$2,style:const TextStyle(fontSize:11)),const Text('Preview',style:TextStyle(fontSize:10,color:gold))])))])),
+ const SizedBox(height:12),Row(children:[const Icon(Icons.toll_rounded,color:gold),const Text(' 0 Coins'),const Spacer(),FilledButton(onPressed:selectedGift==null?null:()=>notice('Selected $selectedGift. Sending requires a server-verified wallet and recipient.'),style:FilledButton.styleFrom(backgroundColor:const Color(0xFFF07D2A)),child:const Text('Send'))]),
+ ]))))));
 }
