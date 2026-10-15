@@ -38,7 +38,7 @@ jobs:
         with:
           channel: stable
           cache: true
-      - run: flutter create --platforms=ios --org com.sovera --project-name sovera .
+      - run: flutter create --platforms=android,ios --org com.sovera --project-name sovera .
       - run: flutter pub get
       - run: dart run flutter_launcher_icons
       - run: flutter build ios --simulator --debug
