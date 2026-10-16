@@ -76,6 +76,7 @@ class Home extends StatefulWidget {
 class _HomeState extends State<Home> {
  int tab=0, banner=0; String filter='Popular',query='',displayName='Preview guest',bio='';
  final search=TextEditingController();
+ final pageScroll=ScrollController();
  final cloudRooms=GlobalKey<CloudRoomsState>();
  final rooms=<String,String>{'Moonlight Lounge':'Music','Ocean Avenue':'Adda','Golden Hour':'Friends','Sovera Studio':'Music'};
  final followed=<String>{};
@@ -86,7 +87,8 @@ class _HomeState extends State<Home> {
  ('Something worth celebrating','Events, rewards and community moments.',Icons.celebration_rounded,pink),
  ];
  @override void initState(){super.initState();if(widget.profile!=null)filter='All';displayName=widget.profile?['display_name'] as String? ?? 'Preview guest';bio=widget.profile?['bio'] as String? ?? '';}
- @override void dispose(){search.dispose();super.dispose();}
+ @override void dispose(){search.dispose();pageScroll.dispose();super.dispose();}
+ void selectTab(int value){if(pageScroll.hasClients)pageScroll.jumpTo(0);setState(()=>tab=value);}
  void go(Widget screen)=>Navigator.push(context,MaterialPageRoute<void>(builder:(_)=>screen));
  void notice(String message)=>ScaffoldMessenger.of(context).showSnackBar(SnackBar(content:Text(message)));
  Widget title(String text)=>Padding(padding:const EdgeInsets.symmetric(vertical:16),child:Text(text,style:const TextStyle(fontSize:24,fontWeight:FontWeight.w800)));
@@ -95,7 +97,7 @@ class _HomeState extends State<Home> {
  final value=await showDialog<String>(context:context,builder:(context)=>AlertDialog(title:Text(name),content:TextField(controller:c,maxLength:maxLength,autofocus:true),actions:[TextButton(onPressed:()=>Navigator.pop(context),child:const Text('Cancel')),FilledButton(onPressed:(){if(c.text.trim().isNotEmpty)Navigator.pop(context,c.text.trim());},child:const Text('Save'))]));
  await Future<void>.delayed(const Duration(milliseconds:300));c.dispose();return value;
  }
- Future<void> createRoom()async{if(widget.profile!=null){if(tab!=0){setState(()=>tab=0);await WidgetsBinding.instance.endOfFrame;}await cloudRooms.currentState?.myRoom();return;}final name=await ask('Name your preview room',maxLength:40);if(!mounted||name==null)return;setState(()=>rooms[name]='Your room');go(VoiceRoom(name:name));}
+ Future<void> createRoom()async{if(widget.profile!=null){if(tab!=0){selectTab(0);await WidgetsBinding.instance.endOfFrame;}await cloudRooms.currentState?.myRoom();return;}final name=await ask('Name your preview room',maxLength:40);if(!mounted||name==null)return;setState(()=>rooms[name]='Your room');go(VoiceRoom(name:name));}
  Widget quick(IconData icon,String label,VoidCallback onTap,Color color)=>Expanded(child:InkWell(onTap:onTap,borderRadius:BorderRadius.circular(20),child:Padding(padding:const EdgeInsets.all(6),child:Column(children:[Jewel(icon,color:color,size:46),const SizedBox(height:9),Text(label,style:const TextStyle(fontSize:11,fontWeight:FontWeight.w600))]))));
  Future<void> editProfile() async {
  final name=await ask('Display name',initial:displayName,maxLength:40);
@@ -124,7 +126,7 @@ class _HomeState extends State<Home> {
  });
  }
  @override Widget build(BuildContext context)=>Scaffold(
- body:Container(decoration:const BoxDecoration(gradient:LinearGradient(begin:Alignment.topLeft,end:Alignment.bottomRight,colors:[Color(0xFF882580),Color(0xFF43249A),Color(0xFF25116B)])),child:SafeArea(child:Center(child:ConstrainedBox(constraints:const BoxConstraints(maxWidth:640),child:ListView(padding:const EdgeInsets.all(18),children:[
+ body:Container(decoration:const BoxDecoration(gradient:LinearGradient(begin:Alignment.topLeft,end:Alignment.bottomRight,colors:[Color(0xFF882580),Color(0xFF43249A),Color(0xFF25116B)])),child:SafeArea(child:Center(child:ConstrainedBox(constraints:const BoxConstraints(maxWidth:640),child:ListView(controller:pageScroll,padding:const EdgeInsets.all(18),children:[
  Row(children:[const BrandLogo(size:48),const SizedBox(width:10),const Expanded(child:Text('Sovera',maxLines:1,overflow:TextOverflow.ellipsis,style:TextStyle(fontSize:27,fontWeight:FontWeight.w800))),IconButton(tooltip:'Notifications',onPressed:()=>go(const Notices()),icon:const Icon(Icons.notifications_none_rounded)),IconButton(tooltip:'Settings',onPressed:()=>go(const AppSettings()),icon:const Icon(Icons.settings_outlined))]),
  Padding(padding:const EdgeInsets.symmetric(vertical:8),child:Text(widget.profile==null?'DESIGN PREVIEW · NOT SIGNED IN':'SIGNED IN · ROOMS SAVED · VOICE COMING SOON',style:const TextStyle(fontSize:9,letterSpacing:1.8,color:Colors.white54))),
  if(tab==0)...[
@@ -140,7 +142,7 @@ class _HomeState extends State<Home> {
  InkWell(onTap:()=>go(ResellerCenter(profile:widget.profile)),borderRadius:BorderRadius.circular(26),child:Glass(tint:gold,child:Row(children:[const Jewel(Icons.storefront_rounded,color:gold,size:48),const SizedBox(width:14),const Expanded(child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[Text('Reseller center',style:TextStyle(fontSize:18,fontWeight:FontWeight.bold)),SizedBox(height:5),Text('Access, coin quota and applications',style:TextStyle(fontSize:11,color:Colors.white60))])),const Icon(Icons.chevron_right_rounded,color:gold)]))),
  const SizedBox(height:16),for(final item in [(Icons.account_balance_wallet_rounded,'Wallet'),(Icons.workspace_premium_rounded,'VIP & frames'),(Icons.photo_library_outlined,'Gallery'),(Icons.add_home_rounded,'My room'),(Icons.settings_outlined,'Settings')])ListTile(leading:Icon(item.$1,color:gold),title:Text(item.$2),trailing:const Icon(Icons.chevron_right_rounded),onTap:(){switch(item.$2){case 'Wallet':go(const WalletPage());break;case 'Settings':go(const AppSettings());break;case 'My room':createRoom();break;default:go(FeaturePage(title:item.$2,icon:item.$1,description:item.$2=='Gallery'?'Your uploaded photos will appear here. Account storage is not connected.':'VIP frames, entry effects and profile badges will be managed through the store. Purchases are not enabled.'));}}),Text(widget.profile==null?'Profile edits are local and reset when the app restarts.':'Profile edits are saved to your Supabase account.',style:const TextStyle(fontSize:11,color:Colors.white54)),if(widget.profile!=null) TextButton.icon(onPressed:() async { try { await soveraClient.auth.signOut(scope:SignOutScope.local); } catch(_) {notice('Could not sign out. Please retry.');} },icon:const Icon(Icons.logout_rounded),label:const Text('Sign out'))],
  ]))))),
- bottomNavigationBar:NavigationBar(backgroundColor:const Color(0xFF3C1A77),selectedIndex:tab,onDestinationSelected:(value)=>setState(()=>tab=value),destinations:const[NavigationDestination(icon:Icon(Icons.home_rounded),label:'Home'),NavigationDestination(icon:Icon(Icons.auto_awesome_rounded),label:'Moments'),NavigationDestination(icon:Icon(Icons.chat_bubble_outline_rounded),label:'Messages'),NavigationDestination(icon:Icon(Icons.person_outline_rounded),label:'Me')]),
+ bottomNavigationBar:NavigationBar(backgroundColor:const Color(0xFF3C1A77),selectedIndex:tab,onDestinationSelected:selectTab,destinations:const[NavigationDestination(icon:Icon(Icons.home_rounded),label:'Home'),NavigationDestination(icon:Icon(Icons.auto_awesome_rounded),label:'Moments'),NavigationDestination(icon:Icon(Icons.chat_bubble_outline_rounded),label:'Messages'),NavigationDestination(icon:Icon(Icons.person_outline_rounded),label:'Me')]),
  );
 }
 class FeaturePage extends StatelessWidget{
