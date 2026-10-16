@@ -59,6 +59,7 @@ void main(){
    image.dispose();
   });
   await tester.tap(find.text('Me'));await tester.pumpAndSettle();
+  expect(tester.getTopLeft(find.text('Sovera')).dy,greaterThanOrEqualTo(0));
   await tester.runAsync(()async{
    final image=await (key.currentContext!.findRenderObject()! as RenderRepaintBoundary).toImage(pixelRatio:2);
    final bytes=await image.toByteData(format:ui.ImageByteFormat.png);
