@@ -93,7 +93,7 @@ class _HomeState extends State<Home> {
  final value=await showDialog<String>(context:context,builder:(context)=>AlertDialog(title:Text(name),content:TextField(controller:c,maxLength:maxLength,autofocus:true),actions:[TextButton(onPressed:()=>Navigator.pop(context),child:const Text('Cancel')),FilledButton(onPressed:(){if(c.text.trim().isNotEmpty)Navigator.pop(context,c.text.trim());},child:const Text('Save'))]));
  await Future<void>.delayed(const Duration(milliseconds:300));c.dispose();return value;
  }
- Future<void> createRoom()async{if(widget.profile!=null){if(tab!=0){setState(()=>tab=0);await Future<void>.delayed(Duration.zero);}await cloudRooms.currentState?.myRoom();return;}final name=await ask('Name your preview room',maxLength:40);if(!mounted||name==null)return;setState(()=>rooms[name]='Your room');go(VoiceRoom(name:name));}
+ Future<void> createRoom()async{if(widget.profile!=null){if(tab!=0){setState(()=>tab=0);await WidgetsBinding.instance.endOfFrame;}await cloudRooms.currentState?.myRoom();return;}final name=await ask('Name your preview room',maxLength:40);if(!mounted||name==null)return;setState(()=>rooms[name]='Your room');go(VoiceRoom(name:name));}
  Widget quick(IconData icon,String label,VoidCallback onTap,Color color)=>Expanded(child:InkWell(onTap:onTap,borderRadius:BorderRadius.circular(20),child:Padding(padding:const EdgeInsets.all(6),child:Column(children:[Jewel(icon,color:color,size:46),const SizedBox(height:9),Text(label,style:const TextStyle(fontSize:11,fontWeight:FontWeight.w600))]))));
  Future<void> editProfile() async {
  final name=await ask('Display name',initial:displayName,maxLength:40);

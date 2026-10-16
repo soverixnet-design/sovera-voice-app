@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'main.dart';
-import 'supabase_config.dart';
+import 'auth_gate.dart';
 
 /// Authenticated directory. Demo rooms stay separate from persisted rooms.
 class CloudRooms extends StatefulWidget {
