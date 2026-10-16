@@ -26,7 +26,7 @@ void main() {
   await tester.tap(find.text('Preview entry'));await tester.pump(const Duration(milliseconds:600));
   expect(find.text('Sovera arrival preview'),findsOneWidget);
   await tester.tap(find.byTooltip('Close entry preview'));await tester.pumpAndSettle();
-  await tester.ensureVisible(find.text('Speaking glow'));await tester.pumpAndSettle();
+  await tester.scrollUntilVisible(find.text('Speaking glow'),-200,scrollable:find.byType(Scrollable).first);await tester.pumpAndSettle();
   await tester.tap(find.text('Speaking glow'));await tester.pumpAndSettle();
   await tester.ensureVisible(find.text('Preview speaking glow'));await tester.pumpAndSettle();
   await tester.tap(find.text('Preview speaking glow'));await tester.pumpAndSettle();
