@@ -4,7 +4,7 @@ Reviewed entry/auth, home, room cards and search, Moments, Messages/support, pro
 
 ## Corrected
 
-- Empty bios can be saved; cancelling either edit dialog still cancels the edit.
+- Text-entry dialogs own and dispose their controllers with the dialog lifecycle, preventing use-after-dispose while transitioning between profile fields. Empty bios can be saved; cancelling either edit dialog still cancels the edit.
 - A token refresh keeps Home mounted instead of discarding in-progress local state.
 - Guest room filters use All / Following / New; New reverses creation order. Search ignores surrounding whitespace and has a clear button.
 - Returning to Home resets the banner indicator together with the banner page.

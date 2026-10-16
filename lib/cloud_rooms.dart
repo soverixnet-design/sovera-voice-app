@@ -34,10 +34,7 @@ class CloudRoomsState extends State<CloudRooms>{
    final existing=await soveraClient.from('sovera_rooms').select().eq('owner_id',user.id).maybeSingle();
    if(!mounted)return;
    if(existing!=null){await open(existing);return;}
-   final controller=TextEditingController();
-   final name=await showDialog<String>(context:context,builder:(context)=>AlertDialog(title:const Text('Create your room'),content:TextField(controller:controller,maxLength:40,decoration:const InputDecoration(labelText:'Room name')),actions:[TextButton(onPressed:()=>Navigator.pop(context),child:const Text('Cancel')),FilledButton(onPressed:(){final name=controller.text.trim();if(name.isNotEmpty)Navigator.pop(context,name);},child:const Text('Create'))]));
-   await Future<void>.delayed(const Duration(milliseconds:300));
-   controller.dispose();
+   final name=await showDialog<String>(context:context,builder:(_)=>const TextEntryDialog(title:'Create your room',maxLength:40,saveLabel:'Create'));
    if(!mounted||name==null)return;
    final room=await soveraClient.from('sovera_rooms').insert({'owner_id':user.id,'name':name}).select().single();
    if(mounted){await refresh();if(mounted)await open(room);}
