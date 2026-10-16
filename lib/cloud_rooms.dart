@@ -13,15 +13,16 @@ class CloudRoomsState extends State<CloudRooms>{
  List<Map<String,dynamic>> rows=[];
  Set<String> follows={};
  bool loading=true,writing=false;
- String? error;
+ String? error;int revision=0;
  @override void initState(){super.initState();refresh();}
  Future<void> refresh()async{
+  final ticket=++revision;
   setState((){loading=true;error=null;});
   try{
    final data=await soveraClient.from('sovera_rooms').select().order('created_at',ascending:false).limit(100);
    final saved=await soveraClient.from('sovera_room_follows').select('room_id');
-   if(mounted)setState((){rows=data;follows=saved.map((r)=>r['room_id'] as String).toSet();loading=false;});
-  }catch(_){if(mounted)setState((){error='Could not load rooms. Please retry.';loading=false;});}
+   if(mounted&&ticket==revision)setState((){rows=data;follows=saved.map((r)=>r['room_id'] as String).toSet();loading=false;});
+  }catch(_){if(mounted&&ticket==revision)setState((){error='Could not load rooms. Please retry.';loading=false;});}
  }
  void notice(String text){if(mounted)ScaffoldMessenger.of(context).showSnackBar(SnackBar(content:Text(text)));}
  Future<void> myRoom()async{
@@ -65,10 +66,10 @@ class CloudRoomsState extends State<CloudRooms>{
   finally{if(mounted)setState(()=>writing=false);}
  }
  @override Widget build(BuildContext context){
-  final visible=rows.where((r)=>(r['name'] as String).toLowerCase().contains(widget.query.toLowerCase())&&(widget.filter!='Following'||follows.contains(r['id']))).toList();
+  final visible=rows.where((r)=>(r['name'] as String).toLowerCase().contains(widget.query.trim().toLowerCase())&&(widget.filter!='Following'||follows.contains(r['id']))).toList();
   if(widget.filter=='All')visible.sort((a,b)=>(a['name'] as String).compareTo(b['name'] as String));
   return Column(children:[
-   Row(children:[const Expanded(child:Text('Community rooms',style:TextStyle(fontWeight:FontWeight.bold))),IconButton(tooltip:'Refresh rooms',onPressed:loading?null:refresh,icon:const Icon(Icons.refresh_rounded)),FilledButton.icon(onPressed:writing?null:myRoom,icon:const Icon(Icons.add),label:const Text('My room'))]),
+   Wrap(spacing:8,runSpacing:8,crossAxisAlignment:WrapCrossAlignment.center,children:[const Text('Community rooms',style:TextStyle(fontWeight:FontWeight.bold)),IconButton(tooltip:'Refresh rooms',onPressed:loading?null:refresh,icon:const Icon(Icons.refresh_rounded)),FilledButton.icon(onPressed:writing?null:myRoom,icon:const Icon(Icons.add),label:const Text('My room'))]),
    const SizedBox(height:12),
    if(loading)const Padding(padding:EdgeInsets.all(24),child:CircularProgressIndicator())
    else if(error!=null)TextButton(onPressed:refresh,child:Text(error!))

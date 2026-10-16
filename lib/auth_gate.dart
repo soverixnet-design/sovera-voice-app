@@ -56,6 +56,8 @@ class _AuthGateState extends State<AuthGate> {
       if(state.event==AuthChangeEvent.signedOut&&mounted){
         Navigator.of(context).popUntil((route)=>route.isFirst);
       }
+      // Token refresh must not unmount Home and discard unsaved edits.
+      if(state.event==AuthChangeEvent.tokenRefreshed&&profile!=null&&state.session?.user.id==profile!['id'])return;
       // Keep database work outside the synchronous auth callback.
       unawaited(Future<void>.delayed(Duration.zero,refresh));
     },onError:(Object e){if(mounted)setState((){error='Your session could not be restored. Please retry.';loading=false;});});
@@ -76,7 +78,7 @@ class _AuthGateState extends State<AuthGate> {
   @override void dispose(){revision++;subscription?.cancel();super.dispose();}
   @override Widget build(BuildContext context){
     if(loading)return const Scaffold(body:Center(child:CircularProgressIndicator()));
-    if(error!=null)return Scaffold(body:SafeArea(child:Center(child:Padding(padding:const EdgeInsets.all(28),child:Column(mainAxisSize:MainAxisSize.min,children:[const BrandLogo(size:100),const SizedBox(height:24),Text(error!,textAlign:TextAlign.center),const SizedBox(height:18),FilledButton(onPressed:refresh,child:const Text('Retry')),TextButton(onPressed:()=>soveraClient.auth.signOut(scope:SignOutScope.local),child:const Text('Back to sign-in'))])))));
+    if(error!=null)return Scaffold(body:SafeArea(child:Center(child:Padding(padding:const EdgeInsets.all(28),child:Column(mainAxisSize:MainAxisSize.min,children:[const BrandLogo(size:100),const SizedBox(height:24),Text(error!,textAlign:TextAlign.center),const SizedBox(height:18),FilledButton(onPressed:refresh,child:const Text('Retry')),TextButton(onPressed:()async{try{await soveraClient.auth.signOut(scope:SignOutScope.local);}catch(_){if(mounted)setState(()=>error='Could not sign out. Please retry.');}},child:const Text('Back to sign-in'))])))));
     if(profile!=null)return Home(key:ValueKey(profile!['id']),profile:profile);
     return const GoogleLoginPage();
   }
