@@ -383,6 +383,13 @@ class _EffectsStudioState extends State<EffectsStudio>
     }
   }
 
+  Widget themeTile(int i,BuildContext sheet){
+    final pack=effectPacks[i];
+    return Card(child:InkWell(onTap:(){setState(()=>selected=i);Navigator.pop(sheet);},child:Padding(padding:const EdgeInsets.all(10),child:Column(children:[Expanded(child:Image.asset(pack.stillAsset??pack.asset)),const SizedBox(height:8),Text(pack.name,textAlign:TextAlign.center,style:const TextStyle(fontWeight:FontWeight.bold))]))));
+  }
+  Future<void> browseThemes()=>showModalBottomSheet<void>(context:context,isScrollControlled:true,showDragHandle:true,builder:(sheet){
+    return SafeArea(child:SizedBox(height:MediaQuery.sizeOf(sheet).height*.75,child:GridView.builder(padding:const EdgeInsets.all(16),itemCount:effectPacks.length,gridDelegate:const SliverGridDelegateWithMaxCrossAxisExtent(maxCrossAxisExtent:190,mainAxisExtent:178,crossAxisSpacing:10,mainAxisSpacing:10),itemBuilder:(_,i)=>themeTile(i,sheet))));
+  });
   @override
   Widget build(BuildContext context) {
     final pack = effectPacks[selected];
@@ -408,7 +415,7 @@ class _EffectsStudioState extends State<EffectsStudio>
             style: TextStyle(color: Colors.white60),
           ),
           const SizedBox(height: 20),
-          OutlinedButton.icon(onPressed:()=>showModalBottomSheet<void>(context:context,isScrollControlled:true,showDragHandle:true,builder:(sheet)=>SafeArea(child:SizedBox(height:MediaQuery.sizeOf(sheet).height*.75,child:GridView.builder(padding:const EdgeInsets.all(16),itemCount:effectPacks.length,gridDelegate:const SliverGridDelegateWithMaxCrossAxisExtent(maxCrossAxisExtent:190,mainAxisExtent:178,crossAxisSpacing:10,mainAxisSpacing:10),itemBuilder:(_,i)=>InkWell(onTap:(){setState(()=>selected=i);Navigator.pop(sheet);},child:Card(child:Padding(padding:const EdgeInsets.all(10),child:Column(children:[Expanded(child:Image.asset(effectPacks[i].stillAsset??effectPacks[i].asset)),const SizedBox(height:8),Text(effectPacks[i].name,textAlign:TextAlign.center,style:const TextStyle(fontWeight:FontWeight.bold))]))))))),icon:const Icon(Icons.grid_view_rounded),label:Text('Browse all ${effectPacks.length} themes')),
+          OutlinedButton.icon(onPressed:browseThemes,icon:const Icon(Icons.grid_view_rounded),label:Text('Browse all ${effectPacks.length} themes')),
           const SizedBox(height:12),
           SingleChildScrollView(
             scrollDirection: Axis.horizontal,
