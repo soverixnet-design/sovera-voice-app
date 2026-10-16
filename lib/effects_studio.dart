@@ -9,7 +9,8 @@ import 'medal_collection.dart';
 class EffectPack {
   final String name, asset;
   final Color color;
-  final String? entryAsset, voiceAsset, medalAsset, tagAsset;
+  final String? entryAsset, voiceAsset, medalAsset, tagAsset, stillAsset, entryStillAsset;
+ final double portraitDiameter,portraitY;
   const EffectPack(
     this.name,
     this.asset,
@@ -17,7 +18,7 @@ class EffectPack {
     this.entryAsset,
     this.voiceAsset,
     this.medalAsset,
-    this.tagAsset,
+    this.tagAsset,this.stillAsset,this.entryStillAsset,this.portraitDiameter=.43,this.portraitY=.53,
   });
 }
 
@@ -34,6 +35,12 @@ const effectPacks = [
     medalAsset: 'assets/effects/top-host-medal.webp',
     tagAsset: 'assets/effects/legend-tag.webp',
   ),
+ EffectPack('Royal Gold','assets/effects/royal-gold.webp',gold,stillAsset:'assets/effects/royal-gold-still.png',portraitDiameter:.61,portraitY:.52),
+ EffectPack('Violet Love','assets/effects/violet-love.webp',pink,stillAsset:'assets/effects/violet-love-still.png',portraitDiameter:.59),
+ EffectPack('Ice Admin','assets/effects/ice-admin.webp',cyan,stillAsset:'assets/effects/ice-admin-still.png',portraitDiameter:.59),
+ EffectPack('Golden Dragon','assets/effects/dragon-gold.webp',gold,stillAsset:'assets/effects/dragon-gold-still.png',entryAsset:'assets/effects/dragon-queen-entry.webp',entryStillAsset:'assets/effects/dragon-queen-entry.webp',portraitDiameter:.59,portraitY:.51),
+ EffectPack('Ice Dragon','assets/effects/ice-dragon.webp',cyan,stillAsset:'assets/effects/ice-dragon-still.webp',entryAsset:'assets/effects/ice-king-entry.webp',entryStillAsset:'assets/effects/ice-king-still.webp',portraitDiameter:.58,portraitY:.52),
+ EffectPack('Violet Phoenix','assets/effects/violet-phoenix.webp',violet,stillAsset:'assets/effects/violet-phoenix-still.webp',portraitDiameter:.59),
 ];
 
 /// Local visual preference only. It does not grant account inventory.
@@ -46,6 +53,7 @@ void resetCosmeticPreviews() {
   previewEntryEffect.value = null;
   previewMedal.value = null;
   previewNameTag.value = null;
+  previewRankingMedals.value = {};
 }
 
 class EffectPortrait extends StatelessWidget {
@@ -69,10 +77,10 @@ class EffectPortrait extends StatelessWidget {
           clipBehavior: Clip.none,
           children: [
             Positioned(
-              left: size * .285,
-              top: size * .315,
-              width: size * .43,
-              height: size * .43,
+              left: size * (.5-pack.portraitDiameter/2),
+              top: size * (pack.portraitY-pack.portraitDiameter/2),
+              width: size * pack.portraitDiameter,
+              height: size * pack.portraitDiameter,
               child: ClipOval(
                 child: ColoredBox(
                   color: const Color(0xFF131522),
@@ -82,7 +90,7 @@ class EffectPortrait extends StatelessWidget {
             ),
             Positioned.fill(
               child: CosmeticArt(
-                asset: speaking ? (pack.voiceAsset ?? pack.asset) : pack.asset,
+                asset: MediaQuery.disableAnimationsOf(context)?(pack.stillAsset??pack.asset):speaking ? (pack.voiceAsset ?? pack.asset) : pack.asset,
                 phase: phase,
                 label: speaking ? 'Speaking effect' : pack.name,
               ),
@@ -159,51 +167,12 @@ class _SpeakingPainter extends CustomPainter {
 
 /// Cosmetic art is explicitly separate from server-verified VIP/rank badges.
 class ProfileStylePreview extends StatelessWidget {
-  const ProfileStylePreview({super.key});
-  @override
-  Widget build(BuildContext context) => ValueListenableBuilder<EffectPack?>(
-        valueListenable: previewMedal,
-        builder: (context, medal, _) => ValueListenableBuilder<EffectPack?>(
-          valueListenable: previewNameTag,
-          builder: (context, tag, _) {
-            if (medal?.medalAsset == null && tag?.tagAsset == null)
-              return const SizedBox.shrink();
-            return Column(
-              children: [
-                const SizedBox(height: 12),
-                const Text(
-                  'Style preview',
-                  style: TextStyle(fontSize: 11, color: Colors.white54),
-                ),
-                if (tag?.tagAsset != null)
-                  SizedBox(
-                    height: 76,
-                    width: 270,
-                    child: CosmeticLoop(
-                      builder: (phase) => CosmeticArt(
-                        asset: tag!.tagAsset!,
-                        phase: phase,
-                        label: 'Sovera Legend cosmetic tag',
-                      ),
-                    ),
-                  ),
-                if (medal?.medalAsset != null)
-                  SizedBox(
-                    height: 90,
-                    width: 90,
-                    child: CosmeticLoop(
-                      builder: (phase) => CosmeticArt(
-                        asset: medal!.medalAsset!,
-                        phase: phase,
-                        label: 'Top Host cosmetic medal',
-                      ),
-                    ),
-                  ),
-              ],
-            );
-          },
-        ),
-      );
+ const ProfileStylePreview({super.key});
+ @override Widget build(BuildContext context)=>ValueListenableBuilder<EffectPack?>(valueListenable:previewMedal,builder:(context,medal,_)=>ValueListenableBuilder<EffectPack?>(valueListenable:previewNameTag,builder:(context,tag,_)=>Column(children:[
+  const Text('Style preview',style:TextStyle(fontSize:11,color:Colors.white54)),const SizedBox(height:8),
+  ProfileRankingMedals(extra:medal?.medalAsset==null?null:SizedBox(width:76,height:88,child:CosmeticLoop(builder:(phase)=>CosmeticArt(asset:medal!.medalAsset!,phase:phase,label:'Top Host cosmetic medal')))),
+  if(tag?.tagAsset!=null)SizedBox(height:76,width:270,child:CosmeticLoop(builder:(phase)=>CosmeticArt(asset:tag!.tagAsset!,phase:phase,label:'Sovera Legend cosmetic tag'))),
+ ])));
 }
 
 Future<void> showEntryPreview(BuildContext context, EffectPack pack) =>
@@ -319,7 +288,7 @@ class _EntryPreviewState extends State<_EntryPreview>
                                                     const BrandLogo(size: 100),
                                               )
                                             : CosmeticArt(
-                                                asset: widget.pack.entryAsset!,
+                                                asset: MediaQuery.disableAnimationsOf(context)?(widget.pack.entryStillAsset??widget.pack.entryAsset!):widget.pack.entryAsset!,
                                                 phase: t,
                                                 label: 'Phoenix room arrival',
                                               ),
@@ -435,15 +404,17 @@ class _EffectsStudioState extends State<EffectsStudio>
           ),
           const SizedBox(height: 10),
           const Text(
-            'Four themes · Frames, entry, voice, medals & tags',
+            '10 themes · Frames, entry, voice, medals & tags',
             style: TextStyle(color: Colors.white60),
           ),
           const SizedBox(height: 20),
+          OutlinedButton.icon(onPressed:()=>showModalBottomSheet<void>(context:context,isScrollControlled:true,showDragHandle:true,builder:(sheet)=>SafeArea(child:SizedBox(height:MediaQuery.sizeOf(sheet).height*.75,child:GridView.builder(padding:const EdgeInsets.all(16),itemCount:effectPacks.length,gridDelegate:const SliverGridDelegateWithMaxCrossAxisExtent(maxCrossAxisExtent:190,mainAxisExtent:178,crossAxisSpacing:10,mainAxisSpacing:10),itemBuilder:(_,i)=>InkWell(onTap:(){setState(()=>selected=i);Navigator.pop(sheet);},child:Card(child:Padding(padding:const EdgeInsets.all(10),child:Column(children:[Expanded(child:Image.asset(effectPacks[i].stillAsset??effectPacks[i].asset)),const SizedBox(height:8),Text(effectPacks[i].name,textAlign:TextAlign.center,style:const TextStyle(fontWeight:FontWeight.bold))]))))))),icon:const Icon(Icons.grid_view_rounded),label:Text('Browse all ${effectPacks.length} themes')),
+          const SizedBox(height:12),
           SingleChildScrollView(
             scrollDirection: Axis.horizontal,
             child: Row(
               children: [
-                for (final i in [3, 0, 1, 2])
+                for (final i in [3, 0, 1, 2,...List.generate(effectPacks.length-4,(i)=>i+4)])
                   Padding(
                     padding: const EdgeInsets.only(right: 10),
                     child: Semantics(
@@ -470,7 +441,7 @@ class _EffectsStudioState extends State<EffectsStudio>
                           child: Column(
                             children: [
                               Image.asset(
-                                effectPacks[i].asset,
+                                effectPacks[i].stillAsset??effectPacks[i].asset,
                                 height: 98,
                                 width: 98,
                               ),
@@ -535,7 +506,7 @@ class _EffectsStudioState extends State<EffectsStudio>
                         height: kind == 4 ? 100 : 270,
                         width: 270,
                         child: CosmeticArt(
-                          asset: asset,
+                          asset: MediaQuery.disableAnimationsOf(context)&&kind==1?(pack.entryStillAsset??asset):asset,
                           phase: pulse.value,
                           label: kind == 3
                               ? 'Top Host medal artwork'

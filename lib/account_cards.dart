@@ -26,14 +26,11 @@ class _ProfileIdentityCardState extends State<ProfileIdentityCard>{
    const CircleAvatar(radius:14,backgroundColor:Color(0xFF292044),child:Icon(Icons.person_rounded,color:gold,size:18)),
   ])),
   const SizedBox(height:18),Text(widget.name,textAlign:TextAlign.center,style:const TextStyle(fontSize:24,fontWeight:FontWeight.w800)),
-  const ProfileStylePreview(),
   const SizedBox(height:10),
   Wrap(alignment:WrapAlignment.center,crossAxisAlignment:WrapCrossAlignment.center,spacing:4,children:[
    SelectableText(widget.profile==null?'ID · Sign in to receive your ID':'ID · ${widget.profile!['uid']}',style:const TextStyle(color:cyan,fontWeight:FontWeight.w600,fontSize:13)),
    if(widget.profile!=null)IconButton(tooltip:'Copy user ID',onPressed:copyId,icon:const Icon(Icons.copy_rounded,color:cyan,size:18)),
   ]),
-  Container(padding:const EdgeInsets.symmetric(horizontal:12,vertical:5),decoration:BoxDecoration(color:violet.withValues(alpha:.18),borderRadius:BorderRadius.circular(20)),child:Text(widget.profile==null?'Guest preview':'Sovera member',style:const TextStyle(fontSize:11,color:Colors.white70))),
-  if(widget.bio.isNotEmpty)Padding(padding:const EdgeInsets.only(top:14),child:Text(widget.bio,textAlign:TextAlign.center,style:const TextStyle(color:Colors.white70,height:1.5))),
   const SizedBox(height:20),
   FutureBuilder<Map<String,dynamic>?>(future:levels,builder:(context,snapshot){
    final row=snapshot.data;
@@ -49,6 +46,9 @@ class _ProfileIdentityCardState extends State<ProfileIdentityCard>{
     else if(row==null)const Text('Levels appear when verified activity is available.',textAlign:TextAlign.center,style:TextStyle(fontSize:11,color:Colors.white54)),
    ]);
   }),
+  const SizedBox(height:16),const ProfileStylePreview(),
+  Container(padding:const EdgeInsets.symmetric(horizontal:12,vertical:5),decoration:BoxDecoration(color:violet.withValues(alpha:.18),borderRadius:BorderRadius.circular(20)),child:Text(widget.profile==null?'Guest preview':'Sovera member',style:const TextStyle(fontSize:11,color:Colors.white70))),
+  if(widget.bio.isNotEmpty)Padding(padding:const EdgeInsets.only(top:14),child:Text(widget.bio,textAlign:TextAlign.center,style:const TextStyle(color:Colors.white70,height:1.5))),
   const SizedBox(height:10),TextButton.icon(onPressed:widget.onEdit,icon:const Icon(Icons.edit_outlined),label:const Text('Edit profile')),
  ]));
 }

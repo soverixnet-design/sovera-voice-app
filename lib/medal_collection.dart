@@ -1,5 +1,15 @@
 import 'package:flutter/material.dart';
 
+final previewRankingMedals=ValueNotifier<Set<String>>({});
+class ProfileRankingMedals extends StatelessWidget{
+ final Widget? extra;
+ const ProfileRankingMedals({super.key,this.extra});
+ @override Widget build(BuildContext context)=>ValueListenableBuilder<Set<String>>(valueListenable:previewRankingMedals,builder:(context,selected,_)=>Column(children:[
+  const Text('Medals',style:TextStyle(fontSize:18,fontWeight:FontWeight.w800)),const SizedBox(height:8),
+  if(selected.isNotEmpty||extra!=null)Wrap(alignment:WrapAlignment.center,spacing:8,runSpacing:8,children:[if(extra!=null)extra!,for(final id in ['gold','silver','bronze'])if(selected.contains(id))Image.asset('assets/medals/$id.${MediaQuery.disableAnimationsOf(context)?'png':'webp'}',width:76,height:88,semanticLabel:'$id medal preview')]),
+  TextButton.icon(onPressed:()=>Navigator.push(context,MaterialPageRoute<void>(builder:(_)=>const MedalCollection())),icon:const Icon(Icons.military_tech_rounded),label:Text(selected.isEmpty?'Choose medal previews':'Manage medal previews')),
+ ]));
+}
 /// Bundled artwork previews; ranking awards continue to be server-owned.
 class MedalCollection extends StatelessWidget {
   const MedalCollection({super.key});
@@ -14,7 +24,7 @@ class MedalCollection extends StatelessWidget {
         children: [
           const Text('Ranking collection', style: TextStyle(fontSize: 26, fontWeight: FontWeight.w800)),
           const SizedBox(height: 8),
-          const Text('Gold, Silver and Bronze · Animated artwork previews'),
+          const Text('Gold, Silver and Bronze · Profile style previews, not awarded ranks'),
           const SizedBox(height: 20),
           for (final medal in const [
             ('gold', 'Gold · Rank 1', Color(0xFFFFD45F)),
@@ -32,6 +42,7 @@ class MedalCollection extends StatelessWidget {
                     semanticLabel: '${medal.$2} Sovera medal',
                   ),
                   const SizedBox(height: 12),
+                  ValueListenableBuilder<Set<String>>(valueListenable:previewRankingMedals,builder:(context,selected,_)=>FilterChip(label:Text(selected.contains(medal.$1)?'Remove from profile':'Show below levels'),selected:selected.contains(medal.$1),onSelected:(value){final next={...selected}..remove(medal.$1);if(value)next.add(medal.$1);previewRankingMedals.value=next;})),
                   Text(medal.$2, style: TextStyle(color: medal.$3, fontSize: 21, fontWeight: FontWeight.bold)),
                 ]),
               ),
