@@ -30,6 +30,8 @@ void main(){
   tester.view.physicalSize=const Size(390,844);tester.view.devicePixelRatio=1;
   addTearDown(tester.view.resetPhysicalSize);addTearDown(tester.view.resetDevicePixelRatio);
   await tester.runAsync(()async{
+   final icons=FontLoader('MaterialIcons')..addFont(rootBundle.load('fonts/MaterialIcons-Regular.otf'));
+   await icons.load();
    final fontFile=File('/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf');
    if(await fontFile.exists()){
     final font=FontLoader('Roboto')..addFont(Future.value(ByteData.sublistView(await fontFile.readAsBytes())));
