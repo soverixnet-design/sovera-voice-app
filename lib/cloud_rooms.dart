@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'main.dart';
+import 'room_card.dart';
 import 'auth_gate.dart';
 
 /// Authenticated directory. Demo rooms stay separate from persisted rooms.
@@ -72,15 +73,11 @@ class CloudRoomsState extends State<CloudRooms>{
    if(loading)const Padding(padding:EdgeInsets.all(24),child:CircularProgressIndicator())
    else if(error!=null)TextButton(onPressed:refresh,child:Text(error!))
    else if(visible.isEmpty)const Glass(child:Text('No rooms here yet. Create your room or follow a community room.'))
-   else GridView.builder(shrinkWrap:true,physics:const NeverScrollableScrollPhysics(),itemCount:visible.length,gridDelegate:const SliverGridDelegateWithFixedCrossAxisCount(crossAxisCount:2,mainAxisExtent:210,crossAxisSpacing:12,mainAxisSpacing:12),itemBuilder:(context,i){
+   else LayoutBuilder(builder:(context,c)=>GridView.builder(shrinkWrap:true,physics:const NeverScrollableScrollPhysics(),itemCount:visible.length,gridDelegate:SliverGridDelegateWithFixedCrossAxisCount(crossAxisCount:c.maxWidth<300?1:2,mainAxisExtent:260+30*(MediaQuery.textScalerOf(context).scale(1)-1),crossAxisSpacing:12,mainAxisSpacing:12),itemBuilder:(context,i){
     final room=visible[i],id=visible[i]['id'] as String;
-    return InkWell(onTap:()=>open(room),borderRadius:BorderRadius.circular(26),child:Glass(tint:i.isEven?violet:cyan,padding:const EdgeInsets.all(12),child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
-     Row(children:[Expanded(child:Text(room['category'] as String,style:const TextStyle(fontSize:10,color:Colors.white60))),IconButton(tooltip:follows.contains(id)?'Unfollow room':'Follow room',onPressed:writing?null:()=>follow(room),icon:Icon(follows.contains(id)?Icons.favorite:Icons.favorite_border,color:pink))]),
-     const Expanded(child:Center(child:BrandLogo(size:70))),
-     Text(room['name'] as String,maxLines:1,overflow:TextOverflow.ellipsis,style:const TextStyle(fontWeight:FontWeight.bold)),
-     const SizedBox(height:6),Text('${room['seat_count']} seats · Voice coming soon',style:const TextStyle(fontSize:10,color:Colors.white60)),
-    ])));
-   }),
+    return RoomCard(name:room['name'] as String,category:room['category'] as String,subtitle:'${room['seat_count']} seats · Voice coming soon',color:i.isEven?violet:cyan,followed:follows.contains(id),onOpen:()=>open(room),onFollow:writing?null:()=>follow(room));
+   })),
+
   ]);
  }
 }

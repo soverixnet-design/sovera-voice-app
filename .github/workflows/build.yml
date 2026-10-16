@@ -30,6 +30,10 @@ jobs:
       - run: dart format --output=none --set-exit-if-changed lib test || dart format lib test
       - run: flutter analyze
       - run: flutter test
+      - uses: actions/upload-artifact@v4
+        with:
+          name: design-review
+          path: build/design-review
       - run: flutter build apk --debug
       - uses: actions/upload-artifact@v4
         with:
@@ -56,3 +60,4 @@ jobs:
         with:
           name: sovera-ios-simulator-preview
           path: build/ios/iphonesimulator/Runner.app
+
