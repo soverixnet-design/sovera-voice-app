@@ -288,7 +288,7 @@ class _VoiceRoomState extends State<VoiceRoom> {
  Future<void> connections()async{
  int own=mySeat??0;SeatBond draft=bond;
  int peer=partnerSeat??(own%3==2?own-1:own+1);
- if(!adjacentSeats(own,peer,seats))peer=own%3==2?own-1:own+1;
+ if(!adjacentSeats(own,peer,seats))peer=List.generate(seats,(i)=>i).firstWhere((i)=>adjacentSeats(own,i,seats));
  final applied=await showModalBottomSheet<bool>(context:context,isScrollControlled:true,showDragHandle:true,builder:(sheet)=>StatefulBuilder(builder:(sheet,update)=>SafeArea(child:SingleChildScrollView(padding:const EdgeInsets.all(24),child:Column(mainAxisSize:MainAxisSize.min,crossAxisAlignment:CrossAxisAlignment.start,children:[
  const Text('Friendship & CP',style:TextStyle(fontSize:24,fontWeight:FontWeight.bold)),const SizedBox(height:12),const Text('Try two neighbouring seats. This is a local visual preview; real links require both users to accept a relationship.',style:TextStyle(color:Colors.white60,height:1.5)),const SizedBox(height:18),
  DropdownButtonFormField<int>(initialValue:own,decoration:const InputDecoration(labelText:'Your preview seat'),items:[for(int i=0;i<seats;i++)DropdownMenuItem(value:i,child:Text('Seat ${i+1}'))],onChanged:(value){if(value==null)return;update((){own=value;peer=own%3==2?own-1:own+1;if(peer>=seats)peer=own-1;});}),
