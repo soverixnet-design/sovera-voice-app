@@ -2,6 +2,7 @@ import 'dart:io';
 import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:sovera/main.dart';
 
@@ -42,6 +43,11 @@ void main(){
  testWidgets('Export cleaned room and gift screen',(tester)async{
   tester.view.physicalSize=const Size(390,844);tester.view.devicePixelRatio=1;
   addTearDown(tester.view.resetPhysicalSize);addTearDown(tester.view.resetDevicePixelRatio);
+  await tester.runAsync(()async{
+   await (FontLoader('MaterialIcons')..addFont(rootBundle.load('fonts/MaterialIcons-Regular.otf'))).load();
+   final file=File('/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf');
+   if(await file.exists())await (FontLoader('Roboto')..addFont(Future.value(ByteData.sublistView(await file.readAsBytes())))).load();
+  });
   final key=GlobalKey();await tester.pumpWidget(RepaintBoundary(key:key,child:MaterialApp(debugShowCheckedModeBanner:false,theme:ThemeData.dark(useMaterial3:true),home:const VoiceRoom(name:'Sovera Lounge'))));await tester.pumpAndSettle();
   for(final name in ['room-cleanup','gifts-cleanup']){
    if(name=='gifts-cleanup'){await tester.tap(find.byTooltip('Preview gifts'));await tester.pumpAndSettle();}
