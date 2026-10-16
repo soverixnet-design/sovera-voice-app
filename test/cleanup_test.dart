@@ -36,9 +36,9 @@ void main(){
   tester.view.physicalSize=const Size(320,640);tester.view.devicePixelRatio=1;
   addTearDown(tester.view.resetPhysicalSize);addTearDown(tester.view.resetDevicePixelRatio);
   Widget app(Widget page)=>MaterialApp(builder:(context,child)=>MediaQuery(data:MediaQuery.of(context).copyWith(textScaler:const TextScaler.linear(1.5)),child:child!),home:page);
-  await tester.pumpWidget(app(const Events()));await tester.pumpAndSettle();expect(tester.takeException(),isNull);
-  await tester.pumpWidget(app(const VoiceRoom(name:'A long room name for compact screens')));await tester.pumpAndSettle();expect(tester.takeException(),isNull);
-  await tester.tap(find.byTooltip('Preview gifts'));await tester.pumpAndSettle();expect(tester.takeException(),isNull);
+  await tester.pumpWidget(app(const Events()));await tester.pumpAndSettle();expect(tester.takeException(),isNull,reason:'Events layout');
+  await tester.pumpWidget(app(const VoiceRoom(name:'A long room name for compact screens')));await tester.pumpAndSettle();expect(tester.takeException(),isNull,reason:'Room layout');
+  await tester.tap(find.byTooltip('Preview gifts'));await tester.pumpAndSettle();expect(tester.takeException(),isNull,reason:'Gift sheet layout');
  });
  testWidgets('Export cleaned room and gift screen',(tester)async{
   tester.view.physicalSize=const Size(390,844);tester.view.devicePixelRatio=1;
