@@ -12,23 +12,23 @@ void main() {
   await tester.pumpWidget(const MaterialApp(home:EffectsStudio()));
   await tester.tap(find.text('Ice Wings').first);
   await tester.pumpAndSettle();
-  await tester.ensureVisible(find.text('Use frame in preview'));
+  await tester.ensureVisible(find.text('Use frame in preview'));await tester.pumpAndSettle();
   await tester.tap(find.text('Use frame in preview'));
   expect(previewAvatarFrame.value,effectPacks[1]);
-  await tester.ensureVisible(find.text('Reset preview frame'));
+  await tester.ensureVisible(find.text('Reset preview frame'));await tester.pumpAndSettle();
   await tester.tap(find.text('Reset preview frame'));
   expect(previewAvatarFrame.value,isNull);
  });
  testWidgets('Entry overlay closes and speaking pulse completes', (tester) async {
   await tester.pumpWidget(const MaterialApp(home:EffectsStudio()));
   await tester.tap(find.text('Entry'));await tester.pumpAndSettle();
-  await tester.ensureVisible(find.text('Preview entry'));
+  await tester.ensureVisible(find.text('Preview entry'));await tester.pumpAndSettle();
   await tester.tap(find.text('Preview entry'));await tester.pump(const Duration(milliseconds:600));
   expect(find.text('Sovera arrival preview'),findsOneWidget);
   await tester.tap(find.byTooltip('Close entry preview'));await tester.pumpAndSettle();
-  await tester.ensureVisible(find.text('Speaking glow'));
+  await tester.ensureVisible(find.text('Speaking glow'));await tester.pumpAndSettle();
   await tester.tap(find.text('Speaking glow'));await tester.pumpAndSettle();
-  await tester.ensureVisible(find.text('Preview speaking glow'));
+  await tester.ensureVisible(find.text('Preview speaking glow'));await tester.pumpAndSettle();
   await tester.tap(find.text('Preview speaking glow'));await tester.pumpAndSettle();
   expect(tester.takeException(),isNull);
  });
