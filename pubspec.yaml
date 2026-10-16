@@ -19,6 +19,7 @@ flutter:
   assets:
     - assets/sovera-logo-transparent.png
     - assets/effects/
+    - assets/medals/
 
 flutter_launcher_icons:
   android: true

@@ -1,6 +1,7 @@
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'main.dart';
+import 'medal_collection.dart';
 
 class EffectPack {
  final String name,asset;
@@ -97,6 +98,8 @@ class _EffectsStudioState extends State<EffectsStudio> with SingleTickerProvider
  @override Widget build(BuildContext context){
   final pack=effectPacks[selected];
   return Scaffold(appBar:AppBar(title:const Text('Frames & effects')),body:ListView(padding:const EdgeInsets.all(20),children:[
+   OutlinedButton.icon(onPressed:()=>Navigator.of(context).push(MaterialPageRoute<void>(builder:(_)=>const MedalCollection())),icon:const Icon(Icons.military_tech_rounded),label:const Text('Animated medals')),
+   const SizedBox(height:16),
    const Text('Sovera signature collection',style:TextStyle(fontSize:25,fontWeight:FontWeight.w800)),
    const SizedBox(height:10),const Text('Three themes · Nine visual previews',style:TextStyle(color:Colors.white60)),
    const SizedBox(height:20),
