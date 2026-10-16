@@ -1,7 +1,7 @@
 name: sovera
 description: Sovera premium voice party app — voice community app with account and room storage.
 publish_to: none
-version: 0.6.1+9
+version: 0.7.0+10
 environment:
   sdk: '>=3.4.0 <4.0.0'
 dependencies:
@@ -18,6 +18,7 @@ flutter:
   uses-material-design: true
   assets:
     - assets/sovera-logo-transparent.png
+    - assets/effects/
 
 flutter_launcher_icons:
   android: true
