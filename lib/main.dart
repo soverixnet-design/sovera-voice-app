@@ -76,7 +76,7 @@ class Home extends StatefulWidget {
 class _HomeState extends State<Home> {
  int tab=0, banner=0; String filter='Popular',query='',displayName='Preview guest',bio='';
  final search=TextEditingController();
- final pageScroll=ScrollController();
+ final pageScroll=ScrollController(keepScrollOffset:false);
  final cloudRooms=GlobalKey<CloudRoomsState>();
  final rooms=<String,String>{'Moonlight Lounge':'Music','Ocean Avenue':'Adda','Golden Hour':'Friends','Sovera Studio':'Music'};
  final followed=<String>{};
@@ -88,7 +88,7 @@ class _HomeState extends State<Home> {
  ];
  @override void initState(){super.initState();if(widget.profile!=null)filter='All';displayName=widget.profile?['display_name'] as String? ?? 'Preview guest';bio=widget.profile?['bio'] as String? ?? '';}
  @override void dispose(){search.dispose();pageScroll.dispose();super.dispose();}
- void selectTab(int value){if(pageScroll.hasClients)pageScroll.jumpTo(0);setState(()=>tab=value);}
+ void selectTab(int value){setState(()=>tab=value);WidgetsBinding.instance.addPostFrameCallback((_){if(mounted&&pageScroll.hasClients)pageScroll.jumpTo(0);});}
  void go(Widget screen)=>Navigator.push(context,MaterialPageRoute<void>(builder:(_)=>screen));
  void notice(String message)=>ScaffoldMessenger.of(context).showSnackBar(SnackBar(content:Text(message)));
  Widget title(String text)=>Padding(padding:const EdgeInsets.symmetric(vertical:16),child:Text(text,style:const TextStyle(fontSize:24,fontWeight:FontWeight.w800)));
@@ -126,7 +126,7 @@ class _HomeState extends State<Home> {
  });
  }
  @override Widget build(BuildContext context)=>Scaffold(
- body:Container(decoration:const BoxDecoration(gradient:LinearGradient(begin:Alignment.topLeft,end:Alignment.bottomRight,colors:[Color(0xFF882580),Color(0xFF43249A),Color(0xFF25116B)])),child:SafeArea(child:Center(child:ConstrainedBox(constraints:const BoxConstraints(maxWidth:640),child:ListView(controller:pageScroll,padding:const EdgeInsets.all(18),children:[
+ body:Container(decoration:const BoxDecoration(gradient:LinearGradient(begin:Alignment.topLeft,end:Alignment.bottomRight,colors:[Color(0xFF882580),Color(0xFF43249A),Color(0xFF25116B)])),child:SafeArea(child:Center(child:ConstrainedBox(constraints:const BoxConstraints(maxWidth:640),child:ListView(key:ValueKey(tab),controller:pageScroll,padding:const EdgeInsets.all(18),children:[
  Row(children:[const BrandLogo(size:48),const SizedBox(width:10),const Expanded(child:Text('Sovera',maxLines:1,overflow:TextOverflow.ellipsis,style:TextStyle(fontSize:27,fontWeight:FontWeight.w800))),IconButton(tooltip:'Notifications',onPressed:()=>go(const Notices()),icon:const Icon(Icons.notifications_none_rounded)),IconButton(tooltip:'Settings',onPressed:()=>go(const AppSettings()),icon:const Icon(Icons.settings_outlined))]),
  Padding(padding:const EdgeInsets.symmetric(vertical:8),child:Text(widget.profile==null?'DESIGN PREVIEW · NOT SIGNED IN':'SIGNED IN · ROOMS SAVED · VOICE COMING SOON',style:const TextStyle(fontSize:9,letterSpacing:1.8,color:Colors.white54))),
  if(tab==0)...[
