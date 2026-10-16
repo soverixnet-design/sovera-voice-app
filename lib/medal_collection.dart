@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'role_styles.dart';
 
 final previewRankingMedals=ValueNotifier<Set<String>>({});
 class ProfileRankingMedals extends StatelessWidget{
@@ -7,6 +8,7 @@ class ProfileRankingMedals extends StatelessWidget{
  @override Widget build(BuildContext context)=>ValueListenableBuilder<Set<String>>(valueListenable:previewRankingMedals,builder:(context,selected,_)=>Column(children:[
   const Text('Medals',style:TextStyle(fontSize:18,fontWeight:FontWeight.w800)),const SizedBox(height:8),
   if(selected.isNotEmpty||extra!=null)Wrap(alignment:WrapAlignment.center,spacing:8,runSpacing:8,children:[if(extra!=null)extra!,for(final id in ['gold','silver','bronze'])if(selected.contains(id))Image.asset('assets/medals/$id.${MediaQuery.disableAnimationsOf(context)?'png':'webp'}',width:76,height:88,semanticLabel:'$id medal preview')]),
+  const ProfileRoleStyles(),
   TextButton.icon(onPressed:()=>Navigator.push(context,MaterialPageRoute<void>(builder:(_)=>const MedalCollection())),icon:const Icon(Icons.military_tech_rounded),label:Text(selected.isEmpty?'Choose medal previews':'Manage medal previews')),
  ]));
 }
@@ -22,6 +24,8 @@ class MedalCollection extends StatelessWidget {
       body: ListView(
         padding: const EdgeInsets.all(20),
         children: [
+          OutlinedButton.icon(onPressed:()=>Navigator.push(context,MaterialPageRoute<void>(builder:(_)=>const RoleMedalCollection())),icon:const Icon(Icons.shield_rounded),label:const Text('Staff & host medal designs')),
+          const SizedBox(height:16),
           const Text('Ranking collection', style: TextStyle(fontSize: 26, fontWeight: FontWeight.w800)),
           const SizedBox(height: 8),
           const Text('Gold, Silver and Bronze · Profile style previews, not awarded ranks'),

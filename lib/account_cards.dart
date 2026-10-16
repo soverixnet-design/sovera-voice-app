@@ -36,8 +36,8 @@ class _ProfileIdentityCardState extends State<ProfileIdentityCard>{
    final row=snapshot.data;
    return Column(children:[
     Wrap(spacing:8,runSpacing:8,alignment:WrapAlignment.center,children:[
-     LevelBadge(label:'Wealth',value:row?['wealth_level'],icon:Icons.diamond_rounded,color:violet),
-     LevelBadge(label:'Charm',value:row?['charm_level'],icon:Icons.favorite_rounded,color:pink),
+     LevelBadge(label:'Wealth',value:row?['wealth_level'],icon:Icons.diamond_rounded,color:cyan),
+     LevelBadge(label:'Charm',value:row?['charm_level'],icon:Icons.favorite_rounded,color:const Color(0xFFF18AA6)),
      LevelBadge(label:'VIP',value:row?['vip_level'],icon:Icons.workspace_premium_rounded,color:gold),
     ]),
     const SizedBox(height:10),
@@ -55,7 +55,7 @@ class _ProfileIdentityCardState extends State<ProfileIdentityCard>{
 class LevelBadge extends StatelessWidget{
  final String label;final Object? value;final IconData icon;final Color color;
  const LevelBadge({super.key,required this.label,this.value,required this.icon,required this.color});
- @override Widget build(BuildContext context)=>Container(width:88,padding:const EdgeInsets.symmetric(horizontal:6,vertical:12),decoration:BoxDecoration(gradient:LinearGradient(begin:Alignment.topLeft,end:Alignment.bottomRight,colors:[color.withValues(alpha:.25),Colors.black26]),border:Border.all(color:color.withValues(alpha:.4)),borderRadius:BorderRadius.circular(18)),child:Column(children:[Icon(icon,color:color,size:24),const SizedBox(height:7),Text(value==null?'Lv. —':'Lv. $value',style:TextStyle(color:color,fontWeight:FontWeight.bold)),const SizedBox(height:4),Text(label,style:const TextStyle(fontSize:11,color:Colors.white70))]));
+ @override Widget build(BuildContext context)=>Container(width:72,padding:const EdgeInsets.symmetric(horizontal:4,vertical:7),decoration:BoxDecoration(gradient:LinearGradient(begin:Alignment.topLeft,end:Alignment.bottomRight,colors:[color.withValues(alpha:.25),Colors.black26]),border:Border.all(color:color.withValues(alpha:.4)),borderRadius:BorderRadius.circular(18)),child:Column(children:[Icon(icon,color:color,size:18),const SizedBox(height:4),Text(value==null?'Lv. —':'Lv. $value',style:TextStyle(color:color,fontWeight:FontWeight.bold,fontSize:12)),const SizedBox(height:3),Text(label,style:const TextStyle(fontSize:10,color:Colors.white70))]));
 }
 
 class ResellerCenter extends StatefulWidget{

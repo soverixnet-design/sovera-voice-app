@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'main.dart';
 import 'cosmetic_art.dart';
 import 'medal_collection.dart';
+import 'role_styles.dart';
 
 class EffectPack {
   final String name, asset;
@@ -54,6 +55,7 @@ void resetCosmeticPreviews() {
   previewMedal.value = null;
   previewNameTag.value = null;
   previewRankingMedals.value = {};
+  previewRoleStyles.value = {};
 }
 
 class EffectPortrait extends StatelessWidget {

@@ -9,6 +9,8 @@ import 'effects_studio.dart';
 import 'support_tickets.dart';
 import 'wallet.dart';
 import 'seat_link.dart';
+import 'room_visuals.dart';
+import 'member_directory.dart';
 import 'supabase_config.dart';
 
 Future<void> main() async {
@@ -20,11 +22,11 @@ Future<void> main() async {
   runApp(const MaterialApp(home: Scaffold(body: Center(child: Text('Could not initialize sign-in. Please restart Sovera.')))));
  }
 }
-const violet = Color(0xFFA758EC);
+const violet = Color(0xFF9268F4);
 const gold = Color(0xFFECC58A);
-const pink = Color(0xFFFF39B7);
-const ink = Color(0xFF29115C);
-const cyan = Color(0xFF69E4EB);
+const pink = Color(0xFFFF69B4);
+const ink = Color(0xFF12172D);
+const cyan = Color(0xFF71E5E6);
 
 class Sovera extends StatelessWidget {
   final bool preview;
@@ -49,7 +51,7 @@ class Glass extends StatelessWidget {
     padding: padding,
     decoration: BoxDecoration(
       borderRadius: BorderRadius.circular(26),
-      gradient: LinearGradient(begin: Alignment.topLeft, end: Alignment.bottomRight, colors: [tint.withValues(alpha: .22), const Color(0xFF17192C), const Color(0xFF111222)]),
+      gradient: LinearGradient(begin: Alignment.topLeft, end: Alignment.bottomRight, colors: [tint.withValues(alpha: .22), const Color(0xFF17223A), const Color(0xFF10172C)]),
       border: Border.all(color: Colors.white.withValues(alpha: .12)),
       boxShadow: [BoxShadow(color: tint.withValues(alpha: .12), blurRadius: 24, offset: const Offset(0, 12))],
     ), child: child,
@@ -127,9 +129,10 @@ class _HomeState extends State<Home> {
  });
  }
  @override Widget build(BuildContext context)=>Scaffold(
- body:Container(decoration:const BoxDecoration(gradient:LinearGradient(begin:Alignment.topLeft,end:Alignment.bottomRight,colors:[Color(0xFF882580),Color(0xFF43249A),Color(0xFF25116B)])),child:SafeArea(child:Center(child:ConstrainedBox(constraints:const BoxConstraints(maxWidth:640),child:ListView(key:ValueKey(tab),controller:pageScroll,padding:const EdgeInsets.all(18),children:[
+ body:Container(decoration:const BoxDecoration(gradient:LinearGradient(begin:Alignment.topLeft,end:Alignment.bottomRight,colors:[Color(0xFF442A79),Color(0xFF25356C),Color(0xFF101B3A)])),child:SafeArea(child:Center(child:ConstrainedBox(constraints:const BoxConstraints(maxWidth:640),child:ListView(key:ValueKey(tab),controller:pageScroll,padding:const EdgeInsets.all(18),children:[
  Row(children:[const BrandLogo(size:48),const SizedBox(width:10),const Expanded(child:Text('Sovera',maxLines:1,overflow:TextOverflow.ellipsis,style:TextStyle(fontSize:27,fontWeight:FontWeight.w800))),IconButton(tooltip:'Notifications',onPressed:()=>go(const Notices()),icon:const Icon(Icons.notifications_none_rounded)),IconButton(tooltip:'Settings',onPressed:()=>go(const AppSettings()),icon:const Icon(Icons.settings_outlined))]),
  Padding(padding:const EdgeInsets.symmetric(vertical:8),child:Text(widget.profile==null?'DESIGN PREVIEW · NOT SIGNED IN':'SIGNED IN · ROOMS SAVED · VOICE COMING SOON',style:const TextStyle(fontSize:9,letterSpacing:1.8,color:Colors.white54))),
+ ValueListenableBuilder<RoomDraft?>(valueListenable:minimizedRoom,builder:(context,draft,_)=>draft==null?const SizedBox.shrink():Padding(padding:const EdgeInsets.only(bottom:12),child:ListTile(tileColor:cyan.withValues(alpha:.12),shape:RoundedRectangleBorder(borderRadius:BorderRadius.circular(18)),leading:const Icon(Icons.open_in_full_rounded,color:cyan),title:const Text('Return to room'),subtitle:Text(draft.name),trailing:const Icon(Icons.chevron_right_rounded),onTap:(){minimizedRoom.value=null;go(VoiceRoom(name:draft.name,roomId:draft.roomId,ownerId:draft.ownerId,initialSeats:draft.seats,draft:draft));}))),
  if(tab==0)...[
  TextField(controller:search,onChanged:(value)=>setState(()=>query=value),decoration:InputDecoration(hintText:'Search rooms',prefixIcon:const Icon(Icons.search_rounded),suffixIcon:query.isEmpty?null:IconButton(tooltip:'Clear room search',onPressed:(){search.clear();setState(()=>query='');},icon:const Icon(Icons.close_rounded)),filled:true,fillColor:Colors.white10,border:OutlineInputBorder(borderRadius:BorderRadius.circular(20),borderSide:BorderSide.none))),const SizedBox(height:18),
  SizedBox(height:280+80*(MediaQuery.textScalerOf(context).scale(1)-1),child:PageView.builder(itemCount:banners.length,onPageChanged:(value)=>setState(()=>banner=value),itemBuilder:(context,index){final b=banners[index];return Padding(padding:const EdgeInsets.only(right:4),child:InkWell(onTap:()=>index==0?createRoom():go(index==1?const Rankings():const Events()),child:Glass(tint:b.$4,child:Row(children:[Expanded(child:Column(crossAxisAlignment:CrossAxisAlignment.start,mainAxisAlignment:MainAxisAlignment.center,children:[const Text('SOVERA COMMUNITY',maxLines:1,overflow:TextOverflow.ellipsis,style:TextStyle(fontSize:9,letterSpacing:2,color:Colors.white60)),const SizedBox(height:10),Text(b.$1,maxLines:3,overflow:TextOverflow.ellipsis,style:const TextStyle(fontSize:22,fontWeight:FontWeight.w800,height:1.1)),const SizedBox(height:10),Text(b.$2,maxLines:3,overflow:TextOverflow.ellipsis,style:const TextStyle(fontSize:11,color:Colors.white60))])),const SizedBox(width:10),Column(mainAxisAlignment:MainAxisAlignment.center,children:[const BrandLogo(size:62),const SizedBox(height:12),Jewel(b.$3,color:b.$4,size:42)])]))));})),
@@ -141,9 +144,9 @@ class _HomeState extends State<Home> {
  if(tab==2)...[title('Messages'),for(final item in [(Icons.support_agent_rounded,'Official support',cyan),(Icons.campaign_rounded,'Official notices',gold),(Icons.account_balance_wallet_rounded,'Recharge support',pink)])Padding(padding:const EdgeInsets.only(bottom:12),child:InkWell(onTap:()=>go(item.$2=='Official notices'?const Notices():widget.profile!=null?SavedSupportPage(title:item.$2):SupportPage(title:item.$2)),child:Glass(tint:item.$3,child:Row(children:[Jewel(item.$1,color:item.$3,size:46),const SizedBox(width:14),Expanded(child:Text(item.$2,style:const TextStyle(fontWeight:FontWeight.bold))),const Icon(Icons.chevron_right_rounded)])))),const SizedBox(height:20),const Text('Chats',style:TextStyle(fontSize:20,fontWeight:FontWeight.bold)),const SizedBox(height:12),const Text('Sign-in and the messaging backend are required for private conversations.',style:TextStyle(color:Colors.white54))],
  if(tab==3)...[title('My profile'),ProfileIdentityCard(profile:widget.profile,name:displayName,bio:bio,onEdit:editProfile),const SizedBox(height:22),const SocialProfileCards(),const SizedBox(height:22),
  InkWell(onTap:()=>go(ResellerCenter(profile:widget.profile)),borderRadius:BorderRadius.circular(26),child:Glass(tint:gold,child:Row(children:[const Jewel(Icons.storefront_rounded,color:gold,size:48),const SizedBox(width:14),const Expanded(child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[Text('Reseller center',style:TextStyle(fontSize:18,fontWeight:FontWeight.bold)),SizedBox(height:5),Text('Access, coin quota and applications',style:TextStyle(fontSize:11,color:Colors.white60))])),const Icon(Icons.chevron_right_rounded,color:gold)]))),
- const SizedBox(height:16),for(final item in [(Icons.account_balance_wallet_rounded,'Wallet'),(Icons.storefront_rounded,'Coin seller list'),(Icons.workspace_premium_rounded,'Frames & effects'),(Icons.add_home_rounded,'My room'),(Icons.settings_outlined,'Settings')])ListTile(leading:Icon(item.$1,color:gold),title:Text(item.$2),trailing:const Icon(Icons.chevron_right_rounded),onTap:(){switch(item.$2){case 'Wallet':go(WalletPage(profile:widget.profile));break;case 'Coin seller list':go(CoinSellerList(profile:widget.profile));break;case 'Frames & effects':go(const EffectsStudio());break;case 'Settings':go(const AppSettings());break;case 'My room':createRoom();break;default:break;}}),Text(widget.profile==null?'Profile edits are local and reset when the app restarts.':'Profile edits are saved to your Supabase account.',style:const TextStyle(fontSize:11,color:Colors.white54)),if(widget.profile!=null) TextButton.icon(onPressed:() async { try { await soveraClient.auth.signOut(scope:SignOutScope.local); } catch(_) {notice('Could not sign out. Please retry.');} },icon:const Icon(Icons.logout_rounded),label:const Text('Sign out'))],
+ const SizedBox(height:16),for(final item in [(Icons.account_balance_wallet_rounded,'Wallet'),(Icons.storefront_rounded,'Coin seller list'),(Icons.people_outline_rounded,'People & following'),(Icons.workspace_premium_rounded,'Frames & effects'),(Icons.add_home_rounded,'My room'),(Icons.settings_outlined,'Settings')])ListTile(leading:Icon(item.$1,color:gold),title:Text(item.$2),trailing:const Icon(Icons.chevron_right_rounded),onTap:(){switch(item.$2){case 'Wallet':go(WalletPage(profile:widget.profile));break;case 'Coin seller list':go(CoinSellerList(profile:widget.profile));break;case 'People & following':go(MemberDirectory(profile:widget.profile));break;case 'Frames & effects':go(const EffectsStudio());break;case 'Settings':go(const AppSettings());break;case 'My room':createRoom();break;default:break;}}),Text(widget.profile==null?'Profile edits are local and reset when the app restarts.':'Profile edits are saved to your Supabase account.',style:const TextStyle(fontSize:11,color:Colors.white54)),if(widget.profile!=null) TextButton.icon(onPressed:() async { try { await soveraClient.auth.signOut(scope:SignOutScope.local); } catch(_) {notice('Could not sign out. Please retry.');} },icon:const Icon(Icons.logout_rounded),label:const Text('Sign out'))],
  ]))))),
- bottomNavigationBar:NavigationBar(backgroundColor:const Color(0xFF3C1A77),selectedIndex:tab,onDestinationSelected:selectTab,destinations:const[NavigationDestination(icon:Icon(Icons.home_rounded),label:'Home'),NavigationDestination(icon:Icon(Icons.auto_awesome_rounded),label:'Moments'),NavigationDestination(icon:Icon(Icons.chat_bubble_outline_rounded),label:'Messages'),NavigationDestination(icon:Icon(Icons.person_outline_rounded),label:'Me')]),
+ bottomNavigationBar:NavigationBar(backgroundColor:const Color(0xFF1B2448),selectedIndex:tab,onDestinationSelected:selectTab,destinations:const[NavigationDestination(icon:Icon(Icons.home_rounded),label:'Home'),NavigationDestination(icon:Icon(Icons.auto_awesome_rounded),label:'Moments'),NavigationDestination(icon:Icon(Icons.chat_bubble_outline_rounded),label:'Messages'),NavigationDestination(icon:Icon(Icons.person_outline_rounded),label:'Me')]),
  );
 }
 class TextEntryDialog extends StatefulWidget {
@@ -186,7 +189,7 @@ class _SupportPageState extends State<SupportPage>{
 }
 class AppSettings extends StatelessWidget{
  const AppSettings({super.key});
- @override Widget build(BuildContext context)=>Scaffold(appBar:AppBar(title:const Text('Settings')),body:ListView(padding:const EdgeInsets.all(16),children:[const Center(child:BrandLogo(size:76)),const SizedBox(height:20),for(final item in [(Icons.language_rounded,'Language','This preview currently supports English. Full Bangla translation and saved language selection are pending.'),(Icons.mic_rounded,'Audio settings','Microphone permission, voice quality and audio routing will be available when the RTC engine is connected.'),(Icons.block_rounded,'Blocked users','User blocking is not connected yet.'),(Icons.shield_outlined,'Privacy','Google sign-in uses Supabase. Profile edits, room settings, room follows and submitted support tickets are saved to your account. Voice and payments are not connected. Local room chat and moment drafts reset after restart. A production privacy policy is still required.'),(Icons.description_outlined,'Terms','This is an early-access build with account storage and visual previews. Purchases, cash rewards and live voice are not enabled. Production terms have not been published.'),(Icons.delete_outline_rounded,'Delete account','Account deletion is not available in this build. An authenticated deletion flow is still required.')])ListTile(leading:Icon(item.$1,color:gold),title:Text(item.$2),trailing:const Icon(Icons.chevron_right_rounded),onTap:()=>Navigator.push(context,MaterialPageRoute<void>(builder:(_)=>FeaturePage(title:item.$2,description:item.$3,icon:item.$1)))),const ListTile(leading:Icon(Icons.info_outline_rounded),title:Text('Sovera 0.11 · Early access'),subtitle:Text('Account and room storage connected · voice pending'))]));
+ @override Widget build(BuildContext context)=>Scaffold(appBar:AppBar(title:const Text('Settings')),body:ListView(padding:const EdgeInsets.all(16),children:[const Center(child:BrandLogo(size:76)),const SizedBox(height:20),for(final item in [(Icons.language_rounded,'Language','This preview currently supports English. Full Bangla translation and saved language selection are pending.'),(Icons.mic_rounded,'Audio settings','Microphone permission, voice quality and audio routing will be available when the RTC engine is connected.'),(Icons.block_rounded,'Blocked users','User blocking is not connected yet.'),(Icons.shield_outlined,'Privacy','Google sign-in uses Supabase. Profile edits, room settings, room follows and submitted support tickets are saved to your account. Voice and payments are not connected. Local room chat and moment drafts reset after restart. A production privacy policy is still required.'),(Icons.description_outlined,'Terms','This is an early-access build with account storage and visual previews. Purchases, cash rewards and live voice are not enabled. Production terms have not been published.'),(Icons.delete_outline_rounded,'Delete account','Account deletion is not available in this build. An authenticated deletion flow is still required.')])ListTile(leading:Icon(item.$1,color:gold),title:Text(item.$2),trailing:const Icon(Icons.chevron_right_rounded),onTap:()=>Navigator.push(context,MaterialPageRoute<void>(builder:(_)=>FeaturePage(title:item.$2,description:item.$3,icon:item.$1)))),const ListTile(leading:Icon(Icons.info_outline_rounded),title:Text('Sovera 0.12 · Early access'),subtitle:Text('Account and room storage connected · voice pending'))]));
 }
 
 class BrandLogo extends StatelessWidget {
@@ -240,18 +243,23 @@ class _RankingsState extends State<Rankings> {
  Text('$period preview · Real rankings need server event totals.', textAlign: TextAlign.center, style: const TextStyle(color: Colors.white54)),
  ]));
 }
+class RoomDraft{
+ final String name;final String? roomId,ownerId;final int seats;final int? mySeat,partnerSeat;final SeatBond bond;final bool muted;final List<String> messages;
+ const RoomDraft({required this.name,this.roomId,this.ownerId,required this.seats,this.mySeat,this.partnerSeat,required this.bond,required this.muted,required this.messages});
+}
+final minimizedRoom=ValueNotifier<RoomDraft?>(null);
 class VoiceRoom extends StatefulWidget {
  final String name;
  final String? roomId,ownerId;
- final int initialSeats;
- const VoiceRoom({super.key, required this.name,this.roomId,this.ownerId,this.initialSeats=9});
+ final int initialSeats;final RoomDraft? draft;
+ const VoiceRoom({super.key, required this.name,this.roomId,this.ownerId,this.initialSeats=9,this.draft});
  @override
  State<VoiceRoom> createState() => _VoiceRoomState();
 }
 class _VoiceRoomState extends State<VoiceRoom> {
- int seats=9; int? partnerSeat; SeatBond bond=SeatBond.friendship; bool savingSeats=false; int? mySeat; String? selectedGift;
+ int seats=9;bool micMuted=true; int? partnerSeat; SeatBond bond=SeatBond.friendship; bool savingSeats=false; int? mySeat; String? selectedGift;
  final messages=<String>[]; final input=TextEditingController();
- @override void initState(){super.initState();seats=widget.initialSeats;
+ @override void initState(){super.initState();seats=widget.draft?.seats??widget.initialSeats;mySeat=widget.draft?.mySeat;partnerSeat=widget.draft?.partnerSeat;bond=widget.draft?.bond??SeatBond.friendship;micMuted=widget.draft?.muted??true;messages.addAll(widget.draft?.messages??[]);
   WidgetsBinding.instance.addPostFrameCallback((_){
    final entry=previewEntryEffect.value;
    if(mounted&&entry!=null&&ModalRoute.of(context)?.isCurrent==true)showEntryPreview(context,entry);
@@ -263,28 +271,39 @@ class _VoiceRoomState extends State<VoiceRoom> {
  void dispose(){input.dispose();super.dispose();}
  @override
  Widget build(BuildContext context) => Scaffold(backgroundColor: const Color(0xFF0C0D0F),
- appBar: AppBar(backgroundColor: const Color(0xFF0C0D0F), titleSpacing: 0, title: Row(children: [const BrandLogo(size: 38), const SizedBox(width: 10), Expanded(child: Text(widget.name,maxLines:1,overflow:TextOverflow.ellipsis, style: const TextStyle(fontSize: 16)))]), actions: [IconButton(tooltip:'Frames & effects',onPressed:()=>Navigator.push(context,MaterialPageRoute<void>(builder:(_)=>const EffectsStudio())),icon:const Icon(Icons.auto_awesome_rounded,color:gold)),IconButton(tooltip:'Seat settings',onPressed:canEdit&&!savingSeats?settings:null,icon:const Icon(Icons.settings_outlined,color:gold))]),
+ appBar:AppBar(backgroundColor:const Color(0xFF10182A),automaticallyImplyLeading:false,leadingWidth:44,leading:RoomTool(label:'Back',icon:Icons.arrow_back_ios_new_rounded,color:violet,onTap:()=>Navigator.maybePop(context)),titleSpacing:0,title:Row(children:[const BrandLogo(size:28),const SizedBox(width:6),Expanded(child:Text(widget.name,maxLines:1,overflow:TextOverflow.ellipsis,style:const TextStyle(fontSize:14,fontWeight:FontWeight.bold)))]),actions:[
+ RoomTool(label:'Minimize room',icon:Icons.unfold_less_rounded,color:cyan,onTap:minimize),
+ RoomTool(label:'Frames & effects',icon:Icons.auto_awesome_rounded,color:violet,onTap:()=>Navigator.push(context,MaterialPageRoute<void>(builder:(_)=>const EffectsStudio()))),
+ RoomTool(label:'Seat settings',icon:Icons.tune_rounded,color:gold,onTap:canEdit&&!savingSeats?settings:null),
+ RoomTool(label:'Leave room',icon:Icons.logout_rounded,color:pink,onTap:(){minimizedRoom.value=null;if(Navigator.canPop(context)){Navigator.pop(context);}else{Navigator.pushReplacement(context,MaterialPageRoute<void>(builder:(_)=>const Home()));}}),
+ ]),
  body: SafeArea(child: Center(child: ConstrainedBox(constraints: const BoxConstraints(maxWidth:640),child: Column(children:[
  Expanded(child: ListView(padding:const EdgeInsets.symmetric(horizontal:18,vertical:12),children:[
  Wrap(spacing:8,runSpacing:8,crossAxisAlignment:WrapCrossAlignment.center,children:[ActionChip(avatar:const Icon(Icons.emoji_events_rounded,color:gold,size:18),label:const Text('Room honors'),onPressed:()=>Navigator.push(context,MaterialPageRoute<void>(builder:(_)=>const Rankings()))),Text(widget.roomId==null?'OFFLINE PREVIEW':'ROOM SAVED · NO AUDIO',maxLines:2,style:const TextStyle(color:Colors.white38,fontSize:10))]),
- const Center(child:RoyalAvatar(size:94,active:true)),const Center(child:Text('Room design preview',style:TextStyle(color:gold,fontWeight:FontWeight.bold))),const SizedBox(height:18),
+ const SizedBox(height:6),
  Align(alignment:Alignment.center,child:TextButton.icon(onPressed:connections,icon:const Icon(Icons.handshake_rounded,color:cyan),label:const Text('Friendship & CP preview'))),
  LayoutBuilder(builder:(context,constraints){
  final height=126+25*(MediaQuery.textScalerOf(context).scale(1)-1);
  final linked=mySeat!=null&&partnerSeat!=null&&adjacentSeats(mySeat!,partnerSeat!,seats);
  return Stack(children:[
- GridView.builder(shrinkWrap:true,physics:const NeverScrollableScrollPhysics(),itemCount:seats,gridDelegate:SliverGridDelegateWithFixedCrossAxisCount(crossAxisCount:3,mainAxisExtent:height),itemBuilder:(context,index)=>Semantics(label:'Seat ${index+1}',button:true,child:InkWell(onTap:()=>setState((){mySeat=mySeat==index?null:index;if(mySeat==null||mySeat==partnerSeat)partnerSeat=null;}),onLongPress:()=>profile(index),borderRadius:BorderRadius.circular(24),child:Column(children:[RoyalAvatar(size:64,active:mySeat==index||partnerSeat==index),Text(mySeat==index?'You':partnerSeat==index?'Partner preview':'${index+1}',maxLines:1,overflow:TextOverflow.ellipsis,textAlign:TextAlign.center,style:const TextStyle(color:Colors.white60,fontSize:11))])))),
+ GridView.builder(shrinkWrap:true,physics:const NeverScrollableScrollPhysics(),itemCount:seats,gridDelegate:SliverGridDelegateWithFixedCrossAxisCount(crossAxisCount:3,mainAxisExtent:height),itemBuilder:(context,index)=>Semantics(label:'Seat ${index+1}',button:true,child:InkWell(onTap:()=>setState((){mySeat=mySeat==index?null:index;if(mySeat==null||mySeat==partnerSeat)partnerSeat=null;}),onLongPress:()=>profile(index),borderRadius:BorderRadius.circular(24),child:Column(children:[RoomSeatAvatar(size:64,occupied:mySeat==index||partnerSeat==index,muted:mySeat==index&&micMuted),Text(mySeat==index?'You':partnerSeat==index?'Partner preview':'${index+1}',maxLines:1,overflow:TextOverflow.ellipsis,textAlign:TextAlign.center,style:const TextStyle(color:Colors.white60,fontSize:11))])))),
  if(linked)Positioned(left:constraints.maxWidth*((mySeat!%3+partnerSeat!%3+1)/6)-18,top:(mySeat!~/3)*height+30,child:SeatLinkMarker(bond:bond)),
  ]);
  }),
  if(partnerSeat!=null)const Text('Local relationship preview · No real request or gift sent',textAlign:TextAlign.center,style:TextStyle(color:Colors.white54,fontSize:10)),
+ if(mySeat!=null)Text(micMuted?'Mic indicator: muted · Live audio unavailable':'Mic indicator: unmuted preview · Live audio unavailable',textAlign:TextAlign.center,style:TextStyle(color:micMuted?pink:cyan,fontSize:10)),
  const SizedBox(height:16),const Text('Local chat preview',style:TextStyle(color:gold,fontWeight:FontWeight.bold)),
  const SizedBox(height:12),const Text('Welcome to Sovera. Take a seat and explore the room design.',style:TextStyle(color:Colors.white54,fontSize:12)),const SizedBox(height:12),
  for(final m in messages)Padding(padding:const EdgeInsets.only(bottom:8),child:Glass(tint:gold,padding:const EdgeInsets.all(12),child:Text('You: $m'))),
  ])),
- Padding(padding:const EdgeInsets.fromLTRB(10,6,10,14),child:Row(children:[IconButton(tooltip:'Microphone unavailable in preview',onPressed:()=>notice('RTC voice is not connected yet.'),icon:const Icon(Icons.mic_off_rounded,color:gold)),Expanded(child:TextField(controller:input,maxLength:300,decoration:const InputDecoration(hintText:'Local message…',counterText:'',border:InputBorder.none),onSubmitted:(_)=>send())),IconButton(tooltip:'Send local message',onPressed:send,icon:const Icon(Icons.send_rounded,color:gold)),IconButton.filled(tooltip:'Preview gifts',onPressed:gifts,style:IconButton.styleFrom(backgroundColor:const Color(0xFFB6642B)),icon:const Icon(Icons.card_giftcard_rounded)),IconButton(tooltip:'Games',onPressed:()=>Navigator.push(context,MaterialPageRoute<void>(builder:(_)=>const GamesHub())),icon:const Icon(Icons.grid_view_rounded,color:gold))])),
+ Padding(padding:const EdgeInsets.fromLTRB(10,6,10,14),child:Row(children:[IconButton(tooltip:micMuted?'Unmute preview':'Mute preview',onPressed:toggleMic,icon:Icon(micMuted?Icons.mic_off_rounded:Icons.mic_rounded,color:micMuted?pink:cyan)),Expanded(child:TextField(controller:input,maxLength:300,decoration:const InputDecoration(hintText:'Local message…',counterText:'',border:InputBorder.none),onSubmitted:(_)=>send())),IconButton(tooltip:'Send local message',onPressed:send,icon:const Icon(Icons.send_rounded,color:gold)),IconButton.filled(tooltip:'Preview gifts',onPressed:gifts,style:IconButton.styleFrom(backgroundColor:const Color(0xFFB6642B)),icon:const Icon(Icons.card_giftcard_rounded)),IconButton(tooltip:'Games',onPressed:()=>Navigator.push(context,MaterialPageRoute<void>(builder:(_)=>const GamesHub())),icon:const Icon(Icons.grid_view_rounded,color:gold))])),
  ])))),
  );
+ void toggleMic(){if(mySeat==null){notice('Take a seat first to preview your microphone indicator.');return;}setState(()=>micMuted=!micMuted);}
+ void minimize(){
+ if(!Navigator.canPop(context)){notice('Open a room from Home to minimize it.');return;}
+ minimizedRoom.value=RoomDraft(name:widget.name,roomId:widget.roomId,ownerId:widget.ownerId,seats:seats,mySeat:mySeat,partnerSeat:partnerSeat,bond:bond,muted:micMuted,messages:List.unmodifiable(messages));Navigator.pop(context);
+ }
  Future<void> connections()async{
  int own=mySeat??0;SeatBond draft=bond;
  int peer=partnerSeat??(own%3==2?own-1:own+1);
