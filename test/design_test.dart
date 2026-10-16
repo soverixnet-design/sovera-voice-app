@@ -2,6 +2,7 @@ import 'dart:io';
 import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:sovera/main.dart';
 import 'package:sovera/room_card.dart';
@@ -28,6 +29,13 @@ void main(){
  testWidgets('Export home design for visual review', (tester)async{
   tester.view.physicalSize=const Size(390,844);tester.view.devicePixelRatio=1;
   addTearDown(tester.view.resetPhysicalSize);addTearDown(tester.view.resetDevicePixelRatio);
+  await tester.runAsync(()async{
+   final fontFile=File('/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf');
+   if(await fontFile.exists()){
+    final font=FontLoader('Roboto')..addFont(Future.value(ByteData.sublistView(await fontFile.readAsBytes())));
+    await font.load();
+   }
+  });
   final key=GlobalKey();
   await tester.pumpWidget(RepaintBoundary(key:key,child:const Sovera(preview:true)));
   await tester.pumpAndSettle();
@@ -37,6 +45,15 @@ void main(){
    final bytes=await image.toByteData(format:ui.ImageByteFormat.png);
    await Directory('build/design-review').create(recursive:true);
    await File('build/design-review/home.png').writeAsBytes(bytes!.buffer.asUint8List());
+   image.dispose();
+  });
+  await tester.drag(find.byType(Scrollable).first,const Offset(0,-600));
+  await tester.pumpAndSettle();
+  await tester.runAsync(()async{
+   final boundary=key.currentContext!.findRenderObject()! as RenderRepaintBoundary;
+   final image=await boundary.toImage(pixelRatio:2);
+   final bytes=await image.toByteData(format:ui.ImageByteFormat.png);
+   await File('build/design-review/room-cards.png').writeAsBytes(bytes!.buffer.asUint8List());
    image.dispose();
   });
   expect(tester.takeException(),isNull);
