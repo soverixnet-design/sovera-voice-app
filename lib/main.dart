@@ -8,6 +8,7 @@ import 'social_center.dart';
 import 'effects_studio.dart';
 import 'support_tickets.dart';
 import 'wallet.dart';
+import 'seat_link.dart';
 import 'supabase_config.dart';
 
 Future<void> main() async {
@@ -185,7 +186,7 @@ class _SupportPageState extends State<SupportPage>{
 }
 class AppSettings extends StatelessWidget{
  const AppSettings({super.key});
- @override Widget build(BuildContext context)=>Scaffold(appBar:AppBar(title:const Text('Settings')),body:ListView(padding:const EdgeInsets.all(16),children:[const Center(child:BrandLogo(size:76)),const SizedBox(height:20),for(final item in [(Icons.language_rounded,'Language','This preview currently supports English. Full Bangla translation and saved language selection are pending.'),(Icons.mic_rounded,'Audio settings','Microphone permission, voice quality and audio routing will be available when the RTC engine is connected.'),(Icons.block_rounded,'Blocked users','User blocking is not connected yet.'),(Icons.shield_outlined,'Privacy','Google sign-in uses Supabase. Profile edits, room settings, room follows and submitted support tickets are saved to your account. Voice and payments are not connected. Local room chat and moment drafts reset after restart. A production privacy policy is still required.'),(Icons.description_outlined,'Terms','This is an early-access build with account storage and visual previews. Purchases, cash rewards and live voice are not enabled. Production terms have not been published.'),(Icons.delete_outline_rounded,'Delete account','Account deletion is not available in this build. An authenticated deletion flow is still required.')])ListTile(leading:Icon(item.$1,color:gold),title:Text(item.$2),trailing:const Icon(Icons.chevron_right_rounded),onTap:()=>Navigator.push(context,MaterialPageRoute<void>(builder:(_)=>FeaturePage(title:item.$2,description:item.$3,icon:item.$1)))),const ListTile(leading:Icon(Icons.info_outline_rounded),title:Text('Sovera 0.10 · Early access'),subtitle:Text('Account and room storage connected · voice pending'))]));
+ @override Widget build(BuildContext context)=>Scaffold(appBar:AppBar(title:const Text('Settings')),body:ListView(padding:const EdgeInsets.all(16),children:[const Center(child:BrandLogo(size:76)),const SizedBox(height:20),for(final item in [(Icons.language_rounded,'Language','This preview currently supports English. Full Bangla translation and saved language selection are pending.'),(Icons.mic_rounded,'Audio settings','Microphone permission, voice quality and audio routing will be available when the RTC engine is connected.'),(Icons.block_rounded,'Blocked users','User blocking is not connected yet.'),(Icons.shield_outlined,'Privacy','Google sign-in uses Supabase. Profile edits, room settings, room follows and submitted support tickets are saved to your account. Voice and payments are not connected. Local room chat and moment drafts reset after restart. A production privacy policy is still required.'),(Icons.description_outlined,'Terms','This is an early-access build with account storage and visual previews. Purchases, cash rewards and live voice are not enabled. Production terms have not been published.'),(Icons.delete_outline_rounded,'Delete account','Account deletion is not available in this build. An authenticated deletion flow is still required.')])ListTile(leading:Icon(item.$1,color:gold),title:Text(item.$2),trailing:const Icon(Icons.chevron_right_rounded),onTap:()=>Navigator.push(context,MaterialPageRoute<void>(builder:(_)=>FeaturePage(title:item.$2,description:item.$3,icon:item.$1)))),const ListTile(leading:Icon(Icons.info_outline_rounded),title:Text('Sovera 0.11 · Early access'),subtitle:Text('Account and room storage connected · voice pending'))]));
 }
 
 class BrandLogo extends StatelessWidget {
@@ -248,7 +249,7 @@ class VoiceRoom extends StatefulWidget {
  State<VoiceRoom> createState() => _VoiceRoomState();
 }
 class _VoiceRoomState extends State<VoiceRoom> {
- int seats=9; bool savingSeats=false; int? mySeat; String? selectedGift;
+ int seats=9; int? partnerSeat; SeatBond bond=SeatBond.friendship; bool savingSeats=false; int? mySeat; String? selectedGift;
  final messages=<String>[]; final input=TextEditingController();
  @override void initState(){super.initState();seats=widget.initialSeats;
   WidgetsBinding.instance.addPostFrameCallback((_){
@@ -267,7 +268,16 @@ class _VoiceRoomState extends State<VoiceRoom> {
  Expanded(child: ListView(padding:const EdgeInsets.symmetric(horizontal:18,vertical:12),children:[
  Wrap(spacing:8,runSpacing:8,crossAxisAlignment:WrapCrossAlignment.center,children:[ActionChip(avatar:const Icon(Icons.emoji_events_rounded,color:gold,size:18),label:const Text('Room honors'),onPressed:()=>Navigator.push(context,MaterialPageRoute<void>(builder:(_)=>const Rankings()))),Text(widget.roomId==null?'OFFLINE PREVIEW':'ROOM SAVED · NO AUDIO',maxLines:2,style:const TextStyle(color:Colors.white38,fontSize:10))]),
  const Center(child:RoyalAvatar(size:94,active:true)),const Center(child:Text('Room design preview',style:TextStyle(color:gold,fontWeight:FontWeight.bold))),const SizedBox(height:18),
- GridView.builder(shrinkWrap:true,physics:const NeverScrollableScrollPhysics(),itemCount:seats,gridDelegate:SliverGridDelegateWithFixedCrossAxisCount(crossAxisCount:3,mainAxisExtent:110+25*(MediaQuery.textScalerOf(context).scale(1)-1)),itemBuilder:(context,index)=>InkWell(onTap:()=>setState(()=>mySeat=mySeat==index?null:index),onLongPress:()=>profile(index),borderRadius:BorderRadius.circular(24),child:Column(children:[RoyalAvatar(size:52,active:mySeat==index),Text(mySeat==index?'You':'${index+1}',style:const TextStyle(color:Colors.white60,fontSize:11))]))),
+ Align(alignment:Alignment.center,child:TextButton.icon(onPressed:connections,icon:const Icon(Icons.handshake_rounded,color:cyan),label:const Text('Friendship & CP preview'))),
+ LayoutBuilder(builder:(context,constraints){
+ final height=126+25*(MediaQuery.textScalerOf(context).scale(1)-1);
+ final linked=mySeat!=null&&partnerSeat!=null&&adjacentSeats(mySeat!,partnerSeat!,seats);
+ return Stack(children:[
+ GridView.builder(shrinkWrap:true,physics:const NeverScrollableScrollPhysics(),itemCount:seats,gridDelegate:SliverGridDelegateWithFixedCrossAxisCount(crossAxisCount:3,mainAxisExtent:height),itemBuilder:(context,index)=>Semantics(label:'Seat ${index+1}',button:true,child:InkWell(onTap:()=>setState((){mySeat=mySeat==index?null:index;if(mySeat==null||mySeat==partnerSeat)partnerSeat=null;}),onLongPress:()=>profile(index),borderRadius:BorderRadius.circular(24),child:Column(children:[RoyalAvatar(size:64,active:mySeat==index||partnerSeat==index),Text(mySeat==index?'You':partnerSeat==index?'Partner preview':'${index+1}',textAlign:TextAlign.center,style:const TextStyle(color:Colors.white60,fontSize:11))])))),
+ if(linked)Positioned(left:constraints.maxWidth*((mySeat!%3+partnerSeat!%3+1)/6)-18,top:(mySeat!~/3)*height+30,child:SeatLinkMarker(bond:bond)),
+ ]);
+ }),
+ if(partnerSeat!=null)const Text('Local relationship preview · No real request or gift sent',textAlign:TextAlign.center,style:TextStyle(color:Colors.white54,fontSize:10)),
  const SizedBox(height:16),const Text('Local chat preview',style:TextStyle(color:gold,fontWeight:FontWeight.bold)),
  const SizedBox(height:12),const Text('Welcome to Sovera. Take a seat and explore the room design.',style:TextStyle(color:Colors.white54,fontSize:12)),const SizedBox(height:12),
  for(final m in messages)Padding(padding:const EdgeInsets.only(bottom:8),child:Glass(tint:gold,padding:const EdgeInsets.all(12),child:Text('You: $m'))),
@@ -275,6 +285,21 @@ class _VoiceRoomState extends State<VoiceRoom> {
  Padding(padding:const EdgeInsets.fromLTRB(10,6,10,14),child:Row(children:[IconButton(tooltip:'Microphone unavailable in preview',onPressed:()=>notice('RTC voice is not connected yet.'),icon:const Icon(Icons.mic_off_rounded,color:gold)),Expanded(child:TextField(controller:input,maxLength:300,decoration:const InputDecoration(hintText:'Local message…',counterText:'',border:InputBorder.none),onSubmitted:(_)=>send())),IconButton(tooltip:'Send local message',onPressed:send,icon:const Icon(Icons.send_rounded,color:gold)),IconButton.filled(tooltip:'Preview gifts',onPressed:gifts,style:IconButton.styleFrom(backgroundColor:const Color(0xFFB6642B)),icon:const Icon(Icons.card_giftcard_rounded)),IconButton(tooltip:'Games',onPressed:()=>Navigator.push(context,MaterialPageRoute<void>(builder:(_)=>const GamesHub())),icon:const Icon(Icons.grid_view_rounded,color:gold))])),
  ])))),
  );
+ Future<void> connections()async{
+ int own=mySeat??0;SeatBond draft=bond;
+ int peer=partnerSeat??(own%3==2?own-1:own+1);
+ if(!adjacentSeats(own,peer,seats))peer=own%3==2?own-1:own+1;
+ final applied=await showModalBottomSheet<bool>(context:context,isScrollControlled:true,showDragHandle:true,builder:(sheet)=>StatefulBuilder(builder:(sheet,update)=>SafeArea(child:SingleChildScrollView(padding:const EdgeInsets.all(24),child:Column(mainAxisSize:MainAxisSize.min,crossAxisAlignment:CrossAxisAlignment.start,children:[
+ const Text('Friendship & CP',style:TextStyle(fontSize:24,fontWeight:FontWeight.bold)),const SizedBox(height:12),const Text('Try two neighbouring seats. This is a local visual preview; real links require both users to accept a relationship.',style:TextStyle(color:Colors.white60,height:1.5)),const SizedBox(height:18),
+ DropdownButtonFormField<int>(initialValue:own,decoration:const InputDecoration(labelText:'Your preview seat'),items:[for(int i=0;i<seats;i++)DropdownMenuItem(value:i,child:Text('Seat ${i+1}'))],onChanged:(value){if(value==null)return;update((){own=value;peer=own%3==2?own-1:own+1;if(peer>=seats)peer=own-1;});}),
+ const SizedBox(height:12),DropdownButtonFormField<int>(key:ValueKey(own),initialValue:peer,decoration:const InputDecoration(labelText:'Partner preview seat'),items:[for(int i=0;i<seats;i++)if(adjacentSeats(own,i,seats))DropdownMenuItem(value:i,child:Text('Seat ${i+1}'))],onChanged:(value){if(value!=null)update(()=>peer=value);}),
+ const SizedBox(height:18),Wrap(spacing:8,children:[ChoiceChip(label:const Text('Friendship'),avatar:const Icon(Icons.handshake_rounded,size:18),selected:draft==SeatBond.friendship,onSelected:(_)=>update(()=>draft=SeatBond.friendship)),ChoiceChip(label:const Text('CP Love'),avatar:const Icon(Icons.favorite_rounded,size:18),selected:draft==SeatBond.cp,onSelected:(_)=>update(()=>draft=SeatBond.cp))]),
+ const SizedBox(height:18),FilledButton(onPressed:()=>Navigator.pop(sheet,true),child:const Text('Apply seat preview')),
+ TextButton(onPressed:()=>Navigator.pop(sheet,false),child:const Text('Clear seat link')),
+ ])))));
+ if(!mounted||applied==null)return;
+ setState((){if(applied){mySeat=own;partnerSeat=peer;bond=draft;}else{partnerSeat=null;}});
+ }
  void send(){if(input.text.trim().isEmpty)return;setState((){messages.add(input.text.trim());input.clear();});}
  Future<void> settings()async{
  if(!canEdit||savingSeats)return;
@@ -286,21 +311,21 @@ class _VoiceRoomState extends State<VoiceRoom> {
   try{
    final saved=await soveraClient.from('sovera_rooms').update({'seat_count':value}).eq('id',widget.roomId!).select('seat_count').single();
    if(!mounted)return;
-   setState((){seats=saved['seat_count'] as int;if(mySeat!=null&&mySeat!>=seats)mySeat=null;});
+   setState((){seats=saved['seat_count'] as int;if(mySeat!=null&&mySeat!>=seats)mySeat=null;if(partnerSeat!=null&&partnerSeat!>=seats)partnerSeat=null;});
    notice('Seat layout saved to your room.');
   }catch(_){if(mounted)notice('Seat layout was not saved. Please retry.');}
   finally{if(mounted)setState(()=>savingSeats=false);}
- }else{setState((){seats=value;if(mySeat!=null&&mySeat!>=seats)mySeat=null;});notice('Seat layout saved for this preview session.');}
+ }else{setState((){seats=value;if(mySeat!=null&&mySeat!>=seats)mySeat=null;if(partnerSeat!=null&&partnerSeat!>=seats)partnerSeat=null;});notice('Seat layout saved for this preview session.');}
  }
  void profile(int index)=>showModalBottomSheet<void>(context:context,isScrollControlled:true,showDragHandle:true,backgroundColor:const Color(0xFF1B191C),builder:(context)=>SafeArea(child:SingleChildScrollView(padding:const EdgeInsets.all(24),child:Column(mainAxisSize:MainAxisSize.min,children:[RoyalAvatar(size:96,active:mySeat==index),Text(mySeat==index?'You':'Empty seat ${index+1}',style:const TextStyle(fontSize:24,fontWeight:FontWeight.bold)),const SizedBox(height:12),Text(mySeat==index?'Your seat preview · audio is not connected':'This seat is empty. Tap it to preview sitting here.',style:const TextStyle(color:Colors.white54)),const SizedBox(height:22),const SizedBox.shrink(),const SizedBox(height:20),if(mySeat==index)FilledButton(onPressed:(){Navigator.pop(context);gifts();},child:const Text('Open gift collection'))]))));
  void previewGift(BuildContext sheet){
- final icons={'Heart':Icons.favorite_rounded,'Diamond':Icons.diamond_rounded,'Castle':Icons.castle_rounded,'Rose':Icons.local_florist_rounded,'Royal car':Icons.directions_car_rounded,'Starlight':Icons.auto_awesome_rounded};
+ final icons={'Heart':Icons.favorite_rounded,'Diamond':Icons.diamond_rounded,'Castle':Icons.castle_rounded,'Rose':Icons.local_florist_rounded,'Royal car':Icons.directions_car_rounded,'Starlight':Icons.auto_awesome_rounded,'Holding hands':Icons.handshake_rounded,'CP Heart':Icons.favorite_rounded};
  showDialog<void>(context:sheet,builder:(dialog)=>AlertDialog(title:Text('$selectedGift preview'),content:Column(mainAxisSize:MainAxisSize.min,children:[Jewel(icons[selectedGift]??Icons.card_giftcard_rounded,color:gold,size:82),const SizedBox(height:20),const Text('Visual preview only. No gift is sent and no coins are spent.',textAlign:TextAlign.center)]),actions:[TextButton(onPressed:()=>Navigator.pop(dialog),child:const Text('Close'))]));
  }
  void gifts()=>showModalBottomSheet<void>(context:context,isScrollControlled:true,showDragHandle:true,backgroundColor:const Color(0xFF111113),builder:(context)=>StatefulBuilder(builder:(context,update)=>SafeArea(child:SizedBox(height:MediaQuery.sizeOf(context).height*.72,child:Padding(padding:const EdgeInsets.all(18),child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
  Container(padding:const EdgeInsets.all(14),decoration:BoxDecoration(gradient:const LinearGradient(colors:[Color(0xFFFFA323),Color(0xFFED541F)]),borderRadius:BorderRadius.circular(18)),child:const Row(children:[Icon(Icons.card_giftcard_rounded),SizedBox(width:10),Expanded(child:Text('Sovera Gift Collection',maxLines:2,overflow:TextOverflow.ellipsis,style:TextStyle(fontWeight:FontWeight.bold))),SizedBox(width:8),BrandLogo(size:32)])),
  const SizedBox(height:14),const Text('Preview only · no coins will be spent',style:TextStyle(color:Colors.white54,fontSize:12)),const SizedBox(height:14),
- const SizedBox(height:16),Expanded(child:GridView.count(crossAxisCount:MediaQuery.sizeOf(context).width<360||MediaQuery.textScalerOf(context).scale(1)>1.3?2:3,mainAxisSpacing:10,crossAxisSpacing:10,childAspectRatio:MediaQuery.textScalerOf(context).scale(1)>1.3 ? 0.65 : 0.85,children:[for(final item in [(Icons.favorite_rounded,'Heart',pink),(Icons.diamond_rounded,'Diamond',cyan),(Icons.castle_rounded,'Castle',gold),(Icons.local_florist_rounded,'Rose',pink),(Icons.directions_car_rounded,'Royal car',gold),(Icons.auto_awesome_rounded,'Starlight',violet)])InkWell(onTap:()=>update(()=>selectedGift=item.$2),child:Container(decoration:BoxDecoration(color:selectedGift==item.$2?gold.withValues(alpha:.18):Colors.white.withValues(alpha:.03),border:Border.all(color:selectedGift==item.$2?gold:Colors.white12),borderRadius:BorderRadius.circular(16)),child:Column(mainAxisAlignment:MainAxisAlignment.center,children:[Jewel(item.$1,color:item.$3,size:48),const SizedBox(height:10),Text(item.$2,style:const TextStyle(fontSize:11)),const Text('Preview',style:TextStyle(fontSize:10,color:gold))])))])),
+ const SizedBox(height:16),Expanded(child:GridView.count(crossAxisCount:MediaQuery.sizeOf(context).width<360||MediaQuery.textScalerOf(context).scale(1)>1.3?2:3,mainAxisSpacing:10,crossAxisSpacing:10,childAspectRatio:MediaQuery.textScalerOf(context).scale(1)>1.3 ? 0.65 : 0.85,children:[for(final item in [(Icons.favorite_rounded,'Heart',pink),(Icons.diamond_rounded,'Diamond',cyan),(Icons.castle_rounded,'Castle',gold),(Icons.local_florist_rounded,'Rose',pink),(Icons.directions_car_rounded,'Royal car',gold),(Icons.auto_awesome_rounded,'Starlight',violet),(Icons.handshake_rounded,'Holding hands',cyan),(Icons.favorite_rounded,'CP Heart',pink)])InkWell(onTap:()=>update(()=>selectedGift=item.$2),child:Container(decoration:BoxDecoration(color:selectedGift==item.$2?gold.withValues(alpha:.18):Colors.white.withValues(alpha:.03),border:Border.all(color:selectedGift==item.$2?gold:Colors.white12),borderRadius:BorderRadius.circular(16)),child:Column(mainAxisAlignment:MainAxisAlignment.center,children:[Jewel(item.$1,color:item.$3,size:48),const SizedBox(height:10),Text(item.$2,style:const TextStyle(fontSize:11)),const Text('Preview',style:TextStyle(fontSize:10,color:gold))])))])),
  const SizedBox(height:12),Wrap(spacing:12,runSpacing:8,alignment:WrapAlignment.spaceBetween,crossAxisAlignment:WrapCrossAlignment.center,children:[const Text('Coins · —',style:TextStyle(color:gold)),FilledButton(onPressed:selectedGift==null?null:()=>previewGift(context),style:FilledButton.styleFrom(backgroundColor:const Color(0xFFF07D2A)),child:const Text('View selection'))]),
  ]))))));
 }
