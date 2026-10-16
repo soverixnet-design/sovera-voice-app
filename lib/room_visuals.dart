@@ -9,7 +9,7 @@ class RoomSeatAvatar extends StatelessWidget{
  @override Widget build(BuildContext context)=>SizedBox(width:size+24,height:size+32,child:Stack(alignment:Alignment.center,children:[
  Positioned.fill(child:CustomPaint(painter:_SeatPainter(occupied))),
  Positioned(top:14,left:16,right:16,child:SizedBox(height:size-8,child:occupied?FramePreviewAdapter(size:size-8,child:BrandLogo(size:size-18)):Icon(Icons.weekend_rounded,color:gold,size:size*.52))),
- if(occupied&&muted)Positioned(right:1,bottom:14,child:Semantics(label:'Microphone muted',child:Container(padding:const EdgeInsets.all(4),decoration:BoxDecoration(color:const Color(0xFFEF5678),shape:BoxShape.circle,border:Border.all(color:Colors.white70)),child:const Icon(Icons.mic_off_rounded,size:14,color:Colors.white)))),
+ if(occupied&&muted)Positioned(right:1,bottom:14,child:Semantics(key:const ValueKey('muted-seat-badge'),label:'Microphone muted',child:Container(padding:const EdgeInsets.all(4),decoration:BoxDecoration(color:const Color(0xFFEF5678),shape:BoxShape.circle,border:Border.all(color:Colors.white70)),child:const Icon(Icons.mic_off_rounded,size:14,color:Colors.white)))),
  ]));
 }
 class _SeatPainter extends CustomPainter{

@@ -23,11 +23,11 @@ void main(){
  testWidgets('Own mute badge toggles and minimizing preserves the seat',(tester)async{
   await tester.pumpWidget(const MaterialApp(home:Home()));await tester.pumpAndSettle();
   tester.state<NavigatorState>(find.byType(Navigator)).push(MaterialPageRoute<void>(builder:(_)=>const VoiceRoom(name:'Preserved room')));await tester.pumpAndSettle();
-  await tester.tap(find.text('1'));await tester.pumpAndSettle();expect(find.bySemanticsLabel('Microphone muted'),findsOneWidget);
-  await tester.tap(find.byTooltip('Unmute preview'));await tester.pumpAndSettle();expect(find.bySemanticsLabel('Microphone muted'),findsNothing);
+  await tester.tap(find.text('1'));await tester.pumpAndSettle();expect(find.byKey(const ValueKey('muted-seat-badge')),findsOneWidget);
+  await tester.tap(find.byTooltip('Unmute preview'));await tester.pumpAndSettle();expect(find.byKey(const ValueKey('muted-seat-badge')),findsNothing);
   await tester.tap(find.byTooltip('Minimize room'));await tester.pumpAndSettle();expect(minimizedRoom.value?.mySeat,0);expect(minimizedRoom.value?.muted,isFalse);
   await tester.tap(find.text('Return to room'));await tester.pumpAndSettle();expect(find.text('You'),findsOneWidget);expect(find.byTooltip('Mute preview'),findsOneWidget);
-  await tester.tap(find.byTooltip('Mute preview'));await tester.pumpAndSettle();expect(find.bySemanticsLabel('Microphone muted'),findsOneWidget);
+  await tester.tap(find.byTooltip('Mute preview'));await tester.pumpAndSettle();expect(find.byKey(const ValueKey('muted-seat-badge')),findsOneWidget);
   await tester.tap(find.byTooltip('Leave room'));await tester.pumpAndSettle();expect(find.byType(VoiceRoom),findsNothing);
  });
  testWidgets('Follow and unfollow persist only after store success',(tester)async{
