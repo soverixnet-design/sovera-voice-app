@@ -3,7 +3,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:http/http.dart' as http;
-import 'main.dart' show Home, BrandLogo, cyan;
+import 'main.dart' show Home, BrandLogo, cyan, minimizedRoom;
 import 'supabase_config.dart';
 
 SupabaseClient get soveraClient => Supabase.instance.client;
@@ -53,6 +53,7 @@ class _AuthGateState extends State<AuthGate> {
   @override void initState(){
     super.initState();
     subscription=soveraClient.auth.onAuthStateChange.listen((state){
+      if(state.event==AuthChangeEvent.signedOut||(state.event==AuthChangeEvent.signedIn&&profile?['id']!=state.session?.user.id))minimizedRoom.value=null;
       if(state.event==AuthChangeEvent.signedOut&&mounted){
         Navigator.of(context).popUntil((route)=>route.isFirst);
       }
