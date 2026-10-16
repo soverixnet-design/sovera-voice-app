@@ -15,8 +15,8 @@ void main() {
   await tester.ensureVisible(find.text('Use frame in preview'));await tester.pumpAndSettle();
   await tester.tap(find.text('Use frame in preview'));
   expect(previewAvatarFrame.value,effectPacks[1]);
-  await tester.ensureVisible(find.text('Reset preview frame'));await tester.pumpAndSettle();
-  await tester.tap(find.text('Reset preview frame'));
+  await tester.ensureVisible(find.text('Reset preview styles'));await tester.pumpAndSettle();
+  await tester.tap(find.text('Reset preview styles'));
   expect(previewAvatarFrame.value,isNull);
  });
  testWidgets('Entry overlay closes and speaking pulse completes', (tester) async {

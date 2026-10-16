@@ -26,6 +26,7 @@ class _ProfileIdentityCardState extends State<ProfileIdentityCard>{
    const CircleAvatar(radius:14,backgroundColor:Color(0xFF292044),child:Icon(Icons.person_rounded,color:gold,size:18)),
   ])),
   const SizedBox(height:18),Text(widget.name,textAlign:TextAlign.center,style:const TextStyle(fontSize:24,fontWeight:FontWeight.w800)),
+  const ProfileStylePreview(),
   const SizedBox(height:10),
   Wrap(alignment:WrapAlignment.center,crossAxisAlignment:WrapCrossAlignment.center,spacing:4,children:[
    SelectableText(widget.profile==null?'ID · Sign in to receive your ID':'ID · ${widget.profile!['uid']}',style:const TextStyle(color:cyan,fontWeight:FontWeight.w600,fontSize:13)),

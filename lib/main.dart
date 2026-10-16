@@ -244,7 +244,12 @@ class VoiceRoom extends StatefulWidget {
 class _VoiceRoomState extends State<VoiceRoom> {
  int seats=9; bool savingSeats=false; int? mySeat; int giftTab=0; String? selectedGift;
  final messages=<String>[]; final input=TextEditingController();
- @override void initState(){super.initState();seats=widget.initialSeats;}
+ @override void initState(){super.initState();seats=widget.initialSeats;
+  WidgetsBinding.instance.addPostFrameCallback((_){
+   final entry=previewEntryEffect.value;
+   if(mounted&&entry!=null&&ModalRoute.of(context)?.isCurrent==true)showEntryPreview(context,entry);
+  });
+ }
  bool get canEdit=>widget.roomId==null||soveraClient.auth.currentUser?.id==widget.ownerId;
  void notice(String text) => ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(text)));
  @override
