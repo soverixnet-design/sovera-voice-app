@@ -29,7 +29,7 @@ void main(){
   await tester.pumpAndSettle();
   await tester.tap(find.text('Me'));await tester.pumpAndSettle();
   await tester.scrollUntilVisible(find.text('Reseller center'),250,scrollable:find.byType(Scrollable).first);
-  await tester.tap(find.text('Reseller center'));await tester.pumpAndSettle();
+  await Scrollable.ensureVisible(tester.element(find.text('Reseller center')),alignment:0.35);await tester.pumpAndSettle();await tester.tap(find.text('Reseller center'));await tester.pumpAndSettle();
   expect(find.text('Grow with Sovera'),findsOneWidget);
   expect(tester.takeException(),isNull);
  });

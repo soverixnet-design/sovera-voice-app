@@ -66,7 +66,7 @@ void main(){
    await File('build/design-review/profile.png').writeAsBytes(bytes!.buffer.asUint8List());image.dispose();
   });
   await tester.scrollUntilVisible(find.text('Reseller center'),250,scrollable:find.byType(Scrollable).first);
-  await tester.tap(find.text('Reseller center'));await tester.pumpAndSettle();
+  await Scrollable.ensureVisible(tester.element(find.text('Reseller center')),alignment:0.35);await tester.pumpAndSettle();await tester.tap(find.text('Reseller center'));await tester.pumpAndSettle();
   await tester.runAsync(()async{
    final image=await (key.currentContext!.findRenderObject()! as RenderRepaintBoundary).toImage(pixelRatio:2);
    final bytes=await image.toByteData(format:ui.ImageByteFormat.png);
