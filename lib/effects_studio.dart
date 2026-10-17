@@ -242,7 +242,7 @@ class _EntryPreviewState extends State<_EntryPreview>
       return Stack(children:[
         Center(child:SizedBox(width:width,height:height,child:AnimatedBuilder(animation:motion,builder:(context,_){
           final t=reduced?0.0:motion.value;
-          final edge=widget.pack.entryDurationMs>5000?.04:.18;
+          final edge=widget.pack.entryDurationMs>5000 ? .04 : .18;
           final fade=reduced?1.0:(t<edge?t/edge:t>1-edge?(1-t)/edge:1.0).clamp(0.0,1.0).toDouble();
           return IgnorePointer(child:Opacity(opacity:fade,child:Stack(children:[
             Positioned.fill(child:DecoratedBox(decoration:BoxDecoration(gradient:RadialGradient(colors:[widget.pack.color.withValues(alpha:.25),Colors.transparent],stops:const [.2,1])))),
