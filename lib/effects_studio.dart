@@ -415,7 +415,7 @@ class _EffectsStudioState extends State<EffectsStudio>
             style: TextStyle(fontSize: 25, fontWeight: FontWeight.w800),
           ),
           const SizedBox(height: 10),
-          const Text(
+          Text(
             '${effectPacks.length} themes · Frames, entry, voice, medals & tags',
             style: TextStyle(color: Colors.white60),
           ),
