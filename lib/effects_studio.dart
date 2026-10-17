@@ -45,6 +45,8 @@ const effectPacks = [
  EffectPack('Violet Phoenix','assets/effects/violet-phoenix.webp',violet,stillAsset:'assets/effects/violet-phoenix-still.webp',portraitDiameter:.59),
  EffectPack('Castle Flag','assets/effects/royal-gold.webp',gold,stillAsset:'assets/effects/royal-gold-still.png',entryAsset:'assets/effects/castle-entry.webp',entryStillAsset:'assets/effects/castle-entry.webp',entryDurationMs:7000,portraitDiameter:.61,portraitY:.52),
  EffectPack('Lion Queen','assets/effects/phoenix.png',Color(0xFFFFA43A),entryAsset:'assets/effects/lion-queen-entry.webp',entryStillAsset:'assets/effects/lion-queen-still.webp',entryDurationMs:10600),
+ EffectPack('Phoenix Queen','assets/effects/phoenix.png',Color(0xFFFF8B3D),entryAsset:'assets/effects/phoenix-queen-entry.webp',entryStillAsset:'assets/effects/phoenix-queen-still.webp',entryDurationMs:13800),
+ EffectPack('Tiger Queen','assets/effects/royal-gold.webp',gold,stillAsset:'assets/effects/royal-gold-still.png',entryAsset:'assets/effects/tiger-queen-entry.webp',entryStillAsset:'assets/effects/tiger-queen-still.webp',entryDurationMs:12000,portraitDiameter:.61,portraitY:.52),
 ];
 
 /// Local visual preference only. It does not grant account inventory.
