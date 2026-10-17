@@ -25,4 +25,4 @@ jobs:
           sha256sum apk/Sovera-v0.13.0.apk apk/Sovera.apk
       - name: Publish public download
         run: |
-          gh release create v0.13.0 apk/Sovera-v0.13.0.apk apk/Sovera.apk --target 8f8f3925033968ce79e793384577052c627707ff --title "Sovera 0.13.0 - Invite and referrals" --notes "Adds a persistent Invite and referrals center: personal codes, copy/share invitations, one-time friend code claims, referral counts and recent joins. Recipients must sign in and enter the code manually. Coin rewards and automatic install attribution are not enabled. Google/Facebook provider setup, live voice and payments remain pending."
+          gh release create v0.13.0 apk/Sovera-v0.13.0.apk apk/Sovera.apk --target "$GITHUB_SHA" --title "Sovera 0.13.0 - Invite and referrals" --notes "Adds a persistent Invite and referrals center: personal codes, copy/share invitations, one-time friend code claims, referral counts and recent joins. Recipients must sign in and enter the code manually. Coin rewards and automatic install attribution are not enabled. Google/Facebook provider setup, live voice and payments remain pending."
