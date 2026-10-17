@@ -1,7 +1,7 @@
 name: sovera
 description: Sovera premium voice party app — voice community app with account and room storage.
 publish_to: none
-version: 0.12.5+21
+version: 0.13.0+22
 environment:
   sdk: '>=3.4.0 <4.0.0'
 dependencies:
