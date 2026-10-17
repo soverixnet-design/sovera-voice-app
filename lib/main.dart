@@ -1,3 +1,4 @@
+import 'room_media.dart';
 import 'referral.dart';
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -273,7 +274,7 @@ class _VoiceRoomState extends State<VoiceRoom> {
  void dispose(){input.dispose();super.dispose();}
  @override
  Widget build(BuildContext context) => Scaffold(backgroundColor: const Color(0xFF0C0D0F),
- appBar:AppBar(backgroundColor:const Color(0xFF10182A),automaticallyImplyLeading:false,leadingWidth:44,leading:RoomTool(label:'Back',icon:Icons.arrow_back_ios_new_rounded,color:violet,onTap:()=>Navigator.maybePop(context)),titleSpacing:0,title:Row(children:[const BrandLogo(size:28),const SizedBox(width:6),Expanded(child:Text(widget.name,maxLines:1,overflow:TextOverflow.ellipsis,style:const TextStyle(fontSize:14,fontWeight:FontWeight.bold)))]),actions:[
+ appBar:AppBar(backgroundColor:const Color(0xFF10182A),automaticallyImplyLeading:false,leadingWidth:44,leading:RoomTool(label:'Back',icon:Icons.arrow_back_ios_new_rounded,color:violet,onTap:()=>Navigator.maybePop(context)),titleSpacing:0,title:Row(children:[RoomPhoto(roomId:widget.roomId,canEdit:canEdit,size:32),const SizedBox(width:6),Expanded(child:Text(widget.name,maxLines:1,overflow:TextOverflow.ellipsis,style:const TextStyle(fontSize:14,fontWeight:FontWeight.bold)))]),actions:[
  RoomTool(label:'Minimize room',icon:Icons.unfold_less_rounded,color:cyan,onTap:minimize),
  RoomTool(label:'Frames & effects',icon:Icons.auto_awesome_rounded,color:violet,onTap:()=>Navigator.push(context,MaterialPageRoute<void>(builder:(_)=>const EffectsStudio()))),
  RoomTool(label:'Seat settings',icon:Icons.tune_rounded,color:gold,onTap:canEdit&&!savingSeats?settings:null),
@@ -342,8 +343,8 @@ class _VoiceRoomState extends State<VoiceRoom> {
  }
  void profile(int index)=>showModalBottomSheet<void>(context:context,isScrollControlled:true,showDragHandle:true,backgroundColor:const Color(0xFF1B191C),builder:(context)=>SafeArea(child:SingleChildScrollView(padding:const EdgeInsets.all(24),child:Column(mainAxisSize:MainAxisSize.min,children:[RoyalAvatar(size:96,active:mySeat==index),Text(mySeat==index?'You':'Empty seat ${index+1}',style:const TextStyle(fontSize:24,fontWeight:FontWeight.bold)),const SizedBox(height:12),Text(mySeat==index?'Your seat preview · audio is not connected':'This seat is empty. Tap it to preview sitting here.',style:const TextStyle(color:Colors.white54)),const SizedBox(height:22),const SizedBox.shrink(),const SizedBox(height:20),if(mySeat==index)FilledButton(onPressed:(){Navigator.pop(context);gifts();},child:const Text('Open gift collection'))]))));
  void previewGift(BuildContext sheet){
- final icons={'Heart':Icons.favorite_rounded,'Diamond':Icons.diamond_rounded,'Castle':Icons.castle_rounded,'Rose':Icons.local_florist_rounded,'Royal car':Icons.directions_car_rounded,'Starlight':Icons.auto_awesome_rounded,'Holding hands':Icons.handshake_rounded,'CP Heart':Icons.favorite_rounded};
- showDialog<void>(context:sheet,builder:(dialog)=>AlertDialog(title:Text('$selectedGift preview'),content:Column(mainAxisSize:MainAxisSize.min,children:[Jewel(icons[selectedGift]??Icons.card_giftcard_rounded,color:gold,size:82),const SizedBox(height:20),const Text('Visual preview only. No gift is sent and no coins are spent.',textAlign:TextAlign.center)]),actions:[TextButton(onPressed:()=>Navigator.pop(dialog),child:const Text('Close'))]));
+ if(selectedGift==null)return;
+ showDialog<void>(context:sheet,builder:(_)=>GiftAnimationCard(name:selectedGift!));
  }
  void gifts()=>showModalBottomSheet<void>(context:context,isScrollControlled:true,showDragHandle:true,backgroundColor:const Color(0xFF111113),builder:(context)=>StatefulBuilder(builder:(context,update)=>SafeArea(child:SizedBox(height:MediaQuery.sizeOf(context).height*.72,child:Padding(padding:const EdgeInsets.all(18),child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
  Container(padding:const EdgeInsets.all(14),decoration:BoxDecoration(gradient:const LinearGradient(colors:[Color(0xFFFFA323),Color(0xFFED541F)]),borderRadius:BorderRadius.circular(18)),child:const Row(children:[Icon(Icons.card_giftcard_rounded),SizedBox(width:10),Expanded(child:Text('Sovera Gift Collection',maxLines:2,overflow:TextOverflow.ellipsis,style:TextStyle(fontWeight:FontWeight.bold))),SizedBox(width:8),BrandLogo(size:32)])),

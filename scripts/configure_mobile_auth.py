@@ -22,5 +22,6 @@ tree.write(p,encoding='utf-8',xml_declaration=True)
 p=Path('ios/Runner/Info.plist')
 with p.open('rb') as file:data=plistlib.load(file)
 data['CFBundleURLTypes']=[{'CFBundleTypeRole':'Editor','CFBundleURLSchemes':['com.sovera.voice']}]
+data['NSPhotoLibraryUsageDescription']='Choose a profile picture for your Sovera room.'
 data['FlutterDeepLinkingEnabled']=False
 with p.open('wb') as file:plistlib.dump(data,file)

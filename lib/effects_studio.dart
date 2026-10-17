@@ -1,3 +1,4 @@
+import 'room_media.dart' show EffectSound;
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
@@ -203,6 +204,7 @@ class _EntryPreviewState extends State<_EntryPreview>
     with SingleTickerProviderStateMixin {
   late final AnimationController motion;
   bool started = false;
+  final sound = EffectSound();
   @override
   void initState() {
     super.initState();
@@ -223,11 +225,13 @@ class _EntryPreviewState extends State<_EntryPreview>
       if (MediaQuery.disableAnimationsOf(context))
         motion.duration = const Duration(milliseconds: 2400);
       motion.forward();
+      sound.play(widget.pack.name);
     }
   }
 
   @override
   void dispose() {
+    sound.dispose();
     motion.dispose();
     super.dispose();
   }
@@ -240,6 +244,7 @@ class _EntryPreviewState extends State<_EntryPreview>
       final height=math.min(constraints.maxHeight*.84,width*1.65);
       final reduced=MediaQuery.disableAnimationsOf(context);
       return Stack(children:[
+        Positioned(left:12,top:12,child:IconButton(tooltip:sound.muted?'Enable entry sound':'Mute entry sound',onPressed:(){setState(()=>sound.muted=!sound.muted);if(sound.muted){sound.stop();}else{sound.play(widget.pack.name);}},icon:Icon(sound.muted?Icons.volume_off_rounded:Icons.volume_up_rounded,color:Colors.white))),
         Center(child:SizedBox(width:width,height:height,child:AnimatedBuilder(animation:motion,builder:(context,_){
           final t=reduced?0.0:motion.value;
           final edge=widget.pack.entryDurationMs>5000 ? .04 : .18;
