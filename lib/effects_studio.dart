@@ -12,6 +12,7 @@ class EffectPack {
   final Color color;
   final String? entryAsset, voiceAsset, medalAsset, tagAsset, stillAsset, entryStillAsset;
  final double portraitDiameter,portraitY;
+ final int entryDurationMs;
   const EffectPack(
     this.name,
     this.asset,
@@ -19,7 +20,7 @@ class EffectPack {
     this.entryAsset,
     this.voiceAsset,
     this.medalAsset,
-    this.tagAsset,this.stillAsset,this.entryStillAsset,this.portraitDiameter=.43,this.portraitY=.53,
+    this.entryDurationMs=3200,this.tagAsset,this.stillAsset,this.entryStillAsset,this.portraitDiameter=.43,this.portraitY=.53,
   });
 }
 
@@ -42,6 +43,7 @@ const effectPacks = [
  EffectPack('Golden Dragon','assets/effects/dragon-gold.webp',gold,stillAsset:'assets/effects/dragon-gold-still.png',entryAsset:'assets/effects/dragon-queen-entry.webp',entryStillAsset:'assets/effects/dragon-queen-entry.webp',portraitDiameter:.59,portraitY:.51),
  EffectPack('Ice Dragon','assets/effects/ice-dragon.webp',cyan,stillAsset:'assets/effects/ice-dragon-still.webp',entryAsset:'assets/effects/ice-king-entry.webp',entryStillAsset:'assets/effects/ice-king-still.webp',portraitDiameter:.58,portraitY:.52),
  EffectPack('Violet Phoenix','assets/effects/violet-phoenix.webp',violet,stillAsset:'assets/effects/violet-phoenix-still.webp',portraitDiameter:.59),
+ EffectPack('Lion Queen','assets/effects/phoenix.png',Color(0xFFFFA43A),entryAsset:'assets/effects/lion-queen-entry.webp',entryStillAsset:'assets/effects/lion-queen-still.webp',entryDurationMs:10600),
 ];
 
 /// Local visual preference only. It does not grant account inventory.
@@ -203,7 +205,7 @@ class _EntryPreviewState extends State<_EntryPreview>
     super.initState();
     motion = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 3200),
+      duration: Duration(milliseconds: widget.pack.entryDurationMs),
     )..addStatusListener((status) {
         if (status == AnimationStatus.completed && mounted)
           Navigator.of(context).pop();
@@ -240,10 +242,11 @@ class _EntryPreviewState extends State<_EntryPreview>
                     final t = MediaQuery.disableAnimationsOf(context)
                         ? 0.0
                         : motion.value;
-                    final fade = (t < .18
-                            ? t / .18
-                            : t > .82
-                                ? (1 - t) / .18
+                    final fadeEdge = widget.pack.entryDurationMs>5000 ? .04 : .18;
+                    final fade = (t < fadeEdge
+                            ? t / fadeEdge
+                            : t > 1-fadeEdge
+                                ? (1 - t) / fadeEdge
                                 : 1.0)
                         .clamp(0.0, 1.0)
                         .toDouble();
@@ -292,7 +295,7 @@ class _EntryPreviewState extends State<_EntryPreview>
                                             : CosmeticArt(
                                                 asset: MediaQuery.disableAnimationsOf(context)?(widget.pack.entryStillAsset??widget.pack.entryAsset!):widget.pack.entryAsset!,
                                                 phase: t,
-                                                label: 'Phoenix room arrival',
+                                                label: '${widget.pack.name} room arrival',
                                               ),
                                       ),
                                       if (!MediaQuery.disableAnimationsOf(
@@ -413,7 +416,7 @@ class _EffectsStudioState extends State<EffectsStudio>
           ),
           const SizedBox(height: 10),
           const Text(
-            '10 themes · Frames, entry, voice, medals & tags',
+            '${effectPacks.length} themes · Frames, entry, voice, medals & tags',
             style: TextStyle(color: Colors.white60),
           ),
           const SizedBox(height: 20),
