@@ -3,8 +3,7 @@ on:
   workflow_dispatch:
   push:
     branches: [main]
-    paths:
-      - '.github/workflows/publish-apk.yml'
+    paths: ['.github/workflows/publish-apk.yml']
 permissions:
   actions: read
   contents: write
@@ -16,13 +15,14 @@ jobs:
       GH_REPO: ${{ github.repository }}
     steps:
       - name: Download verified APK
-        run: gh run download 39034976923 --name sovera-android-preview-apk --dir apk
+        run: gh run download 39060400382 --name sovera-android-preview-apk --dir apk
       - name: Check and name APK
         run: |
           test -s apk/app-debug.apk
           unzip -tq apk/app-debug.apk
-          mv apk/app-debug.apk apk/Sovera-v0.12.5.apk
-          sha256sum apk/Sovera-v0.12.5.apk
+          mv apk/app-debug.apk apk/Sovera-v0.13.0.apk
+          cp apk/Sovera-v0.13.0.apk apk/Sovera.apk
+          sha256sum apk/Sovera-v0.13.0.apk apk/Sovera.apk
       - name: Publish public download
         run: |
-          gh release create v0.12.5 apk/Sovera-v0.12.5.apk --target 96cbcdd245c2f0bb5091cc1f4163f72d2dbf976f --title "Sovera 0.12.5 - Android preview" --notes "Android preview with circular four-column seats and room-blended entry animations. Live voice, payments, and Google/Facebook provider setup are still pending."
+          gh release create v0.13.0 apk/Sovera-v0.13.0.apk apk/Sovera.apk --target 8f8f3925033968ce79e793384577052c627707ff --title "Sovera 0.13.0 - Invite and referrals" --notes "Adds a persistent Invite and referrals center: personal codes, copy/share invitations, one-time friend code claims, referral counts and recent joins. Recipients must sign in and enter the code manually. Coin rewards and automatic install attribution are not enabled. Google/Facebook provider setup, live voice and payments remain pending."
