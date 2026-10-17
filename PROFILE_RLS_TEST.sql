@@ -18,9 +18,10 @@ do $$ declare affected int;begin
  update public.sovera_profiles set display_name='Synced name' where id=auth.uid();
  if(select display_name from public.sovera_member_cards where user_id=auth.uid())<>'Synced name' then raise exception 'Shared card did not synchronize';end if;
 end $$;
+update public.sovera_member_cards set listed=false where user_id=auth.uid();
 select set_config('request.jwt.claim.sub','bbccddaa-1111-4000-8000-000000000002',true);
-do $$ begin if(select count(*) from public.sovera_direct_messages where body='private fixture')<>1 then raise exception 'Recipient cannot read';end if;end $$;
+do $$ begin if(select count(*) from public.sovera_direct_messages where body='private fixture')<>1 then raise exception 'Recipient cannot read';end if;begin insert into public.sovera_direct_messages(sender_id,recipient_id,body) values(auth.uid(),'bbccddaa-1111-4000-8000-000000000001','Reply to hidden target');raise exception 'Hidden target accepted reply';exception when insufficient_privilege then null;end;end $$;
 select set_config('request.jwt.claim.sub','bbccddaa-1111-4000-8000-000000000003',true);
-do $$ begin if exists(select 1 from public.sovera_direct_messages where body='private fixture') then raise exception 'Outsider can read private message';end if;end $$;
+do $$ begin if exists(select 1 from public.sovera_direct_messages where body='private fixture') then raise exception 'Outsider can read private message';end if;begin insert into public.sovera_direct_messages(sender_id,recipient_id,body) values(auth.uid(),'bbccddaa-1111-4000-8000-000000000001','Unsolicited hidden-target message');raise exception 'Hidden target accepted';exception when insufficient_privilege then null;end;end $$;
 reset role;
 rollback;

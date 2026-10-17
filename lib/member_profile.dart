@@ -147,7 +147,7 @@ class _MemberProfilePageState extends State<MemberProfilePage> {
 
   Future<void> toggleMedal(String key) async {
     if (busy || !own) return;
-    final values = List<String>.from(card?['medal_styles'] ?? []);
+    final values = List<String>.from(card?['medal_styles'] as List? ?? const <String>[]);
     values.contains(key) ? values.remove(key) : values.add(key);
     setState(() => busy = true);
     try {
@@ -188,7 +188,7 @@ class _MemberProfilePageState extends State<MemberProfilePage> {
                     ClipOval(
                       child: card?['avatar_url'] is String
                           ? Image.network(
-                              card!['avatar_url'],
+                              card!['avatar_url'] as String,
                               width: 96,
                               height: 96,
                               fit: BoxFit.cover,
@@ -227,7 +227,7 @@ class _MemberProfilePageState extends State<MemberProfilePage> {
                       ],
                     ),
                     if ((card?['bio'] ?? '').toString().isNotEmpty)
-                      Text(card!['bio'], textAlign: TextAlign.center),
+                      Text(card!['bio'].toString(), textAlign: TextAlign.center),
                     if (!own)
                       Wrap(
                         alignment: WrapAlignment.center,
@@ -579,4 +579,28 @@ class _DirectChatPageState extends State<DirectChatPage>
       ),
     ),
   );
+}
+
+class DirectInboxPage extends StatefulWidget {
+  final String viewerId;
+  const DirectInboxPage({super.key,required this.viewerId});
+  @override State<DirectInboxPage> createState()=>_DirectInboxPageState();
+}
+class _DirectInboxPageState extends State<DirectInboxPage> {
+  List<Map<String,dynamic>> threads=[];
+  bool loading=true;String? error;
+  @override void initState(){super.initState();load();}
+  Future<void> load() async {
+    setState((){loading=true;error=null;});
+    try{
+      final messages=await soveraClient.from('sovera_direct_messages').select('sender_id,recipient_id,body,created_at').order('created_at',ascending:false).limit(200);
+      final latest=<String,Map<String,dynamic>>{};
+      for(final message in messages){final other=(message['sender_id']==widget.viewerId?message['recipient_id']:message['sender_id']) as String;latest.putIfAbsent(other,()=>{...message,'target':other});}
+      final cards=latest.isEmpty?<Map<String,dynamic>>[]:await soveraClient.from('sovera_member_cards').select('user_id,display_name,uid').inFilter('user_id',latest.keys.toList());
+      final names={for(final card in cards)card['user_id']:card};
+      if(mounted)setState(()=>threads=[for(final entry in latest.entries){...entry.value,'name':names[entry.key]?['display_name']??'Member','uid':names[entry.key]?['uid']}]);
+    }catch(_){if(mounted)setState(()=>error='Could not load conversations. Please retry.');}
+    finally{if(mounted)setState(()=>loading=false);}
+  }
+  @override Widget build(BuildContext context)=>Scaffold(appBar:AppBar(title:const Text('Private chats'),actions:[IconButton(tooltip:'Refresh chats',onPressed:loading?null:load,icon:const Icon(Icons.refresh_rounded))]),body:loading?const Center(child:CircularProgressIndicator()):error!=null?Center(child:TextButton(onPressed:load,child:Text(error!))):threads.isEmpty?const Center(child:Text('No conversations yet. Open a member profile to chat.')):ListView(padding:const EdgeInsets.all(16),children:[for(final thread in threads)Card(child:ListTile(leading:const Icon(Icons.chat_bubble_outline_rounded,color:cyan),title:Text(thread['uid']==null?thread['name'].toString():'${thread['name']} · ${thread['uid']}'),subtitle:Text(thread['body'].toString(),maxLines:2,overflow:TextOverflow.ellipsis),onTap:() async{await Navigator.push(context,MaterialPageRoute<void>(builder:(_)=>DirectChatPage(viewerId:widget.viewerId,targetId:thread['target'] as String,name:thread['name'].toString())));if(mounted)await load();}))]));
 }
