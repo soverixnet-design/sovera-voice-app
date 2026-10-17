@@ -82,15 +82,15 @@ void main() {
       );
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 600));
-      expect(find.text('Sovera arrival preview'), findsOneWidget);
+      expect(find.byKey(const ValueKey('arrival-edge-blend')), findsOneWidget);
       expect(
         find.byWidgetPredicate(
-          (w) => w is CosmeticArt && w.asset.endsWith('phoenix-entry.webp'),
+          (w) => w is Image && w.image is AssetImage && (w.image as AssetImage).assetName.endsWith('phoenix-entry.webp'),
         ),
         findsOneWidget,
       );
       await tester.pumpAndSettle(const Duration(milliseconds: 200));
-      expect(find.text('Sovera arrival preview'), findsNothing);
+      expect(find.byKey(const ValueKey('arrival-edge-blend')), findsNothing);
       expect(find.text('Preview room'), findsOneWidget);
       expect(tester.takeException(), isNull);
     },

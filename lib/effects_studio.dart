@@ -187,7 +187,7 @@ Future<void> showEntryPreview(BuildContext context, EffectPack pack) =>
       context: context,
       barrierDismissible: true,
       barrierLabel: 'Close entry preview',
-      barrierColor: Colors.black87,
+      barrierColor: Colors.transparent,
       transitionDuration: const Duration(milliseconds: 180),
       pageBuilder: (context, _, __) => _EntryPreview(pack: pack),
     );
@@ -234,128 +234,36 @@ class _EntryPreviewState extends State<_EntryPreview>
 
   @override
   Widget build(BuildContext context) => Material(
-        color: Colors.transparent,
-        child: SafeArea(
-          child: Stack(
-            children: [
-              Center(
-                child: AnimatedBuilder(
-                  animation: motion,
-                  builder: (context, _) {
-                    final t = MediaQuery.disableAnimationsOf(context)
-                        ? 0.0
-                        : motion.value;
-                    final fadeEdge = widget.pack.entryDurationMs>5000 ? .04 : .18;
-                    final fade = (t < fadeEdge
-                            ? t / fadeEdge
-                            : t > 1-fadeEdge
-                                ? (1 - t) / fadeEdge
-                                : 1.0)
-                        .clamp(0.0, 1.0)
-                        .toDouble();
-                    final entrance = Curves.easeOutCubic.transform(
-                      (t * 3).clamp(0.0, 1.0).toDouble(),
-                    );
-                    return Opacity(
-                      opacity:
-                          MediaQuery.disableAnimationsOf(context) ? 1 : fade,
-                      child: Transform.translate(
-                        offset: Offset(
-                          0,
-                          MediaQuery.disableAnimationsOf(context)
-                              ? 0
-                              : 65 * (1 - entrance),
-                        ),
-                        child: Transform.scale(
-                          scale: MediaQuery.disableAnimationsOf(context)
-                              ? 1
-                              : .65 + .35 * entrance,
-                          child: Padding(
-                            padding: const EdgeInsets.all(20),
-                            child: Column(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                SizedBox(
-                                  width: math.min(
-                                    MediaQuery.sizeOf(context).width - 40,
-                                    340.0,
-                                  ),
-                                  height: math.min(
-                                    MediaQuery.sizeOf(context).height * .5,
-                                    420.0,
-                                  ),
-                                  child: Stack(
-                                    children: [
-                                      Positioned.fill(
-                                        child: widget.pack.entryAsset == null
-                                            ? EffectPortrait(
-                                                pack: widget.pack,
-                                                phase: t,
-                                                speaking: true,
-                                                child:
-                                                    const BrandLogo(size: 100),
-                                              )
-                                            : CosmeticArt(
-                                                asset: MediaQuery.disableAnimationsOf(context)?(widget.pack.entryStillAsset??widget.pack.entryAsset!):widget.pack.entryAsset!,
-                                                phase: t,
-                                                label: '${widget.pack.name} room arrival',
-                                              ),
-                                      ),
-                                      if (!MediaQuery.disableAnimationsOf(
-                                          context))
-                                        Positioned.fill(
-                                          child: IgnorePointer(
-                                            child: CustomPaint(
-                                              painter: ArrivalParticles(
-                                                widget.pack.color,
-                                                t,
-                                              ),
-                                            ),
-                                          ),
-                                        ),
-                                    ],
-                                  ),
-                                ),
-                                const SizedBox(height: 20),
-                                Text(
-                                  widget.pack.name,
-                                  textAlign: TextAlign.center,
-                                  style: TextStyle(
-                                    color: widget.pack.color,
-                                    fontSize: 28,
-                                    fontWeight: FontWeight.w800,
-                                  ),
-                                ),
-                                const SizedBox(height: 10),
-                                const Text(
-                                  'Sovera arrival preview',
-                                  style: TextStyle(
-                                    color: Colors.white70,
-                                    fontSize: 15,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ),
-                      ),
-                    );
-                  },
-                ),
-              ),
-              Positioned(
-                top: 8,
-                right: 8,
-                child: IconButton(
-                  tooltip: 'Close entry preview',
-                  onPressed: () => Navigator.pop(context),
-                  icon: const Icon(Icons.close_rounded),
-                ),
-              ),
-            ],
-          ),
-        ),
-      );
+    color: Colors.transparent,
+    child: SafeArea(child:LayoutBuilder(builder:(context,constraints){
+      final width=math.min(constraints.maxWidth,480.0);
+      final height=math.min(constraints.maxHeight*.84,width*1.65);
+      final reduced=MediaQuery.disableAnimationsOf(context);
+      return Stack(children:[
+        Center(child:SizedBox(width:width,height:height,child:AnimatedBuilder(animation:motion,builder:(context,_){
+          final t=reduced?0.0:motion.value;
+          final edge=widget.pack.entryDurationMs>5000?.04:.18;
+          final fade=reduced?1.0:(t<edge?t/edge:t>1-edge?(1-t)/edge:1.0).clamp(0.0,1.0).toDouble();
+          return IgnorePointer(child:Opacity(opacity:fade,child:Stack(children:[
+            Positioned.fill(child:DecoratedBox(decoration:BoxDecoration(gradient:RadialGradient(colors:[widget.pack.color.withValues(alpha:.25),Colors.transparent],stops:const [.2,1])))),
+            Positioned.fill(child:ShaderMask(
+              key:const ValueKey('arrival-edge-blend'),blendMode:BlendMode.dstIn,
+              shaderCallback:(rect)=>const RadialGradient(radius:.72,colors:[Colors.white,Colors.white,Colors.transparent],stops:[0,.58,1]).createShader(rect),
+              child:widget.pack.entryAsset==null?EffectPortrait(pack:widget.pack,phase:t,speaking:true,child:const BrandLogo(size:100)):
+                Image.asset(reduced?(widget.pack.entryStillAsset??widget.pack.entryAsset!):widget.pack.entryAsset!,fit:BoxFit.contain,filterQuality:FilterQuality.high,semanticLabel:'${widget.pack.name} room arrival'),
+            )),
+            if(!reduced)Positioned.fill(child:CustomPaint(painter:ArrivalParticles(widget.pack.color,t))),
+          ])));
+        }))),
+        Positioned(left:24,right:24,bottom:math.max(12.0,constraints.maxHeight*.08),child:IgnorePointer(child:Center(child:Container(
+          padding:const EdgeInsets.symmetric(horizontal:18,vertical:10),
+          decoration:BoxDecoration(color:const Color(0xD912172D),borderRadius:BorderRadius.circular(28),border:Border.all(color:widget.pack.color.withValues(alpha:.5)),boxShadow:[BoxShadow(color:widget.pack.color.withValues(alpha:.18),blurRadius:18)]),
+          child:Text(widget.pack.name,maxLines:1,overflow:TextOverflow.ellipsis,textAlign:TextAlign.center,style:TextStyle(color:widget.pack.color,fontSize:16,fontWeight:FontWeight.w700)),
+        )))),
+        Positioned(top:8,right:8,child:IconButton.filled(tooltip:'Close entry preview',style:IconButton.styleFrom(backgroundColor:const Color(0xCC12172D)),onPressed:()=>Navigator.pop(context),icon:const Icon(Icons.close_rounded))),
+      ]);
+    })),
+  );
 }
 
 class EffectsStudio extends StatefulWidget {
