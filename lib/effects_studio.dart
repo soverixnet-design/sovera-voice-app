@@ -250,7 +250,7 @@ class _EntryPreviewState extends State<_EntryPreview>
               key:const ValueKey('arrival-edge-blend'),blendMode:BlendMode.dstIn,
               shaderCallback:(rect)=>const RadialGradient(radius:.72,colors:[Colors.white,Colors.white,Colors.transparent],stops:[0,.58,1]).createShader(rect),
               child:widget.pack.entryAsset==null?EffectPortrait(pack:widget.pack,phase:t,speaking:true,child:const BrandLogo(size:100)):
-                Image.asset(reduced?(widget.pack.entryStillAsset??widget.pack.entryAsset!):widget.pack.entryAsset!,fit:BoxFit.contain,filterQuality:FilterQuality.high,semanticLabel:'${widget.pack.name} room arrival'),
+                CosmeticArt(asset:reduced?(widget.pack.entryStillAsset??widget.pack.entryAsset!):widget.pack.entryAsset!,phase:widget.pack.name=='Castle Flag'?t:0,label:'${widget.pack.name} room arrival'),
             )),
             if(!reduced)Positioned.fill(child:CustomPaint(painter:ArrivalParticles(widget.pack.color,t))),
           ])));
