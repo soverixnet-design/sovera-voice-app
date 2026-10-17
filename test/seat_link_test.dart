@@ -7,8 +7,14 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:sovera/main.dart';
 import 'package:sovera/seat_link.dart';
 void main(){
- test('Links only connect neighbours in the same row',(){expect(adjacentSeats(0,1,9),isTrue);expect(adjacentSeats(1,2,9),isTrue);expect(adjacentSeats(2,3,9),isFalse);expect(adjacentSeats(0,2,9),isFalse);expect(adjacentSeats(4,5,5),isFalse);});
- testWidgets('Last seat in a five-seat layout has a valid neighbour',(tester)async{
+ test('Links only connect neighbours in the same row',(){expect(adjacentSeats(0,1,9),isTrue);expect(adjacentSeats(1,2,9),isTrue);expect(adjacentSeats(2,3,9),isTrue);expect(adjacentSeats(3,4,9),isFalse);expect(adjacentSeats(0,2,9),isFalse);expect(adjacentSeats(4,5,5),isFalse);});
+ testWidgets('Four seats share the first row on a compact phone',(tester)async{
+ tester.view.physicalSize=const Size(320,640);tester.view.devicePixelRatio=1;addTearDown(tester.view.resetPhysicalSize);addTearDown(tester.view.resetDevicePixelRatio);
+ await tester.pumpWidget(const MaterialApp(home:VoiceRoom(name:'Four per row')));await tester.pumpAndSettle();
+ final first=tester.getTopLeft(find.text('1'));final fourth=tester.getTopLeft(find.text('4'));final fifth=tester.getTopLeft(find.text('5'));
+ expect(first.dy,fourth.dy);expect(fourth.dx,greaterThan(first.dx));expect(fifth.dy,greaterThan(first.dy));expect(tester.takeException(),isNull);
+ });
+ testWidgets('Last seat in a five-seat layout can open links without a row neighbour',(tester)async{
  await tester.pumpWidget(const MaterialApp(home:VoiceRoom(name:'Five seats',initialSeats:5)));await tester.pumpAndSettle();
  await tester.ensureVisible(find.text('5'));await tester.pumpAndSettle();await tester.tap(find.text('5'));
  await tester.ensureVisible(find.text('Friendship & CP preview'));await tester.pumpAndSettle();await tester.pumpAndSettle();

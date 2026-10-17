@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
 
 /// A local two-seat demonstration, never a server relationship or gift award.
+const roomSeatColumns = 4;
 enum SeatBond { friendship, cp }
-bool adjacentSeats(int a,int b,int count)=>a>=0&&b>=0&&a<count&&b<count&&a!=b&&a~/3==b~/3&&(a-b).abs()==1;
+bool adjacentSeats(int a,int b,int count)=>a>=0&&b>=0&&a<count&&b<count&&a!=b&&a~/roomSeatColumns==b~/roomSeatColumns&&(a-b).abs()==1;
 class SeatLinkMarker extends StatelessWidget{
  final SeatBond bond;
  const SeatLinkMarker({super.key,required this.bond});
