@@ -85,7 +85,7 @@ void main() {
       expect(find.byKey(const ValueKey('arrival-edge-blend')), findsOneWidget);
       expect(
         find.byWidgetPredicate(
-          (w) => w is Image && w.image is AssetImage && (w.image as AssetImage).assetName.endsWith('phoenix-entry.webp'),
+          (w) => w is CosmeticArt && w.asset.endsWith('phoenix-entry.webp'),
         ),
         findsOneWidget,
       );
