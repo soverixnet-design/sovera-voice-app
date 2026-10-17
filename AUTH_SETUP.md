@@ -7,7 +7,7 @@ Implemented:
 - Android/iOS callback registration: `com.sovera.voice://login-callback`.
 - Session persistence/refresh through supabase_flutter.
 - Authenticated entry gate calls Auth.getUser before loading the account profile.
-- Unique numeric UID from a generated database identity.
+- Unique six-digit numeric UID from a GENERATED ALWAYS database identity, starting at 100001.
 - Self-owned profile creation/read/update with database RLS.
 - Profile name/bio save to the server; profile image from Google metadata.
 - Client role is always `user`; role and UID cannot be edited by clients.

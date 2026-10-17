@@ -1,3 +1,4 @@
+import 'member_profile.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'main.dart';
@@ -25,6 +26,7 @@ class _ProfileIdentityCardState extends State<ProfileIdentityCard>{
    Container(padding:const EdgeInsets.all(5),decoration:BoxDecoration(shape:BoxShape.circle,border:Border.all(color:gold,width:2),boxShadow:[BoxShadow(color:cyan.withValues(alpha:.18),blurRadius:24)]),child:ClipOval(child:widget.profile?['avatar_url'] is String?Image.network(widget.profile!['avatar_url'] as String,width:90,height:90,fit:BoxFit.cover,errorBuilder:(_,__,___)=>const BrandLogo(size:90)):const BrandLogo(size:90))),
    const CircleAvatar(radius:14,backgroundColor:Color(0xFF292044),child:Icon(Icons.person_rounded,color:gold,size:18)),
   ])),
+  if(widget.profile!=null)TextButton.icon(onPressed:()=>Navigator.push(context,MaterialPageRoute<void>(builder:(_)=>MemberProfilePage(targetId:widget.profile!['id'] as String,viewerId:widget.profile!['id'] as String))),icon:const Icon(Icons.account_circle_rounded),label:const Text('Open member profile')),
   const SizedBox(height:18),Text(widget.name,textAlign:TextAlign.center,style:const TextStyle(fontSize:24,fontWeight:FontWeight.w800)),
   const SizedBox(height:10),
   Wrap(alignment:WrapAlignment.center,crossAxisAlignment:WrapCrossAlignment.center,spacing:4,children:[
