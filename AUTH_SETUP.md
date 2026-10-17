@@ -34,3 +34,17 @@ The home and room screens remain design previews. Wallet, room presence, RTC, so
 
 ## Verification
 A rolled-back database test confirmed own profile creation/read, cross-user read/update/insert isolation and denial of role changes. Google provider availability is checked before opening the OAuth browser. Use the GitHub workflow result for static analysis, widget tests and platform builds.
+
+## Facebook sign-in (0.13.1)
+
+The sign-in screen now contains Continue with Facebook and Continue with Google.
+Guests can open it with Sign in / Create account from the home header.
+Successful sign-in returns to the authenticated account instead of leaving a guest route above it.
+
+Facebook provider was enabled on Supabase on 18 October 2026; the public Auth settings endpoint reports Facebook enabled and Google disabled. The Facebook authorization endpoint returns a redirect to www.facebook.com. This verifies provider initiation, not a completed physical-device login.
+
+Meta app ID: `1803214744845145`. Its Facebook Login use case includes email and public_profile, with the exact Supabase callback above saved in Valid OAuth Redirect URIs. The App Secret is stored only in Supabase provider settings and is never included in this repository or APK.
+
+Meta app publication remains incomplete: business verification, app review, app icon, privacy policy, data-deletion instructions and category require completion. Do not advertise unrestricted Facebook sign-in until Meta approves the production setup. Google Cloud credentials also remain pending.
+
+For device verification, install 0.13.1, open Facebook sign-in using an authorized Meta app-role account, accept the sign-in, check that the app returns to the saved account, then restart and sign out. No claim of completed device verification is made by the widget tests.

@@ -15,14 +15,14 @@ jobs:
       GH_REPO: ${{ github.repository }}
     steps:
       - name: Download verified APK
-        run: gh run download 39060400382 --name sovera-android-preview-apk --dir apk
+        run: gh run download 39069621078 --name sovera-android-preview-apk --dir apk
       - name: Check and name APK
         run: |
           test -s apk/app-debug.apk
           unzip -tq apk/app-debug.apk
-          mv apk/app-debug.apk apk/Sovera-v0.13.0.apk
-          cp apk/Sovera-v0.13.0.apk apk/Sovera.apk
-          sha256sum apk/Sovera-v0.13.0.apk apk/Sovera.apk
+          mv apk/app-debug.apk apk/Sovera-v0.13.1.apk
+          cp apk/Sovera-v0.13.1.apk apk/Sovera.apk
+          sha256sum apk/Sovera-v0.13.1.apk apk/Sovera.apk
       - name: Publish public download
         run: |
-          gh release create v0.13.0 apk/Sovera-v0.13.0.apk apk/Sovera.apk --target "$GITHUB_SHA" --title "Sovera 0.13.0 - Invite and referrals" --notes "Adds a persistent Invite and referrals center: personal codes, copy/share invitations, one-time friend code claims, referral counts and recent joins. Recipients must sign in and enter the code manually. Coin rewards and automatic install attribution are not enabled. Google/Facebook provider setup, live voice and payments remain pending."
+          gh release create v0.13.1 apk/Sovera-v0.13.1.apk apk/Sovera.apk --target "$GITHUB_SHA" --title "Sovera 0.13.1 - Facebook login screen" --notes "Adds Continue with Facebook beside Google on the Sovera sign-in screen, plus a visible sign-in entry in guest mode. Successful account sign-in dismisses guest preview routes. Facebook is configured on Supabase; Meta publishing, business verification and review remain pending for general availability. Google provider setup, live voice and payments remain pending."
