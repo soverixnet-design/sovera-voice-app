@@ -11,12 +11,12 @@ import 'package:sovera/medal_collection.dart';
 Widget still(Widget screen)=>MaterialApp(debugShowCheckedModeBanner:false,theme:ThemeData.dark(useMaterial3:true),builder:(context,child)=>MediaQuery(data:MediaQuery.of(context).copyWith(disableAnimations:true),child:child!),home:screen);
 void main(){
  setUp(resetCosmeticPreviews);tearDown(resetCosmeticPreviews);
- testWidgets('All eleven themes and original entry assets are bundled',(tester)async{
-  expect(effectPacks.length,11);
+ testWidgets('All twelve themes and original entry assets are bundled',(tester)async{
+  expect(effectPacks.length,12);
   expect(effectPacks.map((p)=>p.name),containsAll(['Royal Gold','Violet Love','Ice Admin','Golden Dragon','Ice Dragon','Violet Phoenix']));
   for(final pack in effectPacks){for(final asset in [pack.asset,pack.stillAsset,pack.entryAsset,pack.entryStillAsset].whereType<String>()){expect((await rootBundle.load(asset)).lengthInBytes,greaterThan(0));}}
   await tester.pumpWidget(still(const EffectsStudio()));await tester.pumpAndSettle();
-  await tester.tap(find.text('Browse all 11 themes'));await tester.pumpAndSettle();
+  await tester.tap(find.text('Browse all 12 themes'));await tester.pumpAndSettle();
   expect(find.text('Royal Gold'),findsWidgets);
  });
  testWidgets('Chosen medals appear below ID and levels',(tester)async{
