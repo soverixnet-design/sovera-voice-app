@@ -1,5 +1,9 @@
 # SOVERA VIP collection
 
+## Castle Flag arrival
+
+Open **Me → Frames & effects → Castle Flag → Entry**. Preview the seven-second castle arrival, then tap **Use entry in preview** to play it on subsequent room visits in this session. The flag is drawn and animated natively over the bundled castle artwork; no HTML, VAP player, or network download is required. Reduced motion holds the flag still and uses the existing short automatic dismissal. Existing local-selection and account-inventory limitations below also apply to Castle Flag.
+
 Open **Me → Frames & effects → Sovera VIP7** (the fourth theme).
 
 - **Frame**: play a light sweep, then use it around your profile and occupied preview-room avatar. The applied frame loops while visible.
