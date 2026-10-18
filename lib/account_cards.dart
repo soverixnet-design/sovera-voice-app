@@ -23,7 +23,7 @@ class _ProfileIdentityCardState extends State<ProfileIdentityCard>{
   await Clipboard.setData(ClipboardData(text:uid.toString()));
   if(mounted)ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content:Text('User ID copied.')));
  }
- Widget profileFrame({required Widget child})=>widget.profile==null?FramePreviewAdapter(size:170,child:child):GrantedProfileFrame(uid:widget.profile!['uid'],size:170,child:child);
+ Widget profileFrame({required Widget child})=>widget.profile==null?FramePreviewAdapter(size:170,child:child):ValueListenableBuilder<EffectPack?>(valueListenable:previewAvatarFrame,builder:(context,pack,_)=>pack==null?GrantedProfileFrame(uid:widget.profile!['uid'],size:170,child:child):Column(children:[FramePreviewAdapter(size:170,child:child),const Text('Local frame preview',style:TextStyle(fontSize:10,color:Colors.white54))]));
  @override Widget build(BuildContext context)=>Glass(tint:cyan,child:Column(children:[
   profileFrame(child:Stack(alignment:Alignment.bottomRight,children:[
    Container(padding:const EdgeInsets.all(5),decoration:BoxDecoration(shape:BoxShape.circle,border:Border.all(color:gold,width:2),boxShadow:[BoxShadow(color:cyan.withValues(alpha:.18),blurRadius:24)]),child:ClipOval(child:widget.profile?['avatar_url'] is String?Image.network(widget.profile!['avatar_url'] as String,width:90,height:90,fit:BoxFit.cover,errorBuilder:(_,__,___)=>const BrandLogo(size:90)):const BrandLogo(size:90))),

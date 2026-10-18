@@ -14,6 +14,7 @@ class EffectPack {
   final String? entryAsset, voiceAsset, medalAsset, tagAsset, stillAsset, entryStillAsset;
  final double portraitDiameter,portraitY;
  final int entryDurationMs;
+  final Rect? frameNameBox;
   const EffectPack(
     this.name,
     this.asset,
@@ -21,7 +22,7 @@ class EffectPack {
     this.entryAsset,
     this.voiceAsset,
     this.medalAsset,
-    this.entryDurationMs=3200,this.tagAsset,this.stillAsset,this.entryStillAsset,this.portraitDiameter=.43,this.portraitY=.53,
+    this.frameNameBox,this.entryDurationMs=3200,this.tagAsset,this.stillAsset,this.entryStillAsset,this.portraitDiameter=.43,this.portraitY=.53,
   });
 }
 
@@ -42,15 +43,22 @@ const effectPacks = [
  EffectPack('Violet Love','assets/effects/violet-love.webp',pink,stillAsset:'assets/effects/violet-love-still.png',portraitDiameter:.59),
  EffectPack('Ice Admin','assets/effects/ice-admin.webp',cyan,stillAsset:'assets/effects/ice-admin-still.png',portraitDiameter:.59),
  EffectPack('Golden Dragon','assets/effects/dragon-gold.webp',gold,stillAsset:'assets/effects/dragon-gold-still.png',entryAsset:'assets/effects/dragon-queen-entry.webp',entryStillAsset:'assets/effects/dragon-queen-entry.webp',portraitDiameter:.59,portraitY:.51),
- EffectPack('Ice Dragon','assets/effects/ice-dragon.webp',cyan,stillAsset:'assets/effects/ice-dragon-still.webp',entryAsset:'assets/effects/ice-king-entry.webp',entryStillAsset:'assets/effects/ice-king-still.webp',portraitDiameter:.58,portraitY:.52),
+ EffectPack('Ice Dragon','assets/effects/ice-dragon.webp',cyan,stillAsset:'assets/effects/ice-dragon-still.webp',entryAsset:'assets/effects/ice-king-entry.webp',entryDurationMs:4500,entryStillAsset:'assets/effects/ice-king-still.webp',portraitDiameter:.58,portraitY:.52),
  EffectPack('Violet Phoenix','assets/effects/violet-phoenix.webp',violet,stillAsset:'assets/effects/violet-phoenix-still.webp',portraitDiameter:.59),
  EffectPack('Castle Flag','assets/effects/royal-gold.webp',gold,stillAsset:'assets/effects/royal-gold-still.png',entryAsset:'assets/effects/castle-entry.webp',entryStillAsset:'assets/effects/castle-entry.webp',entryDurationMs:7000,portraitDiameter:.61,portraitY:.52),
  EffectPack('Lion Queen','assets/effects/phoenix.png',Color(0xFFFFA43A),entryAsset:'assets/effects/lion-queen-entry.webp',entryStillAsset:'assets/effects/lion-queen-still.webp',entryDurationMs:10600),
  EffectPack('Phoenix Queen','assets/effects/phoenix.png',Color(0xFFFF8B3D),entryAsset:'assets/effects/phoenix-queen-entry.webp',entryStillAsset:'assets/effects/phoenix-queen-still.webp',entryDurationMs:13800),
  EffectPack('Tiger Queen','assets/effects/royal-gold.webp',gold,stillAsset:'assets/effects/royal-gold-still.png',entryAsset:'assets/effects/tiger-queen-entry.webp',entryStillAsset:'assets/effects/tiger-queen-still.webp',entryDurationMs:12000,portraitDiameter:.61,portraitY:.52),
+ EffectPack('Crown Violet','assets/effects/crown-violet.webp',violet,stillAsset:'assets/effects/crown-violet-still.webp',portraitDiameter:.50,portraitY:.46,frameNameBox:Rect.fromLTWH(.23,.77,.54,.10)),
+ EffectPack('Royal Horses','assets/effects/royal-horses.webp',gold,stillAsset:'assets/effects/royal-horses-still.webp',portraitDiameter:.43,portraitY:.40,frameNameBox:Rect.fromLTWH(.25,.74,.50,.10)),
+ EffectPack('Solar Crown','assets/effects/solar-crown.webp',gold,stillAsset:'assets/effects/solar-crown-still.webp',portraitDiameter:.46,portraitY:.48,tagAsset:'assets/effects/solar-nameplate.webp'),
+ EffectPack('Sunrise Crown','assets/effects/sunrise-crown.webp',gold,stillAsset:'assets/effects/sunrise-crown-still.webp',portraitDiameter:.45,portraitY:.46,tagAsset:'assets/effects/solar-nameplate.webp'),
+ EffectPack('Rose Crown','assets/effects/rose-crown.webp',pink,stillAsset:'assets/effects/rose-crown-still.webp',portraitDiameter:.45,portraitY:.46,tagAsset:'assets/effects/rose-nameplate.webp'),
+
 ];
 
 /// Local visual preference only. It does not grant account inventory.
+final effectProfileName=ValueNotifier<String>('Sovera guest');
 final previewAvatarFrame = ValueNotifier<EffectPack?>(null);
 final previewEntryEffect = ValueNotifier<EffectPack?>(null);
 final previewMedal = ValueNotifier<EffectPack?>(null);
@@ -103,6 +111,7 @@ class EffectPortrait extends StatelessWidget {
                 label: speaking ? 'Speaking effect' : pack.name,
               ),
             ),
+            if(pack.frameNameBox!=null)Positioned(left:size*pack.frameNameBox!.left,top:size*pack.frameNameBox!.top,width:size*pack.frameNameBox!.width,height:size*pack.frameNameBox!.height,child:ValueListenableBuilder<String>(valueListenable:effectProfileName,builder:(context,name,_)=>FittedBox(fit:BoxFit.scaleDown,child:Text(name,maxLines:1,style:TextStyle(color:const Color(0xFFFFF1BF),fontSize:size*.055,fontWeight:FontWeight.w800,shadows:const [Shadow(color:Colors.black,blurRadius:3)]))))),
             if (speaking)
               Positioned.fill(
                 child: IgnorePointer(
@@ -179,7 +188,7 @@ class ProfileStylePreview extends StatelessWidget {
  @override Widget build(BuildContext context)=>ValueListenableBuilder<EffectPack?>(valueListenable:previewMedal,builder:(context,medal,_)=>ValueListenableBuilder<EffectPack?>(valueListenable:previewNameTag,builder:(context,tag,_)=>Column(children:[
   const Text('Style preview',style:TextStyle(fontSize:11,color:Colors.white54)),const SizedBox(height:8),
   ProfileRankingMedals(extra:medal?.medalAsset==null?null:SizedBox(width:76,height:88,child:CosmeticLoop(builder:(phase)=>CosmeticArt(asset:medal!.medalAsset!,phase:phase,label:'Top Host cosmetic medal')))),
-  if(tag?.tagAsset!=null)SizedBox(height:76,width:270,child:CosmeticLoop(builder:(phase)=>CosmeticArt(asset:tag!.tagAsset!,phase:phase,label:'Sovera Legend cosmetic tag'))),
+  if(tag?.tagAsset!=null)SizedBox(height:76,width:270,child:CosmeticLoop(builder:(phase)=>NamedTagArt(asset:tag!.tagAsset!,phase:phase))),
  ])));
 }
 
@@ -255,7 +264,7 @@ class _EntryPreviewState extends State<_EntryPreview>
               key:const ValueKey('arrival-edge-blend'),blendMode:BlendMode.dstIn,
               shaderCallback:(rect)=>const RadialGradient(radius:.72,colors:[Colors.white,Colors.white,Colors.transparent],stops:[0,.58,1]).createShader(rect),
               child:widget.pack.entryAsset==null?EffectPortrait(pack:widget.pack,phase:t,speaking:true,child:const BrandLogo(size:100)):
-                CosmeticArt(asset:reduced?(widget.pack.entryStillAsset??widget.pack.entryAsset!):widget.pack.entryAsset!,phase:widget.pack.name=='Castle Flag'?t:0,label:'${widget.pack.name} room arrival'),
+                CosmeticArt(asset:reduced?(widget.pack.entryStillAsset??widget.pack.entryAsset!):widget.pack.entryAsset!,phase:t,label:'${widget.pack.name} room arrival'),
             )),
             if(!reduced)Positioned.fill(child:CustomPaint(painter:ArrivalParticles(widget.pack.color,t))),
           ])));
@@ -263,7 +272,7 @@ class _EntryPreviewState extends State<_EntryPreview>
         Positioned(left:24,right:24,bottom:math.max(12.0,constraints.maxHeight*.08),child:IgnorePointer(child:Center(child:Container(
           padding:const EdgeInsets.symmetric(horizontal:18,vertical:10),
           decoration:BoxDecoration(color:const Color(0xD912172D),borderRadius:BorderRadius.circular(28),border:Border.all(color:widget.pack.color.withValues(alpha:.5)),boxShadow:[BoxShadow(color:widget.pack.color.withValues(alpha:.18),blurRadius:18)]),
-          child:Text(widget.pack.name,maxLines:1,overflow:TextOverflow.ellipsis,textAlign:TextAlign.center,style:TextStyle(color:widget.pack.color,fontSize:16,fontWeight:FontWeight.w700)),
+          child:Column(mainAxisSize:MainAxisSize.min,children:[ValueListenableBuilder<String>(valueListenable:effectProfileName,builder:(context,name,_)=>Text(name,maxLines:1,overflow:TextOverflow.ellipsis,textAlign:TextAlign.center,style:const TextStyle(color:Colors.white,fontSize:17,fontWeight:FontWeight.w800))),Text(widget.pack.name,maxLines:1,overflow:TextOverflow.ellipsis,textAlign:TextAlign.center,style:TextStyle(color:widget.pack.color,fontSize:12,fontWeight:FontWeight.w600))]),
         )))),
         Positioned(top:8,right:8,child:IconButton.filled(tooltip:'Close entry preview',style:IconButton.styleFrom(backgroundColor:const Color(0xCC12172D)),onPressed:()=>Navigator.pop(context),icon:const Icon(Icons.close_rounded))),
       ]);
@@ -311,6 +320,7 @@ class _EffectsStudioState extends State<EffectsStudio>
   Future<void> browseThemes()=>showModalBottomSheet<void>(context:context,isScrollControlled:true,showDragHandle:true,builder:(sheet){
     return SafeArea(child:SizedBox(height:MediaQuery.sizeOf(sheet).height*.75,child:GridView.builder(padding:const EdgeInsets.all(16),itemCount:effectPacks.length,gridDelegate:const SliverGridDelegateWithMaxCrossAxisExtent(maxCrossAxisExtent:190,mainAxisExtent:178,crossAxisSpacing:10,mainAxisSpacing:10),itemBuilder:(_,i)=>themeTile(i,sheet))));
   });
+  Future<void> browseEntries()=>showModalBottomSheet<void>(context:context,isScrollControlled:true,showDragHandle:true,builder:(sheet){final entries=List.generate(effectPacks.length,(i)=>i).where((i)=>effectPacks[i].entryAsset!=null).toList();return SafeArea(child:SizedBox(height:MediaQuery.sizeOf(sheet).height*.75,child:GridView.builder(padding:const EdgeInsets.all(16),itemCount:entries.length,gridDelegate:const SliverGridDelegateWithMaxCrossAxisExtent(maxCrossAxisExtent:190,mainAxisExtent:178,crossAxisSpacing:10,mainAxisSpacing:10),itemBuilder:(_,i)=>Card(child:InkWell(onTap:(){setState((){selected=entries[i];kind=1;});Navigator.pop(sheet);},child:Padding(padding:const EdgeInsets.all(10),child:Column(children:[Expanded(child:Image.asset(effectPacks[entries[i]].entryStillAsset??effectPacks[entries[i]].entryAsset!)),Text(effectPacks[entries[i]].name,textAlign:TextAlign.center)])))))));});
   @override
   Widget build(BuildContext context) {
     final pack = effectPacks[selected];
@@ -337,6 +347,7 @@ class _EffectsStudioState extends State<EffectsStudio>
           ),
           const SizedBox(height: 20),
           OutlinedButton.icon(onPressed:browseThemes,icon:const Icon(Icons.grid_view_rounded),label:Text('Browse all ${effectPacks.length} themes')),
+          OutlinedButton.icon(onPressed:browseEntries,icon:const Icon(Icons.login_rounded),label:const Text('Browse room entries')),
           const SizedBox(height:12),
           SingleChildScrollView(
             scrollDirection: Axis.horizontal,
@@ -433,7 +444,7 @@ class _EffectsStudioState extends State<EffectsStudio>
                       return SizedBox(
                         height: kind == 4 ? 100 : 270,
                         width: 270,
-                        child: CosmeticArt(
+                        child:kind==4?NamedTagArt(asset:asset,phase:pulse.value):CosmeticArt(
                           asset: MediaQuery.disableAnimationsOf(context)&&kind==1?(pack.entryStillAsset??asset):asset,
                           phase: pulse.value,
                           label: kind == 3
@@ -565,4 +576,9 @@ class _EffectsStudioState extends State<EffectsStudio>
       ),
     );
   }
+}
+
+class NamedTagArt extends StatelessWidget{
+ final String asset;final double phase;const NamedTagArt({super.key,required this.asset,this.phase=0});
+ @override Widget build(BuildContext context)=>LayoutBuilder(builder:(context,c){final named=asset.contains('nameplate');final still=asset.replaceFirst('.webp','-still.webp');return Stack(fit:StackFit.expand,children:[CosmeticArt(asset:named&&MediaQuery.disableAnimationsOf(context)?still:asset,phase:phase,label:'Sovera Legend cosmetic tag'),if(named)Positioned(left:c.maxWidth*.30,top:c.maxHeight*.37,width:c.maxWidth*.60,height:c.maxHeight*.34,child:ValueListenableBuilder<String>(valueListenable:effectProfileName,builder:(context,name,_)=>FittedBox(fit:BoxFit.scaleDown,child:Text(name,maxLines:1,style:const TextStyle(color:Colors.white,fontSize:18,fontWeight:FontWeight.w800,shadows:[Shadow(color:Colors.black,blurRadius:3)]))))) ]);});
 }

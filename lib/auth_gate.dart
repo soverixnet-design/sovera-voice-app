@@ -85,7 +85,7 @@ class _AuthGateState extends State<AuthGate> {
   @override Widget build(BuildContext context){
     if(loading)return const Scaffold(body:Center(child:CircularProgressIndicator()));
     if(error!=null)return Scaffold(body:SafeArea(child:Center(child:Padding(padding:const EdgeInsets.all(28),child:Column(mainAxisSize:MainAxisSize.min,children:[const BrandLogo(size:100),const SizedBox(height:24),Text(error!,textAlign:TextAlign.center),const SizedBox(height:18),FilledButton(onPressed:refresh,child:const Text('Retry')),TextButton(onPressed:()async{try{await soveraClient.auth.signOut(scope:SignOutScope.local);}catch(_){if(mounted)setState(()=>error='Could not sign out. Please retry.');}},child:const Text('Back to sign-in'))])))));
-    if(profile!=null&&profile!['onboarded']!=true)return ProfileSetupPage(profile:profile!,onSaved:refresh);
+    if(profile!=null&&profile!.containsKey('onboarded')&&profile!['onboarded']!=true)return ProfileSetupPage(profile:profile!,onSaved:refresh);
     if(profile!=null)return Home(key:ValueKey(profile!['id']),profile:profile);
     return const SoveraLoginPage();
   }

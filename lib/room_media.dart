@@ -27,7 +27,7 @@ class EffectSound with WidgetsBindingObserver {
           ? 'ice'
           : lower.contains('dragon') ||
                 lower.contains('tiger') ||
-                lower.contains('lion')
+                lower.contains('lion') || lower.contains('royal') || lower.contains('crown') || lower.contains('horses')
           ? 'royal'
           : 'sparkle';
       await player.play(AssetSource('sounds/$asset.wav'), volume: .32);
