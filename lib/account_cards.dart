@@ -30,7 +30,7 @@ class _ProfileIdentityCardState extends State<ProfileIdentityCard>{
    const CircleAvatar(radius:14,backgroundColor:Color(0xFF292044),child:Icon(Icons.person_rounded,color:gold,size:18)),
   ])),
   if(widget.profile!=null)TextButton.icon(onPressed:()=>Navigator.push(context,MaterialPageRoute<void>(builder:(_)=>MemberProfilePage(targetId:widget.profile!['id'] as String,viewerId:widget.profile!['id'] as String))),icon:const Icon(Icons.account_circle_rounded),label:const Text('Open member profile')),
-  const SizedBox(height:18),Text('${widget.name} ${countryFlag(widget.profile?['country'])}',textAlign:TextAlign.center,style:const TextStyle(fontSize:24,fontWeight:FontWeight.w800)),
+  const SizedBox(height:18),Text('${widget.name} ${countryFlag(widget.profile?['country'])}'.trim(),textAlign:TextAlign.center,style:const TextStyle(fontSize:24,fontWeight:FontWeight.w800)),
   const SizedBox(height:10),
   Wrap(alignment:WrapAlignment.center,crossAxisAlignment:WrapCrossAlignment.center,spacing:4,children:[
    SelectableText(widget.profile==null?'ID · Sign in to receive your ID':'ID · ${widget.profile!['uid']}',style:const TextStyle(color:cyan,fontWeight:FontWeight.w600,fontSize:13)),

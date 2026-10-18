@@ -201,7 +201,7 @@ class _MemberProfilePageState extends State<MemberProfilePage> {
                     )),
                     const SizedBox(height: 14),
                     Text(
-                      "${card!['display_name']} ${countryFlag(card!['country'])}",
+                      "${card!['display_name']} ${countryFlag(card!['country'])}".trim(),
                       textAlign: TextAlign.center,
                       style: const TextStyle(
                         fontSize: 24,
