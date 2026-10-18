@@ -11,6 +11,6 @@ void main(){
  });
  testWidgets('Admin code screen fits a compact large-text phone',(tester)async{
  tester.view.physicalSize=const Size(320,640);tester.view.devicePixelRatio=1;addTearDown(tester.view.resetPhysicalSize);addTearDown(tester.view.resetDevicePixelRatio);
- await tester.pumpWidget(MaterialApp(builder:(context,child)=>MediaQuery(data:MediaQuery.of(context).copyWith(textScaler:const TextScaler.linear(1.5)),child:child!),home:const AdminControlPage()));await tester.pumpAndSettle();expect(tester.takeException(),isNull);expect(find.text('Generate one-time code'),findsOneWidget);
+ await tester.pumpWidget(MaterialApp(builder:(context,child)=>MediaQuery(data:MediaQuery.of(context).copyWith(textScaler:const TextScaler.linear(1.5)),child:child!),home:const AdminControlPage()));await tester.pumpAndSettle();await tester.scrollUntilVisible(find.text('Generate one-time code'),180,scrollable:find.byType(Scrollable).first);expect(tester.takeException(),isNull);expect(find.text('Generate one-time code'),findsOneWidget);
  });
 }
