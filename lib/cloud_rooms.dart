@@ -41,7 +41,10 @@ class CloudRoomsState extends State<CloudRooms>{
    final name=await showDialog<String>(context:context,builder:(_)=>const TextEntryDialog(title:'Create your room',maxLength:40,saveLabel:'Create'));
    if(!mounted||name==null)return;
    final owner=await soveraClient.from('sovera_profiles').select('country').eq('id',user.id).single();
-   final room=await soveraClient.from('sovera_rooms').insert({'owner_id':user.id,'name':name,if((owner['country']??'').toString().isNotEmpty)'country':owner['country']}).select().single();
+   final values=<String,dynamic>{'owner_id':user.id,'name':name};
+   // Older databases continue to create rooms while country storage is prepared.
+   if(rows.any((row)=>row.containsKey('country'))&&(owner['country']??'').toString().isNotEmpty)values['country']=owner['country'];
+   final room=await soveraClient.from('sovera_rooms').insert(values).select().single();
    if(mounted){await refresh();if(mounted)await open(room);}
   }catch(_){notice('Could not open your room. Check your connection and retry.');}
   finally{if(mounted)setState(()=>writing=false);}
@@ -78,7 +81,7 @@ class CloudRoomsState extends State<CloudRooms>{
    else if(visible.isEmpty)const Glass(child:Text('No rooms here yet. Create your room or follow a community room.'))
    else LayoutBuilder(builder:(context,c)=>GridView.builder(shrinkWrap:true,physics:const NeverScrollableScrollPhysics(),itemCount:visible.length,gridDelegate:SliverGridDelegateWithFixedCrossAxisCount(crossAxisCount:c.maxWidth<300?1:2,mainAxisExtent:260+30*(MediaQuery.textScalerOf(context).scale(1)-1),crossAxisSpacing:12,mainAxisSpacing:12),itemBuilder:(context,i){
     final room=visible[i],id=visible[i]['id'] as String;
-    return RoomCard(roomId:id,photoPath:room['photo_path'] as String?,country:(room['country']??'').toString(),memberCount:countsReady?(counts[id] as int? ?? 0):null,name:room['name'] as String,category:room['category'] as String,subtitle:'${room['seat_count']} seats · Live voice',color:i.isEven?violet:cyan,followed:follows.contains(id),onOpen:()=>open(room),onFollow:writing?null:()=>follow(room));
+    return RoomCard(key:ValueKey('$id:$revision'),roomId:id,photoPath:room['photo_path'] as String?,country:(room['country']??'').toString(),memberCount:countsReady?(counts[id] as int? ?? 0):null,name:room['name'] as String,category:room['category'] as String,subtitle:'${room['seat_count']} seats · Live voice',color:i.isEven?violet:cyan,followed:follows.contains(id),onOpen:()=>open(room),onFollow:writing?null:()=>follow(room));
    })),
 
   ]);
