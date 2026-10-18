@@ -5,3 +5,5 @@ android/local.properties
 *.jks
 *.keystore
 .env
+
+**/node_modules

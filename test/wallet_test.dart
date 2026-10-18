@@ -6,12 +6,12 @@ import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:sovera/wallet.dart';
 
-const profile={'id':'fixture-owner','uid':100001};
+const profile={'id':'fixture-owner','uid':10000001};
 class FixtureStore extends CoinStore {
  bool fail=false;String lastSearch='',lastCountry='',lastCurrency='';int balanceCalls=0;
  @override Future<Map<String,dynamic>?> balance(String id) async {balanceCalls++;if(fail)throw Exception('offline');return {'coins':'123456','diamonds':'4200','status':'active'};}
  @override Future<List<Map<String,dynamic>>> entries(String id,int offset,String currency)async {lastCurrency=currency;return [{'kind':'exchange','coin_delta':70,'diamond_delta':-100,'reference':'test-receipt','created_at':'2026-10-16T12:00:00Z'}];}
- @override Future<List<Map<String,dynamic>>> sellers(String search,String country,int offset)async {lastSearch=search;lastCountry=country;if(search=='missing')return [];return [{'seller_uid':100001,'display_name':'Test seller','country':'Oman','languages':'Bangla, English','description':'Test listing only.'}];}
+ @override Future<List<Map<String,dynamic>>> sellers(String search,String country,int offset)async {lastSearch=search;lastCountry=country;if(search=='missing')return [];return [{'seller_uid':10000001,'display_name':'Test seller','country':'Oman','languages':'Bangla, English','description':'Test listing only.'}];}
 }
 void main(){
  testWidgets('Wallet reads balances, hides values and retries errors',(tester)async{
@@ -27,8 +27,8 @@ void main(){
   final store=FixtureStore();await tester.pumpWidget(MaterialApp(home:CoinSellerList(store:store)));await tester.pumpAndSettle();
   await tester.enterText(find.byType(TextField),'missing');await tester.tap(find.byTooltip('Search sellers'));await tester.pumpAndSettle();
   expect(store.lastSearch,'missing');expect(find.text('No approved sellers found'),findsOneWidget);
-  await tester.enterText(find.byType(TextField),'100001');await tester.tap(find.byTooltip('Search sellers'));await tester.pumpAndSettle();
-  await tester.tap(find.text('Oman'));await tester.pumpAndSettle();expect(store.lastCountry,'Oman');expect(store.lastSearch,'100001');
+  await tester.enterText(find.byType(TextField),'10000001');await tester.tap(find.byTooltip('Search sellers'));await tester.pumpAndSettle();
+  await tester.tap(find.text('Oman'));await tester.pumpAndSettle();expect(store.lastCountry,'Oman');expect(store.lastSearch,'10000001');
   await tester.ensureVisible(find.text('Test seller'));await tester.pumpAndSettle();await tester.tap(find.text('Test seller'));await tester.pumpAndSettle();
   expect(find.text('Copy seller ID'),findsOneWidget);
  });

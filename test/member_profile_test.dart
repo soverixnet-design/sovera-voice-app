@@ -8,7 +8,7 @@ class FakeProfileStore extends MemberProfileStore {
   @override
   Future<Map<String, dynamic>?> card(String target, String viewer) async => {
     'user_id': target,
-    'uid': 100001,
+    'uid': 10000001,
     'display_name': 'Sovera member',
     'bio': '',
     'medal_styles': equipped,
@@ -59,7 +59,7 @@ void main() {
         ),
       );
       await tester.pumpAndSettle();
-      expect(find.text('ID · 100001'), findsOneWidget);
+      expect(find.text('ID · 10000001'), findsOneWidget);
       expect(find.text('No received gifts yet.'), findsOneWidget);
       expect(find.text('Chat'), findsOneWidget);
       await tester.tap(find.text('Follow'));

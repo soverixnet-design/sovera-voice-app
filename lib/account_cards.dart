@@ -1,3 +1,4 @@
+import 'admin_control.dart';
 import 'member_profile.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -33,6 +34,7 @@ class _ProfileIdentityCardState extends State<ProfileIdentityCard>{
    SelectableText(widget.profile==null?'ID · Sign in to receive your ID':'ID · ${widget.profile!['uid']}',style:const TextStyle(color:cyan,fontWeight:FontWeight.w600,fontSize:13)),
    if(widget.profile!=null)IconButton(tooltip:'Copy user ID',onPressed:copyId,icon:const Icon(Icons.copy_rounded,color:cyan,size:18)),
   ]),
+  VipIdentityBadge(value:widget.profile?['vip_id']),
   const SizedBox(height:20),
   FutureBuilder<Map<String,dynamic>?>(future:levels,builder:(context,snapshot){
    final row=snapshot.data;

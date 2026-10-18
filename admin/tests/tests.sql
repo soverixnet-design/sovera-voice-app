@@ -1,0 +1,42 @@
+begin;
+insert into auth.users(id,email) values('00000000-0000-4000-8000-000000000002','owner@example.test'),('00000000-0000-4000-8000-000000000003','agent@example.test'),('00000000-0000-4000-8000-000000000004','recipient@example.test'),('00000000-0000-4000-8000-000000000005','other@example.test'),('00000000-0000-4000-8000-000000000006','room@example.test');
+insert into public.sovera_profiles(id) select id from auth.users where email<>'fixture@example.test';
+insert into public.sovera_admin_staff(user_id,role) values('00000000-0000-4000-8000-000000000002','owner');
+insert into public.sovera_member_cards(user_id,uid,display_name,listed) select id,uid,display_name,true from public.sovera_profiles where id<>'00000000-0000-4000-8000-000000000001';
+set local role service_role;
+select public.sovera_admin_run('00000000-0000-4000-8000-000000000002','staff.save','{"target":"00000000-0000-4000-8000-000000000003","role":"agent","permissions":["users.read","recharge.create","history.read"],"quota":"100","active":true}');
+select public.sovera_admin_run('00000000-0000-4000-8000-000000000003','recharge','{"target":"00000000-0000-4000-8000-000000000004","amount":"60","request_id":"11111111-1111-4111-8111-111111111111"}');
+select public.sovera_admin_run('00000000-0000-4000-8000-000000000003','recharge','{"target":"00000000-0000-4000-8000-000000000004","amount":"60","request_id":"11111111-1111-4111-8111-111111111111"}');
+do $$ begin
+ if(select coins from public.sovera_wallet_balances where user_id='00000000-0000-4000-8000-000000000004')<>'60' then raise exception 'Double credit';end if;
+ if(select quota_used from public.sovera_admin_staff where user_id='00000000-0000-4000-8000-000000000003')<>60 then raise exception 'Quota duplicate';end if;
+ begin perform public.sovera_admin_run('00000000-0000-4000-8000-000000000003','recharge','{"target":"00000000-0000-4000-8000-000000000004","amount":"50","request_id":"22222222-2222-4222-8222-222222222222"}');raise exception 'TEST: over-quota allowed';exception when raise_exception then if SQLERRM like 'TEST:%' then raise;end if;if SQLERRM<>'Insufficient agent quota' then raise;end if;end;
+ begin perform public.sovera_admin_run('00000000-0000-4000-8000-000000000003','user.vip','{"target":"00000000-0000-4000-8000-000000000004","vip_id":"7"}');raise exception 'TEST: VIP permission escalation';exception when raise_exception then if SQLERRM not like 'Permission denied:%' then raise;end if;end;
+ begin perform public.sovera_admin_run('00000000-0000-4000-8000-000000000002','staff.save','{"target":"00000000-0000-4000-8000-000000000002","role":"manager"}');raise exception 'TEST: Owner demotion';exception when raise_exception then if SQLERRM<>'Owner account cannot be changed here' then raise;end if;end;
+end $$;
+select public.sovera_admin_run('00000000-0000-4000-8000-000000000002','user.vip','{"target":"00000000-0000-4000-8000-000000000004","vip_id":"7"}');
+do $$ begin
+ if(select vip_id from public.sovera_member_cards where user_id='00000000-0000-4000-8000-000000000004')<>'7' then raise exception 'VIP display did not sync';end if;
+ begin perform public.sovera_admin_run('00000000-0000-4000-8000-000000000002','user.vip','{"target":"00000000-0000-4000-8000-000000000005","vip_id":"7"}');raise exception 'TEST: Duplicate VIP allowed';exception when unique_violation then null;end;
+end $$;
+select public.sovera_admin_run('00000000-0000-4000-8000-000000000002','user.ban','{"target":"00000000-0000-4000-8000-000000000004","banned":true}');
+set local role authenticated;
+select set_config('request.jwt.claim.sub','00000000-0000-4000-8000-000000000004',true);
+do $$ begin if exists(select 1 from public.sovera_profiles) then raise exception 'Banned user retained API access';end if;end $$;
+select set_config('request.jwt.claim.sub','00000000-0000-4000-8000-000000000003',true);
+select set_config('fixture.admin_code',public.sovera_create_admin_code(),true);
+do $$ begin
+ begin perform public.sovera_admin_run(auth.uid(),'dashboard','{}');raise exception 'TEST: direct privileged RPC allowed';exception when insufficient_privilege then null;end;
+ begin update public.sovera_member_cards set vip_id='99' where user_id=auth.uid();raise exception 'TEST: self VIP allowed';exception when insufficient_privilege then null;end;
+end $$;
+set local role service_role;
+select public.sovera_admin_redeem(encode(extensions.digest(current_setting('fixture.admin_code'),'sha256'),'hex'));
+do $$ begin begin perform public.sovera_admin_redeem(encode(extensions.digest(current_setting('fixture.admin_code'),'sha256'),'hex'));raise exception 'TEST: login code replay';exception when raise_exception then if SQLERRM<>'Invalid or expired login code' then raise;end if;end;end $$;
+select public.sovera_admin_run('00000000-0000-4000-8000-000000000002','staff.save','{"target":"00000000-0000-4000-8000-000000000003","role":"agent","permissions":["recharge.create"],"quota":"100","active":false}');
+do $$ begin begin perform public.sovera_admin_run('00000000-0000-4000-8000-000000000003','session','{}');raise exception 'TEST: revoked staff retained access';exception when raise_exception then if SQLERRM<>'Admin access revoked' then raise;end if;end;end $$;
+select public.sovera_admin_run('00000000-0000-4000-8000-000000000002','staff.save','{"target":"00000000-0000-4000-8000-000000000006","role":"room_admin","permissions":["rooms.manage"],"quota":"0","room_ids":[]}');
+insert into public.sovera_rooms(id,owner_id,name) values('33333333-3333-4333-8333-333333333333','00000000-0000-4000-8000-000000000005','Test room');
+do $$ begin begin perform public.sovera_admin_run('00000000-0000-4000-8000-000000000006','room.save','{"id":"33333333-3333-4333-8333-333333333333","name":"Intrusion","seat_count":5,"is_closed":true}');raise exception 'TEST: room scope bypass';exception when raise_exception then if SQLERRM<>'Room outside assigned scope' then raise;end if;end;end $$;
+select public.sovera_admin_run('00000000-0000-4000-8000-000000000002','content.save','{"kind":"notice","title":"Test notice","payload":{"text":"Hello"},"published":true}');
+reset role;
+rollback;

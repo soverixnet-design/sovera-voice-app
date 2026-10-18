@@ -19,7 +19,7 @@ class CloudRoomsState extends State<CloudRooms>{
   final ticket=++revision;
   setState((){loading=true;error=null;});
   try{
-   final data=await soveraClient.from('sovera_rooms').select().order('created_at',ascending:false).limit(100);
+   final data=await soveraClient.from('sovera_rooms').select().eq('is_closed',false).order('created_at',ascending:false).limit(100);
    final saved=await soveraClient.from('sovera_room_follows').select('room_id');
    if(mounted&&ticket==revision)setState((){rows=data;follows=saved.map((r)=>r['room_id'] as String).toSet();loading=false;});
   }catch(_){if(mounted&&ticket==revision)setState((){error='Could not load rooms. Please retry.';loading=false;});}

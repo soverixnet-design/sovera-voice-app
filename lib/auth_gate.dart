@@ -75,9 +75,10 @@ class _AuthGateState extends State<AuthGate> {
     try{
       final result=await soveraClient.auth.getUser();
       if(result.user==null)throw const AuthException('Please sign in again.');
+      try{final blocked=await soveraClient.rpc('sovera_account_status');if(blocked==true)throw const AuthException('Your account is suspended. Contact support.');}on PostgrestException catch(_){/* Older servers do not expose the status RPC. */}
       final row=await ensureSoveraProfile(result.user!);
       if(mounted&&ticket==revision)setState((){profile=row;loading=false;});
-    }catch(e){if(mounted&&ticket==revision)setState((){error='Could not load your verified profile. Check your connection and retry.';loading=false;});}
+    }catch(e){if(mounted&&ticket==revision)setState((){error=e is AuthException&&e.message=='Your account is suspended. Contact support.'?e.message:'Could not load your verified profile. Check your connection and retry.';loading=false;});}
   }
   @override void dispose(){revision++;subscription?.cancel();super.dispose();}
   @override Widget build(BuildContext context){

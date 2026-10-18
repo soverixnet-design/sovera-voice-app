@@ -1,3 +1,4 @@
+import 'admin_control.dart';
 import 'dart:async';
 
 import 'package:flutter/material.dart';
@@ -226,6 +227,7 @@ class _MemberProfilePageState extends State<MemberProfilePage> {
                         ),
                       ],
                     ),
+                    VipIdentityBadge(value:card?['vip_id']),
                     if ((card?['bio'] ?? '').toString().isNotEmpty)
                       Text(card!['bio'].toString(), textAlign: TextAlign.center),
                     if (!own)

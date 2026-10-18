@@ -15,7 +15,7 @@ class FakeMembers extends MemberStore{
  bool visible=false;Set<String> saved={};
  @override Future<Map<String,dynamic>?> ownCard(String id)async=>{'listed':visible};
  @override Future<Set<String>> following(String id)async=>{...saved};
- @override Future<List<Map<String,dynamic>>> members(String own,String query,int offset)async=>[{'user_id':'other','uid':100002,'display_name':'Member fixture'}];
+ @override Future<List<Map<String,dynamic>>> members(String own,String query,int offset)async=>[{'user_id':'other','uid':10000002,'display_name':'Member fixture'}];
  @override Future<void> publish(Map<String,dynamic> profile,bool listed)async{visible=listed;}
  @override Future<void> follow(String own,String target,bool value)async{value?saved.add(target):saved.remove(target);}
 }
@@ -42,7 +42,7 @@ void main(){
   await tester.tap(find.byTooltip('Leave room'));await tester.pumpAndSettle();expect(find.byType(VoiceRoom),findsNothing);
  });
  testWidgets('Follow and unfollow persist only after store success',(tester)async{
-  final store=FakeMembers();await tester.pumpWidget(MaterialApp(home:MemberDirectory(profile:const {'id':'own','uid':100001,'display_name':'Owner fixture'},store:store)));await tester.pumpAndSettle();
+  final store=FakeMembers();await tester.pumpWidget(MaterialApp(home:MemberDirectory(profile:const {'id':'own','uid':10000001,'display_name':'Owner fixture'},store:store)));await tester.pumpAndSettle();
   await tester.ensureVisible(find.text('Follow'));await tester.pumpAndSettle();await tester.tap(find.text('Follow'));await tester.pumpAndSettle();expect(store.saved,contains('other'));expect(find.text('Unfollow'),findsOneWidget);
   await tester.tap(find.text('Unfollow'));await tester.pumpAndSettle();expect(store.saved,isEmpty);
   await tester.ensureVisible(find.byType(SwitchListTile));await tester.pumpAndSettle();await tester.tap(find.byType(Switch));await tester.pumpAndSettle();expect(store.visible,isTrue);
