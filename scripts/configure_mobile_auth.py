@@ -9,6 +9,10 @@ p=Path('android/app/src/main/AndroidManifest.xml')
 tree=ET.parse(p);root=tree.getroot()
 if not any(e.get('{'+NS+'}name')=='android.permission.INTERNET' for e in root.findall('uses-permission')):
  ET.SubElement(root,'uses-permission',{'{'+NS+'}name':'android.permission.INTERNET'})
+for permission in ['RECORD_AUDIO','ACCESS_NETWORK_STATE','MODIFY_AUDIO_SETTINGS']:
+ name='android.permission.'+permission
+ if not any(e.get('{'+NS+'}name')==name for e in root.findall('uses-permission')):
+  ET.SubElement(root,'uses-permission',{'{'+NS+'}name':name})
 activity=root.find('application/activity')
 assert activity is not None
 # Supabase's app_links plugin owns this callback, not Flutter's Router.
@@ -23,5 +27,6 @@ p=Path('ios/Runner/Info.plist')
 with p.open('rb') as file:data=plistlib.load(file)
 data['CFBundleURLTypes']=[{'CFBundleTypeRole':'Editor','CFBundleURLSchemes':['com.sovera.voice']}]
 data['NSPhotoLibraryUsageDescription']='Choose a profile picture for your Sovera room.'
+data['NSMicrophoneUsageDescription']='Speak in a Sovera voice room when you enable your microphone.'
 data['FlutterDeepLinkingEnabled']=False
 with p.open('wb') as file:plistlib.dump(data,file)

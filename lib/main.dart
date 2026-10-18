@@ -1,3 +1,5 @@
+import 'package:livekit_client/livekit_client.dart' as rtc;
+import 'voice_connection.dart';
 import 'dart:async';
 import 'community_services.dart';
 import 'admin_control.dart';
@@ -269,14 +271,49 @@ class VoiceRoom extends StatefulWidget {
  State<VoiceRoom> createState() => _VoiceRoomState();
 }
 class _VoiceRoomState extends State<VoiceRoom> with WidgetsBindingObserver {
+ rtc.Room? audioRoom;
+ bool audioConnecting=false, micChanging=false, roomClosing=false;
+ String? audioError;
+ Future<void> connectAudio()async{
+  if(widget.roomId==null||audioConnecting||roomClosing)return;
+  setState((){audioConnecting=true;audioError=null;micMuted=true;});
+  rtc.Room? candidate;
+  try{
+   final credentials=await requestVoiceCredentials(roomId:widget.roomId!,accessToken:soveraClient.auth.currentSession?.accessToken);
+   if(!mounted||roomClosing)return;
+   final old=audioRoom;audioRoom=null;
+   if(old!=null){old.removeListener(audioChanged);await old.disconnect();await old.dispose();}
+   candidate=rtc.Room();
+   await candidate.connect(credentials.url,credentials.token);
+   if(!mounted||roomClosing){await candidate.disconnect();await candidate.dispose();return;}
+   audioRoom=candidate;candidate=null;audioRoom!.addListener(audioChanged);
+  }catch(error){
+   if(candidate!=null){await candidate.disconnect();await candidate.dispose();}
+   if(mounted&&!roomClosing)audioError=error is VoiceConnectionException?error.message:'Could not connect to voice. Tap Retry.';
+  }finally{if(mounted&&!roomClosing)setState(()=>audioConnecting=false);}
+ }
+ void audioChanged(){if(mounted&&!roomClosing)setState((){if(audioRoom?.localParticipant?.permissions.canPublish!=true)micMuted=true;});}
+ Future<void> closeAudio()async{
+  final room=audioRoom;audioRoom=null;
+  if(room!=null){room.removeListener(audioChanged);try{await room.disconnect();}finally{await room.dispose();}}
+ }
+ String get audioStatus{
+  if(audioConnecting)return 'Connecting live audio…';
+  if(audioError!=null)return audioError!;
+  final state=audioRoom?.connectionState;
+  if(state==rtc.ConnectionState.connected)return audioRoom?.localParticipant?.permissions.canPublish==true?'Live audio connected':'Live audio connected · Listening';
+  if(state==rtc.ConnectionState.reconnecting)return 'Reconnecting live audio…';
+  return 'Live audio disconnected';
+ }
  Timer? presenceTimer;
  Future<void> pingPresence()async{if(widget.roomId==null||soveraClient.auth.currentUser==null)return;try{await communityAction('presence.ping',{'room_id':widget.roomId});}catch(_){}}
  Future<void> leavePresence()async{if(widget.roomId==null)return;try{await communityAction('presence.leave',{'room_id':widget.roomId});}catch(_){}}
- @override void didChangeAppLifecycleState(AppLifecycleState state){if(state==AppLifecycleState.resumed){pingPresence();presenceTimer?.cancel();presenceTimer=Timer.periodic(const Duration(seconds:25),(_)=>pingPresence());}else{presenceTimer?.cancel();leavePresence();}}
+ @override void didChangeAppLifecycleState(AppLifecycleState state){if(state==AppLifecycleState.resumed){pingPresence();presenceTimer?.cancel();presenceTimer=Timer.periodic(const Duration(seconds:25),(_)=>pingPresence());}else{presenceTimer?.cancel();leavePresence();if(widget.roomId!=null){final participant=audioRoom?.localParticipant;if(participant!=null)unawaited(participant.setMicrophoneEnabled(false).then((_){if(mounted)setState(()=>micMuted=true);}).catchError((Object _){}));}}}
  int seats=9;bool micMuted=true; int? partnerSeat; SeatBond bond=SeatBond.friendship; bool savingSeats=false; int? mySeat; String? selectedGift;
  final messages=<String>[]; final input=TextEditingController();
  @override void initState(){super.initState();WidgetsBinding.instance.addObserver(this);pingPresence();if(widget.roomId!=null)presenceTimer=Timer.periodic(const Duration(seconds:25),(_)=>pingPresence());seats=widget.draft?.seats??widget.initialSeats;mySeat=widget.draft?.mySeat;partnerSeat=widget.draft?.partnerSeat;bond=widget.draft?.bond??SeatBond.friendship;micMuted=widget.draft?.muted??true;messages.addAll(widget.draft?.messages??[]);
   WidgetsBinding.instance.addPostFrameCallback((_){
+   if(widget.roomId!=null)connectAudio();
    final entry=previewEntryEffect.value;
    if(mounted&&entry!=null&&ModalRoute.of(context)?.isCurrent==true)showEntryPreview(context,entry);
   });
@@ -284,7 +321,7 @@ class _VoiceRoomState extends State<VoiceRoom> with WidgetsBindingObserver {
  bool get canEdit=>widget.roomId==null||soveraClient.auth.currentUser?.id==widget.ownerId;
  void notice(String text) => ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(text)));
  @override
- void dispose(){WidgetsBinding.instance.removeObserver(this);presenceTimer?.cancel();leavePresence();input.dispose();super.dispose();}
+ void dispose(){roomClosing=true;unawaited(closeAudio());WidgetsBinding.instance.removeObserver(this);presenceTimer?.cancel();leavePresence();input.dispose();super.dispose();}
  @override
  Widget build(BuildContext context) => Scaffold(backgroundColor: const Color(0xFF0C0D0F),
  appBar:AppBar(backgroundColor:const Color(0xFF10182A),automaticallyImplyLeading:false,leadingWidth:44,leading:RoomTool(label:'Back',icon:Icons.arrow_back_ios_new_rounded,color:violet,onTap:()=>Navigator.maybePop(context)),titleSpacing:0,title:Row(children:[RoomPhoto(roomId:widget.roomId,canEdit:canEdit,size:32),const SizedBox(width:6),Expanded(child:Text(widget.name,maxLines:1,overflow:TextOverflow.ellipsis,style:const TextStyle(fontSize:14,fontWeight:FontWeight.bold)))]),actions:[
@@ -308,15 +345,29 @@ class _VoiceRoomState extends State<VoiceRoom> with WidgetsBindingObserver {
  ]);
  }),
  if(partnerSeat!=null)const Text('Local relationship preview · No real request or gift sent',textAlign:TextAlign.center,style:TextStyle(color:Colors.white54,fontSize:10)),
- if(mySeat!=null)Text(micMuted?'Mic indicator: muted · Live audio unavailable':'Mic indicator: unmuted preview · Live audio unavailable',textAlign:TextAlign.center,style:TextStyle(color:micMuted?pink:cyan,fontSize:10)),
+ if(widget.roomId!=null)Row(mainAxisAlignment:MainAxisAlignment.center,children:[Flexible(child:Text(audioStatus,textAlign:TextAlign.center,style:const TextStyle(color:Colors.white70,fontSize:11))),if(!audioConnecting&&(audioError!=null||audioRoom?.connectionState==rtc.ConnectionState.disconnected))TextButton(onPressed:connectAudio,child:const Text('Retry'))]),
+ if(mySeat!=null&&widget.roomId==null)Text(micMuted?'Mic indicator: muted · Live audio unavailable':'Mic indicator: unmuted preview · Live audio unavailable',textAlign:TextAlign.center,style:TextStyle(color:micMuted?pink:cyan,fontSize:10)),
  const SizedBox(height:16),const Text('Local chat preview',style:TextStyle(color:gold,fontWeight:FontWeight.bold)),
  const SizedBox(height:12),const Text('Welcome to Sovera. Take a seat and explore the room design.',style:TextStyle(color:Colors.white54,fontSize:12)),const SizedBox(height:12),
  for(final m in messages)Padding(padding:const EdgeInsets.only(bottom:8),child:Glass(tint:gold,padding:const EdgeInsets.all(12),child:Text('You: $m'))),
  ])),
- Padding(padding:const EdgeInsets.fromLTRB(10,6,10,14),child:Row(children:[IconButton(tooltip:micMuted?'Unmute preview':'Mute preview',onPressed:toggleMic,icon:Icon(micMuted?Icons.mic_off_rounded:Icons.mic_rounded,color:micMuted?pink:cyan)),Expanded(child:TextField(controller:input,maxLength:300,decoration:const InputDecoration(hintText:'Local message…',counterText:'',border:InputBorder.none),onSubmitted:(_)=>send())),IconButton(tooltip:'Send local message',onPressed:send,icon:const Icon(Icons.send_rounded,color:gold)),IconButton.filled(tooltip:'Preview gifts',onPressed:gifts,style:IconButton.styleFrom(backgroundColor:const Color(0xFFB6642B)),icon:const Icon(Icons.card_giftcard_rounded)),IconButton(tooltip:'Games',onPressed:()=>Navigator.push(context,MaterialPageRoute<void>(builder:(_)=>const GamesHub())),icon:const Icon(Icons.grid_view_rounded,color:gold))])),
+ Padding(padding:const EdgeInsets.fromLTRB(10,6,10,14),child:Row(children:[IconButton(tooltip:widget.roomId==null?(micMuted?'Unmute preview':'Mute preview'):(micMuted?'Unmute microphone':'Mute microphone'),onPressed:micChanging?null:toggleMic,icon:Icon(micMuted?Icons.mic_off_rounded:Icons.mic_rounded,color:micMuted?pink:cyan)),Expanded(child:TextField(controller:input,maxLength:300,decoration:const InputDecoration(hintText:'Local message…',counterText:'',border:InputBorder.none),onSubmitted:(_)=>send())),IconButton(tooltip:'Send local message',onPressed:send,icon:const Icon(Icons.send_rounded,color:gold)),IconButton.filled(tooltip:'Preview gifts',onPressed:gifts,style:IconButton.styleFrom(backgroundColor:const Color(0xFFB6642B)),icon:const Icon(Icons.card_giftcard_rounded)),IconButton(tooltip:'Games',onPressed:()=>Navigator.push(context,MaterialPageRoute<void>(builder:(_)=>const GamesHub())),icon:const Icon(Icons.grid_view_rounded,color:gold))])),
  ])))),
  );
- void toggleMic(){if(mySeat==null){notice('Take a seat first to preview your microphone indicator.');return;}setState(()=>micMuted=!micMuted);}
+ Future<void> toggleMic()async{
+ if(widget.roomId==null){if(mySeat==null){notice('Take a seat first to preview your microphone indicator.');return;}setState(()=>micMuted=!micMuted);return;}
+ if(micChanging)return;
+ final room=audioRoom;
+ if(room?.connectionState!=rtc.ConnectionState.connected){notice('Connect to live audio first.');return;}
+ final participant=room?.localParticipant;
+ if(participant==null||!participant.permissions.canPublish){notice('Listening only. Speaking permission has not been enabled by the server.');return;}
+ if(mySeat==null){notice('Take an authorized seat before speaking.');return;}
+ setState(()=>micChanging=true);
+ final enable=micMuted;
+ try{await participant.setMicrophoneEnabled(enable);if(mounted&&!roomClosing)setState(()=>micMuted=!enable);}
+ catch(_){if(mounted&&!roomClosing)notice('Microphone could not start. Check microphone permission and try again.');}
+ finally{if(mounted&&!roomClosing)setState(()=>micChanging=false);}
+ }
  void minimize(){
  if(!Navigator.canPop(context)){notice('Open a room from Home to minimize it.');return;}
  minimizedRoom.value=RoomDraft(name:widget.name,roomId:widget.roomId,ownerId:widget.ownerId,seats:seats,mySeat:mySeat,partnerSeat:partnerSeat,bond:bond,muted:micMuted,messages:List.unmodifiable(messages));Navigator.pop(context);
