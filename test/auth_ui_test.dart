@@ -36,7 +36,8 @@ void main() {
   await tester.pumpAndSettle();
   expect(find.text('Continue with Google'),findsOneWidget);
   expect(find.text('Continue with Google'),findsOneWidget);
-  expect(find.text('Continue with Facebook'),findsNothing);
+  expect(find.text('Continue with Facebook'),findsOneWidget);
+  expect(find.text('Continue with email'),findsOneWidget);
   expect(find.byType(Home),findsNothing);
   expect(tester.takeException(),isNull);
  });
@@ -49,5 +50,13 @@ void main() {
   expect(find.byType(Home),findsOneWidget);
   expect(tester.takeException(),isNull);
  });
+ testWidgets('Facebook remains a separate working sign-in choice',(tester)async{
+ OAuthProvider? selected;await tester.pumpWidget(MaterialApp(home:SoveraLoginPage(onSignIn:(provider)async{selected=provider;})));await tester.tap(find.text('Continue with Facebook'));await tester.pumpAndSettle();expect(selected,OAuthProvider.facebook);
+ });
+ testWidgets('Email sign-in opens without starting an OAuth provider',(tester)async{
+ var called=false;await tester.pumpWidget(MaterialApp(home:SoveraLoginPage(onSignIn:(_)async{called=true;})));await tester.tap(find.text('Continue with email'));await tester.pumpAndSettle();expect(find.text('Sign in with email'),findsOneWidget);expect(find.text('Email address'),findsOneWidget);expect(called,false);
+ });
+ test('Disabled Google cannot open the OAuth browser flow',(){expect(()=>requireSocialProvider({'external':{'google':false,'facebook':true}},OAuthProvider.google),throwsA(isA<AuthException>()));expect(()=>requireSocialProvider({'external':{'google':false,'facebook':true}},OAuthProvider.facebook),returnsNormally);});
+
 }
 
