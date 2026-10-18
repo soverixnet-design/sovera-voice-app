@@ -271,6 +271,53 @@ class VoiceRoom extends StatefulWidget {
  State<VoiceRoom> createState() => _VoiceRoomState();
 }
 class _VoiceRoomState extends State<VoiceRoom> with WidgetsBindingObserver {
+ Timer? seatTimer;
+ bool seatBusy=false, seatActive=true;
+ Map<int,String> liveSeats={};
+ Future<VoiceSeatState> seatRequest(String action,{int? seat})=>requestVoiceSeat(roomId:widget.roomId!,accessToken:soveraClient.auth.currentSession?.accessToken,action:action,seat:seat);
+ void applySeats(VoiceSeatState state){
+  if(!mounted||roomClosing)return;
+  final lost=mySeat!=null&&state.mine==null;
+  setState((){seats=state.count;mySeat=state.mine;liveSeats=state.occupants;if(state.mine==null)micMuted=true;});
+  if(lost)unawaited(stopMicrophone());
+ }
+ Future<void> stopMicrophone()async{
+  try{await audioRoom?.localParticipant?.setMicrophoneEnabled(false);}catch(_){}
+  if(mounted&&!roomClosing)setState(()=>micMuted=true);
+ }
+ Future<void> syncSeats()async{
+  if(widget.roomId==null||seatBusy||roomClosing||!seatActive||audioRoom?.connectionState!=rtc.ConnectionState.connected)return;
+  seatBusy=true;
+  try{applySeats(await seatRequest(mySeat==null?'state':'renew'));}
+  catch(_){await stopMicrophone();if(mounted&&!roomClosing)setState(()=>mySeat=null);}
+  finally{seatBusy=false;}
+ }
+ Future<void> chooseLiveSeat(int index)async{
+  if(seatBusy||roomClosing)return;
+  if(audioRoom?.connectionState!=rtc.ConnectionState.connected){notice('Wait for live audio to connect.');return;}
+  final occupant=liveSeats[index];
+  if(occupant!=null){await profile(index);return;}
+  setState(()=>seatBusy=true);
+  try{
+   await stopMicrophone();
+   final result=await seatRequest('take',seat:index);
+   if(!mounted||roomClosing||!seatActive){await seatRequest('leave');return;}
+   applySeats(result);
+   // Wait for the server's permission update before requesting microphone access.
+   for(var attempt=0;attempt<20&&mounted&&!roomClosing&&seatActive;attempt++){
+    if(audioRoom?.localParticipant?.permissions.canPublish==true)break;
+    await Future<void>.delayed(const Duration(milliseconds:100));
+   }
+   if(mounted&&!roomClosing&&seatActive&&mySeat==index)await toggleMic();
+  }catch(error){if(mounted&&!roomClosing)notice(error is VoiceConnectionException?error.message:'Could not take this seat.');}
+  finally{if(mounted&&!roomClosing)setState(()=>seatBusy=false);else seatBusy=false;}
+ }
+ Future<void> releaseSeat()async{
+  await stopMicrophone();
+  if(widget.roomId==null)return;
+  try{final result=await seatRequest('leave');applySeats(result);}
+  catch(_){if(mounted&&!roomClosing)setState(()=>mySeat=null);}
+ }
  rtc.Room? audioRoom;
  bool audioConnecting=false, micChanging=false, roomClosing=false;
  String? audioError;
@@ -287,6 +334,7 @@ class _VoiceRoomState extends State<VoiceRoom> with WidgetsBindingObserver {
    await candidate.connect(credentials.url,credentials.token);
    if(!mounted||roomClosing){await candidate.disconnect();await candidate.dispose();return;}
    audioRoom=candidate;candidate=null;audioRoom!.addListener(audioChanged);
+   if(mounted&&!roomClosing){setState(()=>mySeat=null);await syncSeats();seatTimer?.cancel();seatTimer=Timer.periodic(const Duration(seconds:8),(_)=>syncSeats());}
   }catch(error){
    if(candidate!=null){await candidate.disconnect();await candidate.dispose();}
    if(mounted&&!roomClosing)audioError=error is VoiceConnectionException?error.message:'Could not connect to voice. Tap Retry.';
@@ -294,8 +342,15 @@ class _VoiceRoomState extends State<VoiceRoom> with WidgetsBindingObserver {
  }
  void audioChanged(){if(mounted&&!roomClosing)setState((){if(audioRoom?.localParticipant?.permissions.canPublish!=true)micMuted=true;});}
  Future<void> closeAudio()async{
+  seatTimer?.cancel();
   final room=audioRoom;audioRoom=null;
-  if(room!=null){room.removeListener(audioChanged);try{await room.disconnect();}finally{await room.dispose();}}
+  if(room!=null){
+   room.removeListener(audioChanged);
+   try{await room.localParticipant?.setMicrophoneEnabled(false);}catch(_){}
+   try{await room.disconnect();}catch(_){}
+   try{await room.dispose();}catch(_){}
+  }
+  if(widget.roomId!=null){try{await seatRequest('leave');}catch(_){}}
  }
  String get audioStatus{
   if(audioConnecting)return 'Connecting live audio…';
@@ -308,7 +363,11 @@ class _VoiceRoomState extends State<VoiceRoom> with WidgetsBindingObserver {
  Timer? presenceTimer;
  Future<void> pingPresence()async{if(widget.roomId==null||soveraClient.auth.currentUser==null)return;try{await communityAction('presence.ping',{'room_id':widget.roomId});}catch(_){}}
  Future<void> leavePresence()async{if(widget.roomId==null)return;try{await communityAction('presence.leave',{'room_id':widget.roomId});}catch(_){}}
- @override void didChangeAppLifecycleState(AppLifecycleState state){if(state==AppLifecycleState.resumed){pingPresence();presenceTimer?.cancel();presenceTimer=Timer.periodic(const Duration(seconds:25),(_)=>pingPresence());}else{presenceTimer?.cancel();leavePresence();if(widget.roomId!=null){final participant=audioRoom?.localParticipant;if(participant!=null)unawaited(participant.setMicrophoneEnabled(false).then((_){if(mounted)setState(()=>micMuted=true);}).catchError((Object _){}));}}}
+ @override void didChangeAppLifecycleState(AppLifecycleState state){
+ if(state==AppLifecycleState.resumed){seatActive=true;pingPresence();presenceTimer?.cancel();presenceTimer=Timer.periodic(const Duration(seconds:25),(_)=>pingPresence());syncSeats();}
+ else if(state==AppLifecycleState.paused||state==AppLifecycleState.detached){seatActive=false;presenceTimer?.cancel();leavePresence();if(widget.roomId!=null)unawaited(releaseSeat());}
+ }
+
  int seats=9;bool micMuted=true; int? partnerSeat; SeatBond bond=SeatBond.friendship; bool savingSeats=false; int? mySeat; String? selectedGift;
  final messages=<String>[]; final input=TextEditingController();
  @override void initState(){super.initState();WidgetsBinding.instance.addObserver(this);pingPresence();if(widget.roomId!=null)presenceTimer=Timer.periodic(const Duration(seconds:25),(_)=>pingPresence());seats=widget.draft?.seats??widget.initialSeats;mySeat=widget.draft?.mySeat;partnerSeat=widget.draft?.partnerSeat;bond=widget.draft?.bond??SeatBond.friendship;micMuted=widget.draft?.muted??true;messages.addAll(widget.draft?.messages??[]);
@@ -332,7 +391,7 @@ class _VoiceRoomState extends State<VoiceRoom> with WidgetsBindingObserver {
  ]),
  body: SafeArea(child: Center(child: ConstrainedBox(constraints: const BoxConstraints(maxWidth:640),child: Column(children:[
  Expanded(child: ListView(padding:const EdgeInsets.symmetric(horizontal:18,vertical:12),children:[
- Wrap(spacing:8,runSpacing:8,crossAxisAlignment:WrapCrossAlignment.center,children:[ActionChip(avatar:const Icon(Icons.emoji_events_rounded,color:gold,size:18),label:const Text('Room honors'),onPressed:()=>Navigator.push(context,MaterialPageRoute<void>(builder:(_)=>const Rankings()))),Text(widget.roomId==null?'OFFLINE PREVIEW':'ROOM SAVED · NO AUDIO',maxLines:2,style:const TextStyle(color:Colors.white38,fontSize:10))]),
+ Wrap(spacing:8,runSpacing:8,crossAxisAlignment:WrapCrossAlignment.center,children:[ActionChip(avatar:const Icon(Icons.emoji_events_rounded,color:gold,size:18),label:const Text('Room honors'),onPressed:()=>Navigator.push(context,MaterialPageRoute<void>(builder:(_)=>const Rankings()))),Text(widget.roomId==null?'OFFLINE PREVIEW':'LIVE VOICE ROOM',maxLines:2,style:const TextStyle(color:Colors.white38,fontSize:10))]),
  const SizedBox(height:6),
  Align(alignment:Alignment.center,child:TextButton.icon(onPressed:connections,icon:const Icon(Icons.handshake_rounded,color:cyan),label:const Text('Friendship & CP preview'))),
  LayoutBuilder(builder:(context,constraints){
@@ -340,12 +399,13 @@ class _VoiceRoomState extends State<VoiceRoom> with WidgetsBindingObserver {
  final height=seatSize+62+25*(MediaQuery.textScalerOf(context).scale(1)-1);
  final linked=mySeat!=null&&partnerSeat!=null&&adjacentSeats(mySeat!,partnerSeat!,seats);
  return Stack(children:[
- GridView.builder(shrinkWrap:true,physics:const NeverScrollableScrollPhysics(),itemCount:seats,gridDelegate:SliverGridDelegateWithFixedCrossAxisCount(crossAxisCount:roomSeatColumns,mainAxisExtent:height),itemBuilder:(context,index)=>Semantics(label:'Seat ${index+1}',button:true,child:InkWell(onTap:(){if(mySeat==index&&widget.roomId!=null){profile(index);return;}setState((){mySeat=mySeat==index?null:index;if(mySeat==null||mySeat==partnerSeat)partnerSeat=null;});},onLongPress:()=>profile(index),borderRadius:BorderRadius.circular(24),child:Column(children:[RoomSeatAvatar(size:seatSize,occupied:mySeat==index||partnerSeat==index,muted:mySeat==index&&micMuted),Text(mySeat==index?'You':partnerSeat==index?'Partner preview':'${index+1}',maxLines:1,overflow:TextOverflow.ellipsis,textAlign:TextAlign.center,style:const TextStyle(color:Colors.white60,fontSize:11))])))),
+ GridView.builder(shrinkWrap:true,physics:const NeverScrollableScrollPhysics(),itemCount:seats,gridDelegate:SliverGridDelegateWithFixedCrossAxisCount(crossAxisCount:roomSeatColumns,mainAxisExtent:height),itemBuilder:(context,index)=>Semantics(label:'Seat ${index+1}',button:true,child:InkWell(onTap:(){if(widget.roomId!=null){chooseLiveSeat(index);return;}setState((){mySeat=mySeat==index?null:index;if(mySeat==null||mySeat==partnerSeat)partnerSeat=null;});},onLongPress:()=>profile(index),borderRadius:BorderRadius.circular(24),child:Column(children:[RoomSeatAvatar(size:seatSize,occupied:widget.roomId==null?(mySeat==index||partnerSeat==index):liveSeats.containsKey(index),muted:mySeat==index&&micMuted),Text(mySeat==index?'You':widget.roomId!=null&&liveSeats.containsKey(index)?'Member':partnerSeat==index?'Partner preview':'${index+1}',maxLines:1,overflow:TextOverflow.ellipsis,textAlign:TextAlign.center,style:const TextStyle(color:Colors.white60,fontSize:11))])))),
  if(linked)Positioned(left:constraints.maxWidth*((mySeat!%roomSeatColumns+partnerSeat!%roomSeatColumns+1)/(roomSeatColumns*2))-18,top:(mySeat!~/roomSeatColumns)*height+seatSize/2,child:SeatLinkMarker(bond:bond)),
  ]);
  }),
  if(partnerSeat!=null)const Text('Local relationship preview · No real request or gift sent',textAlign:TextAlign.center,style:TextStyle(color:Colors.white54,fontSize:10)),
  if(widget.roomId!=null)Row(mainAxisAlignment:MainAxisAlignment.center,children:[Flexible(child:Text(audioStatus,textAlign:TextAlign.center,style:const TextStyle(color:Colors.white70,fontSize:11))),if(!audioConnecting&&(audioError!=null||audioRoom?.connectionState==rtc.ConnectionState.disconnected))TextButton(onPressed:connectAudio,child:const Text('Retry'))]),
+ if(widget.roomId!=null&&mySeat!=null)TextButton.icon(onPressed:seatBusy?null:releaseSeat,icon:const Icon(Icons.logout_rounded,size:16),label:Text(micMuted?'Leave seat · Microphone muted':'Leave seat · Speaking')),
  if(mySeat!=null&&widget.roomId==null)Text(micMuted?'Mic indicator: muted · Live audio unavailable':'Mic indicator: unmuted preview · Live audio unavailable',textAlign:TextAlign.center,style:TextStyle(color:micMuted?pink:cyan,fontSize:10)),
  const SizedBox(height:16),const Text('Local chat preview',style:TextStyle(color:gold,fontWeight:FontWeight.bold)),
  const SizedBox(height:12),const Text('Welcome to Sovera. Take a seat and explore the room design.',style:TextStyle(color:Colors.white54,fontSize:12)),const SizedBox(height:12),
@@ -373,6 +433,7 @@ class _VoiceRoomState extends State<VoiceRoom> with WidgetsBindingObserver {
  minimizedRoom.value=RoomDraft(name:widget.name,roomId:widget.roomId,ownerId:widget.ownerId,seats:seats,mySeat:mySeat,partnerSeat:partnerSeat,bond:bond,muted:micMuted,messages:List.unmodifiable(messages));Navigator.pop(context);
  }
  Future<void> connections()async{
+ if(widget.roomId!=null){notice('Relationship seat previews are available in offline preview rooms.');return;}
  int own=mySeat??0;SeatBond draft=bond;
  if(!List.generate(seats,(i)=>i).any((i)=>adjacentSeats(own,i,seats)))own=0;
  int peer=partnerSeat??(own%roomSeatColumns==roomSeatColumns-1?own-1:own+1);
@@ -406,7 +467,14 @@ class _VoiceRoomState extends State<VoiceRoom> with WidgetsBindingObserver {
  }else{setState((){seats=value;if(mySeat!=null&&mySeat!>=seats)mySeat=null;if(partnerSeat!=null&&partnerSeat!>=seats)partnerSeat=null;});notice('Seat layout saved for this preview session.');}
  }
  Future<void> profile(int index)async{
- if(mySeat==index&&widget.roomId!=null){final user=soveraClient.auth.currentUser;if(user!=null){await Navigator.push(context,MaterialPageRoute<void>(builder:(_)=>MemberProfilePage(targetId:user.id,viewerId:user.id)));return;}}
+ if(widget.roomId!=null){
+  final target=liveSeats[index];final viewer=soveraClient.auth.currentUser?.id;
+  if(target!=null&&viewer!=null){await Navigator.push(context,MaterialPageRoute<void>(builder:(_)=>MemberProfilePage(targetId:target,viewerId:viewer)));}
+  else{notice('This seat is empty. Tap it to join.');}
+  return;
+ }
+
+
  await showModalBottomSheet<void>(context:context,isScrollControlled:true,showDragHandle:true,backgroundColor:const Color(0xFF1B191C),builder:(context)=>SafeArea(child:SingleChildScrollView(padding:const EdgeInsets.all(24),child:Column(mainAxisSize:MainAxisSize.min,children:[RoyalAvatar(size:96,active:mySeat==index),Text(mySeat==index?'You':'Empty seat ${index+1}',style:const TextStyle(fontSize:24,fontWeight:FontWeight.bold)),const SizedBox(height:12),Text(mySeat==index?'Your seat preview · audio is not connected':'This seat is empty. Tap it to preview sitting here.',style:const TextStyle(color:Colors.white54)),const SizedBox(height:22),const SizedBox.shrink(),const SizedBox(height:20),if(mySeat==index)FilledButton(onPressed:(){Navigator.pop(context);gifts();},child:const Text('Open gift collection'))]))));
  }
  void previewGift(BuildContext sheet){

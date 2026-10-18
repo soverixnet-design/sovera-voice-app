@@ -6,6 +6,15 @@ on:
 permissions:
   contents: read
 jobs:
+  voice_server:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: pip install fastapi==0.146.0 httpx==0.28.1 PyJWT==2.15.1 livekit-api==1.2.2
+      - run: python server/voice/test_seats.py
   admin:
     runs-on: ubuntu-latest
     steps:

@@ -44,4 +44,32 @@ void main() {
       }
     }
   });
+
+  test('Seat operations send server actions and parse authoritative occupancy', () async {
+    final client = MockClient((request) async {
+      expect(jsonDecode(request.body), {'room_id': 'room', 'action': 'take', 'seat': 2});
+      expect(request.headers['Authorization'], 'Bearer session');
+      return http.Response(jsonEncode({'seat_count': 5, 'my_seat': 2,
+        'seats': [{'seat': 2, 'user_id': 'alice'}]}), 200);
+    });
+    final result = await requestVoiceSeat(roomId: 'room', accessToken: 'session', action: 'take', seat: 2, client: client);
+    expect(result.mine, 2);
+    expect(result.occupants, {2: 'alice'});
+  });
+  test('Seat collision fails instead of applying a local seat', () async {
+    await expectLater(requestVoiceSeat(roomId: 'room', accessToken: 'session', action: 'take', seat: 0,
+      client: MockClient((_) async => http.Response('private-response', 409))),
+      throwsA(isA<VoiceConnectionException>().having((e) => e.message, 'message', contains('occupied'))));
+  });
+  test('Invalid and duplicate seat assignments are rejected', () {
+    for(final data in [
+      {'seat_count': 0, 'seats': []},
+      {'seat_count': 5, 'my_seat': 7, 'seats': []},
+      {'seat_count': 5, 'my_seat': 0, 'seats': []},
+      {'seat_count': 5, 'seats': [{'seat': 0, 'user_id': 'a'}, {'seat': 0, 'user_id': 'b'}]},
+      {'seat_count': 5, 'seats': [{'seat': -1, 'user_id': 'a'}]},
+    ]) {
+      expect(() => VoiceSeatState.parse(data), throwsA(isA<VoiceConnectionException>()));
+    }
+  });
 }
