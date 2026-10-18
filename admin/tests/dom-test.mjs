@@ -8,9 +8,9 @@ w.fetch=async()=>{requests++;return {ok:true,json:async()=>({ready:false})};};
 w.eval('(function(){'+readFileSync(new URL('../web/app.js',import.meta.url),'utf8')+'\nwindow.testAPI={state,render,can,login,e,safeURL,api};})();');
 await new Promise(r=>setTimeout(r,20));
 assert.equal(w.document.querySelector('#login-submit').disabled,true);
-assert.match(w.document.body.textContent,/awaiting approval/);
+assert.match(w.document.body.textContent,/Cannot connect/);
 w.document.querySelector('#preview').click();await new Promise(r=>setTimeout(r,20));
-assert.equal(w.document.querySelectorAll('[data-nav]').length,9);
+assert.equal(w.document.querySelectorAll('[data-nav]').length,16);
 for(const view of ['users','recharge','staff','rooms','content','support','history','audit','dashboard']){
  w.document.querySelector(`[data-nav="${view}"]`).click();await new Promise(r=>setTimeout(r,10));
  assert.ok(w.document.querySelector('#panel'),view+' rendered');assert.ok(!w.document.querySelector('#retry'),view+' has no render error');

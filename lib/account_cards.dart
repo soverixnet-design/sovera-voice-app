@@ -1,3 +1,4 @@
+import 'community_services.dart';
 import 'admin_control.dart';
 import 'member_profile.dart';
 import 'package:flutter/material.dart';
@@ -22,13 +23,14 @@ class _ProfileIdentityCardState extends State<ProfileIdentityCard>{
   await Clipboard.setData(ClipboardData(text:uid.toString()));
   if(mounted)ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content:Text('User ID copied.')));
  }
+ Widget profileFrame({required Widget child})=>widget.profile==null?FramePreviewAdapter(size:170,child:child):GrantedProfileFrame(uid:widget.profile!['uid'],size:170,child:child);
  @override Widget build(BuildContext context)=>Glass(tint:cyan,child:Column(children:[
-  FramePreviewAdapter(size:170,child:Stack(alignment:Alignment.bottomRight,children:[
+  profileFrame(child:Stack(alignment:Alignment.bottomRight,children:[
    Container(padding:const EdgeInsets.all(5),decoration:BoxDecoration(shape:BoxShape.circle,border:Border.all(color:gold,width:2),boxShadow:[BoxShadow(color:cyan.withValues(alpha:.18),blurRadius:24)]),child:ClipOval(child:widget.profile?['avatar_url'] is String?Image.network(widget.profile!['avatar_url'] as String,width:90,height:90,fit:BoxFit.cover,errorBuilder:(_,__,___)=>const BrandLogo(size:90)):const BrandLogo(size:90))),
    const CircleAvatar(radius:14,backgroundColor:Color(0xFF292044),child:Icon(Icons.person_rounded,color:gold,size:18)),
   ])),
   if(widget.profile!=null)TextButton.icon(onPressed:()=>Navigator.push(context,MaterialPageRoute<void>(builder:(_)=>MemberProfilePage(targetId:widget.profile!['id'] as String,viewerId:widget.profile!['id'] as String))),icon:const Icon(Icons.account_circle_rounded),label:const Text('Open member profile')),
-  const SizedBox(height:18),Text(widget.name,textAlign:TextAlign.center,style:const TextStyle(fontSize:24,fontWeight:FontWeight.w800)),
+  const SizedBox(height:18),Text('${widget.name} ${countryFlag(widget.profile?['country'])}',textAlign:TextAlign.center,style:const TextStyle(fontSize:24,fontWeight:FontWeight.w800)),
   const SizedBox(height:10),
   Wrap(alignment:WrapAlignment.center,crossAxisAlignment:WrapCrossAlignment.center,spacing:4,children:[
    SelectableText(widget.profile==null?'ID · Sign in to receive your ID':'ID · ${widget.profile!['uid']}',style:const TextStyle(color:cyan,fontWeight:FontWeight.w600,fontSize:13)),

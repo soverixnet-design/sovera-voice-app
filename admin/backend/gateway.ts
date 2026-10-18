@@ -57,7 +57,7 @@ Deno.serve(async(req:Request)=>{
    if(!uploaded.ok)return json({error:'Upload failed'},400);
    return json({url:`${url}/storage/v1/object/public/sovera-admin-assets/${path}`,mime});
   }
-  const allowed=['session','dashboard','users','user','user.ban','user.vip','staff','staff.save','recharge','history','audit','rooms','room.save','content','content.save','support','support.reply'];
+  const allowed=['session','dashboard','users','user','user.ban','user.vip','staff','staff.save','recharge','history','audit','rooms','room.save','content','content.save','support','support.reply','finance','sellers','seller.save','settings','settings.save','inventory','inventory.grant','inventory.revoke','moderation','report.resolve','moment.moderate','analytics','room.monitor'];
   if(!allowed.includes(data.action))return json({error:'Unknown action'},400);
   const result=await rpc('sovera_admin_run',{p_actor:user,p_action:data.action,p_data:data.payload||{}});return json({result});
  }catch(e){

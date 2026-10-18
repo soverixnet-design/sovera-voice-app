@@ -4,7 +4,7 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "test": "node run.mjs && node dom-test.mjs && node --experimental-strip-types gateway-test.mjs && tsc --noEmit --skipLibCheck --target es2022 --module esnext --lib es2022,dom deno-globals.d.ts ../backend/gateway.ts"
+    "test": "node run.mjs && node modules-run.mjs && node dom-test.mjs && node --experimental-strip-types gateway-test.mjs && tsc --noEmit --skipLibCheck --target es2022 --module esnext --lib es2022,dom deno-globals.d.ts ../backend/gateway.ts"
   },
   "keywords": [],
   "author": "",

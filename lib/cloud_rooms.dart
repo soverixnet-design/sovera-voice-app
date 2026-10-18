@@ -1,3 +1,5 @@
+import 'dart:async';
+import 'community_services.dart';
 import 'package:flutter/material.dart';
 import 'main.dart';
 import 'room_card.dart';
@@ -10,11 +12,13 @@ class CloudRooms extends StatefulWidget {
  @override State<CloudRooms> createState()=>CloudRoomsState();
 }
 class CloudRoomsState extends State<CloudRooms>{
- List<Map<String,dynamic>> rows=[];
+ List<Map<String,dynamic>> rows=[];Map<String,dynamic> counts={};Timer? countTimer;
  Set<String> follows={};
  bool loading=true,writing=false;
  String? error;int revision=0;
- @override void initState(){super.initState();refresh();}
+ @override void initState(){super.initState();refresh();loadCounts();countTimer=Timer.periodic(const Duration(seconds:20),(_)=>loadCounts());}
+ @override void dispose(){countTimer?.cancel();super.dispose();}
+ Future<void> loadCounts()async{try{final result=await communityAction('presence.counts');if(mounted)setState(()=>counts=Map<String,dynamic>.from(result as Map));}catch(_){}}
  Future<void> refresh()async{
   final ticket=++revision;
   setState((){loading=true;error=null;});
@@ -73,7 +77,7 @@ class CloudRoomsState extends State<CloudRooms>{
    else if(visible.isEmpty)const Glass(child:Text('No rooms here yet. Create your room or follow a community room.'))
    else LayoutBuilder(builder:(context,c)=>GridView.builder(shrinkWrap:true,physics:const NeverScrollableScrollPhysics(),itemCount:visible.length,gridDelegate:SliverGridDelegateWithFixedCrossAxisCount(crossAxisCount:c.maxWidth<300?1:2,mainAxisExtent:260+30*(MediaQuery.textScalerOf(context).scale(1)-1),crossAxisSpacing:12,mainAxisSpacing:12),itemBuilder:(context,i){
     final room=visible[i],id=visible[i]['id'] as String;
-    return RoomCard(name:room['name'] as String,category:room['category'] as String,subtitle:'${room['seat_count']} seats · Voice coming soon',color:i.isEven?violet:cyan,followed:follows.contains(id),onOpen:()=>open(room),onFollow:writing?null:()=>follow(room));
+    return RoomCard(roomId:id,name:room['name'] as String,category:room['category'] as String,subtitle:'${counts[id]??0} in room · ${room['seat_count']} seats · Audio pending',color:i.isEven?violet:cyan,followed:follows.contains(id),onOpen:()=>open(room),onFollow:writing?null:()=>follow(room));
    })),
 
   ]);

@@ -1,0 +1,48 @@
+begin;
+insert into auth.users(id,email) values('00000000-0000-4000-8000-000000000002','user@test.invalid'),('00000000-0000-4000-8000-000000000003','staff@test.invalid');
+insert into public.sovera_profiles(id) select id from auth.users where id<>'00000000-0000-4000-8000-000000000001';
+insert into public.sovera_admin_staff(user_id,role,permissions) values('00000000-0000-4000-8000-000000000001','owner','{}'),('00000000-0000-4000-8000-000000000003','manager',array['inventory.grant']);
+insert into public.sovera_admin_content(id,kind,title,published) values('10000000-0000-4000-8000-000000000001','frame','Test frame',true);
+set local role service_role;
+select public.sovera_admin_run('00000000-0000-4000-8000-000000000001','settings.save','{"exchange_enabled":true,"exchange_diamonds":100,"exchange_coins":70,"daily_enabled":true,"daily_coins":50,"daily_frame":"10000000-0000-4000-8000-000000000001","daily_frame_hours":24}');
+do $$begin
+ begin perform public.sovera_admin_run('00000000-0000-4000-8000-000000000003','settings.save','{}');raise exception 'BAD allowed settings';exception when others then if sqlerrm not like 'Permission denied:%' then raise;end if;end;
+end$$;
+select public.sovera_admin_run('00000000-0000-4000-8000-000000000003','inventory.grant',jsonb_build_object('uid',(select uid from public.sovera_profiles where id='00000000-0000-4000-8000-000000000002'),'item_id','10000000-0000-4000-8000-000000000001','hours',24,'request_id','20000000-0000-4000-8000-000000000001'));
+select public.sovera_admin_run('00000000-0000-4000-8000-000000000003','inventory.grant',jsonb_build_object('uid',(select uid from public.sovera_profiles where id='00000000-0000-4000-8000-000000000002'),'item_id','10000000-0000-4000-8000-000000000001','hours',24,'request_id','20000000-0000-4000-8000-000000000001'));
+reset role;
+do $$begin if(select count(*) from public.sovera_inventory_grants)<>1 then raise exception 'Duplicate grant';end if;end$$;
+select set_config('request.jwt.claim.sub','00000000-0000-4000-8000-000000000002',true);
+set local role authenticated;
+select public.sovera_app_action('daily.claim');select public.sovera_app_action('daily.claim');
+select public.sovera_app_action('frame.equip','{"item_id":"10000000-0000-4000-8000-000000000001"}');
+select public.sovera_app_action('moment.create','{"body":"Hello community"}');
+select public.sovera_app_action('connection.request','{"uid":10000001,"kind":"cp"}');
+reset role;
+do $$begin if(select sum(coin_delta) from public.sovera_wallet_entries where user_id='00000000-0000-4000-8000-000000000002')<>50 then raise exception 'Daily claimed twice';end if;end$$;
+insert into public.sovera_wallet_entries(user_id,diamond_delta,kind,reference)values('00000000-0000-4000-8000-000000000002',300,'adjustment','test-diamonds');
+set local role authenticated;
+select public.sovera_app_action('exchange','{"diamonds":200,"request_id":"30000000-0000-4000-8000-000000000001"}');
+select public.sovera_app_action('exchange','{"diamonds":200,"request_id":"30000000-0000-4000-8000-000000000001"}');
+do $$begin
+ begin perform public.sovera_app_action('exchange','{"diamonds":200,"request_id":"30000000-0000-4000-8000-000000000002"}');raise exception 'BAD overspend';exception when others then if sqlerrm='BAD overspend' then raise;end if;end;
+ begin perform public.sovera_admin_run('00000000-0000-4000-8000-000000000001','analytics','{}');raise exception 'BAD client admin';exception when insufficient_privilege then null;end;
+ begin update public.sovera_inventory_grants set revoked=false;raise exception 'BAD self grant';exception when insufficient_privilege then null;end;
+end$$;
+reset role;
+do $$begin if(select sum(coin_delta) from public.sovera_wallet_entries where user_id='00000000-0000-4000-8000-000000000002')<>190 then raise exception 'Wrong exchange balance';end if;if(select sum(diamond_delta) from public.sovera_wallet_entries where user_id='00000000-0000-4000-8000-000000000002')<>100 then raise exception 'Wrong diamond balance';end if;end$$;
+set local role service_role;
+select public.sovera_admin_run('00000000-0000-4000-8000-000000000001','moment.moderate',jsonb_build_object('id',(select id from public.sovera_moments limit 1),'hidden',true));
+select public.sovera_admin_run('00000000-0000-4000-8000-000000000001','finance','{}');
+select public.sovera_admin_run('00000000-0000-4000-8000-000000000001','sellers','{}');
+select public.sovera_admin_run('00000000-0000-4000-8000-000000000001','analytics','{}');
+reset role;set local role authenticated;
+do $$begin if public.sovera_app_action('moments')<>'[]'::jsonb then raise exception 'Hidden moment leaked';end if;end$$;
+reset role;
+-- Only the recipient can accept a CP request.
+select set_config('request.jwt.claim.sub','00000000-0000-4000-8000-000000000002',true);set local role authenticated;
+do $$begin begin perform public.sovera_app_action('connection.respond',jsonb_build_object('id',(public.sovera_app_action('connections')->0->>'id'),'response','accept'));raise exception 'BAD sender self accept';exception when others then if sqlerrm<>'Only the invited user can accept' then raise;end if;end;end$$;
+reset role;select set_config('request.jwt.claim.sub','00000000-0000-4000-8000-000000000001',true);set local role authenticated;
+select public.sovera_app_action('connection.respond',jsonb_build_object('id',(public.sovera_app_action('connections')->0->>'id'),'response','accept'));
+reset role;
+rollback;

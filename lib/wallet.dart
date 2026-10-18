@@ -1,3 +1,4 @@
+import 'community_services.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'auth_gate.dart';
@@ -64,6 +65,7 @@ class _WalletPageState extends State<WalletPage>{
    const SizedBox(height:18),Text(balance==null?'No verified wallet loaded':balance!['status']=='frozen'?'Wallet frozen · Contact support':'Verified ledger balance',style:const TextStyle(color:Colors.white60,fontSize:12)),
   ])),
   const SizedBox(height:22),const Text('Recharge & manage',style:TextStyle(fontSize:21,fontWeight:FontWeight.bold)),const SizedBox(height:12),
+  if(widget.profile!=null)_Action(icon:Icons.swap_horiz_rounded,title:'Exchange Diamonds',subtitle:'View the current rate and exchange',color:cyan,onTap:()=>Navigator.push(context,MaterialPageRoute<void>(builder:(_)=>const DiamondExchange()))),
   _Action(icon:Icons.storefront_rounded,title:'Coin seller list',subtitle:'Find owner-approved sellers by name or ID',color:gold,onTap:()=>Navigator.push(context,MaterialPageRoute<void>(builder:(_)=>CoinSellerList(profile:widget.profile,store:widget.store)))),
   _Action(icon:Icons.receipt_long_rounded,title:'Transaction history',subtitle:'Coins and Diamonds · Private ledger',color:cyan,onTap:()=>Navigator.push(context,MaterialPageRoute<void>(builder:(_)=>WalletHistory(profile:widget.profile,store:widget.store)))),
   _Action(icon:Icons.support_agent_rounded,title:'Recharge support',subtitle:'Ask about your recharge or seller',color:pink,onTap:()=>openRechargeSupport(context,widget.profile)),

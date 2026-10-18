@@ -1,36 +1,36 @@
-# Sovera Control — prepared, not activated
+# Sovera Control
 
-Private panel preview: https://sovera-control.soverixnet.chatgpt.site
+Live owner-private panel: https://sovera-control.soverixnet.chatgpt.site
 
-Production activation is blocked by automatic approval review. Neither the database migration nor the privileged Edge Function has been applied. Existing IDs, permissions and wallet data remain unchanged. Do not treat the preview as a working production control panel. No account has been made Owner.
+The base schema and authenticated gateway were activated on 2026-10-18 after explicit authorization. The verified account originally numbered 100001 is now 10000001 and is the single active Owner. Main app release remains separate from this integration branch.
 
-## Prepared controls
+## Module coverage
 
-- Eight-digit main IDs starting at 10000001, alongside separately unique VIP IDs (1–7 digits).
-- Owner-only staff assignment: manager, admin, agent, room admin, support; individual action permissions, activation/revocation, room scope and quota.
-- Staff sign-in from a five-minute, single-use code generated inside the authenticated app. Gateway sessions last 30 minutes. Each API operation rechecks current staff access and suspension.
-- Server-side user/VIP lookup, suspension, atomic idempotent recharge, quota accounting, receipts and audit history.
-- Saved room settings, published banners/notices, media uploads, asset/catalogue settings, event configuration and saved support replies.
-- The updated app reads banners/notices and support replies, displays VIP IDs and staff sign-in, and hides closed rooms.
+| Requested module | Implemented behavior / remaining dependency |
+| --- | --- |
+| 1 User management | Main/VIP lookup, profile and wallet view, suspension, scoped permissions |
+| 2 Room moderation | Saved room settings, scoped closure, attendance heartbeat monitor and violation reports; live audio moderation requires RTC engine |
+| 3 Finance | Private paginated Coin/Diamond ledger, filters, recharge receipts and immutable activity trail |
+| 4 Resellers | Owner-approved seller directory and applications; recharge quotas remain separate staff permissions |
+| 5 Store/settings | Published catalogue, exchange settings, expiring item grants; paid item purchases and effect/audio playback are pending |
+| 6 Banners/notices | Published app content and media uploads |
+| 7 Events | Event configuration only; automated ranking/settlement engine is pending |
+| 8 Support | Saved official/recharge tickets and replies |
+| 9 Analytics | Real saved-account, ledger, posts and attendance totals; cash revenue/payment receipts and performance telemetry are not connected |
+| 10 Seller visibility | Owner-controlled Show/Hide, enforced by published-seller RLS |
+| 11 Role-based items | Explicit inventory.grant permission, expiring grants, issuer/Owner revocation and audit |
+| 12 Daily login | Once per UTC day, atomic coin ledger + optional expiring frame; disabled by default until Owner configures |
+| 13 Notifications | Notices/update/notification content records; device push delivery needs an FCM/APNs provider and client registration |
+| 14 Moments | Saved text feed, own soft-delete, reports and admin hide/restore; image stories are pending |
+| 15 Room display | Existing gallery room image on directory card; heartbeat occupancy, country-code flags on profile/feed; no claim of established audio |
+| 16 Onboarding | Profile gallery, name/bio/city/country editing and first-login form; public photo disclosure |
+| 17 Connections | Consent-based friend/CP requests, one accepted CP partner, ending connections; Love gift totals need gift settlement |
+| 18 Profile layout | Visible wallet balance, then reseller center, then friendship/CP/Love |
 
-## Still outside these controls
+## Security and testing
 
-Live voice, room presence, kicking/muting connected participants, actual gift settlement and targeted live animations, games, automatic ranking/event rewards, actual frame/inventory grants and Diamond exchange still need their application engines. The panel explicitly labels those configuration-only paths.
+All privileged admin mutation RPCs are service-role-only and recheck active staff on every request. Never publish service credentials. User operations use an authenticated wrapper around a private function that validates the signed-in actor, bans, wallet state, ownership and consent. New tables use RLS; clients cannot grant their own items or credit their own wallets directly.
 
-## Validation
+Run `cd admin/tests && npm ci && npm test` for isolated SQL/RLS/accounting/consent, DOM and gateway tests. Android CI analyzes and tests Flutter before producing an integration APK. Browser/device gallery, push and multi-device voice testing remain separate. Financial ledgers must be preserved; do not apply the old pre-activation rollback after real transactions or after module activation.
 
-`cd admin/tests && npm ci && npm test` runs an isolated PostgreSQL/PGlite migration test, authorization/RLS/quota/ledger tests, rollback validation, DOM interaction checks, gateway crypto/auth tests and TypeScript checking. All data is synthetic; tests do not contact production services. Real browser rendering, device gallery/audio and real-account multi-user testing remain pending.
-
-The pre-activation rollback restores backed-up original IDs and dependent member-card IDs. It refuses to erase posted recharges or undo new registrations. Once accounting is active, preserve records and use a forward repair instead.
-
-## Activation after explicit approval
-
-1. Confirm the owner's actual signed-in app account. The existing unverified account is not automatically trusted. No unverified or arbitrary account may be promoted.
-2. Apply the reviewed `backend/schema.sql` transaction to the selected project, then rerun scoped verification using rolled-back fixtures. Preserve the private ID mapping.
-3. Deploy `backend/gateway.ts` as Edge Function `sovera-admin`. It implements its own signed-session and one-time-code authentication; only its service-role calls may execute privileged SQL functions. No service-role key enters the browser or app.
-4. Privately assign the verified account as the single Owner. Keep ownership assignment out of public bootstrap endpoints.
-5. Test real-account user lookup, a bounded recharge, immediate revocation, VIP uniqueness and receipts before granting other staff access.
-6. Publish the corresponding app build only after the schema is active. The current branch is an integration preview, not a production app update.
-7. The Site is currently owner-private. Agree on access for other staff before changing its audience. A public sign-in page must still enforce staff authorization at the gateway.
-
-Root `main` and the previously published app have not been replaced by this draft branch.
+Base activation uses backend/schema.sql once. Additional modules use backend/modules.sql once, after the base. Both must exist before installing this branch's app. Daily rewards and exchange are initially disabled. The app owner chooses rates, reward amounts and staff permissions in the panel.
