@@ -16,6 +16,7 @@ void main(){
   await tester.pumpWidget(MaterialApp(home:Scaffold(body:CountryPicker(value:'',onChanged:(value)=>selected=value))));
   await tester.tap(find.text('Choose your country'));await tester.pumpAndSettle();
   await tester.enterText(find.byType(TextField),'Oman');await tester.pumpAndSettle();
-  await tester.tap(find.text('Oman'));await tester.pumpAndSettle();expect(selected,'OM');
+  await tester.tap(find.widgetWithText(ListTile,'Oman'));await tester.pumpAndSettle();expect(selected,'OM');
  });
 }
+
