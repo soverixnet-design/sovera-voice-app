@@ -4,7 +4,9 @@ Live owner-private panel: https://sovera-control.soverixnet.chatgpt.site
 
 The base schema and authenticated gateway were activated on 2026-10-18 after explicit authorization. The verified account originally numbered 100001 is now 10000001 and is the single active Owner. Main app release remains separate from this integration branch.
 
-## Module coverage
+The additional modules in backend/modules.sql are PREPARED, NOT ACTIVATED. Automatic approval review rejected that new production migration because the broad financial/social/schema/RLS/storage changes need specific authorization. The current live gateway remains the base version. New panel sections are gated until the module schema and matching gateway are explicitly activated. Do not install the 0.16 integration APK against only the base schema.
+
+## Prepared module coverage
 
 | Requested module | Implemented behavior / remaining dependency |
 | --- | --- |

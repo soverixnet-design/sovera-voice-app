@@ -30,7 +30,8 @@ Deno.serve(async(req:Request)=>{
  try{
   if(req.method==='GET'){
    let ready=false;try{await rpc('sovera_admin_run',{p_actor:'00000000-0000-4000-8000-000000000000',p_action:'session',p_data:{}});}catch(e){ready=e instanceof Error && e.message==='Admin access revoked';}
-   return json({ready});
+   let modulesReady=false;try{const check=await fetch(`${url}/rest/v1/sovera_system_settings?select=id&limit=1`,{headers:{apikey:service,Authorization:`Bearer ${service}`}});modulesReady=check.ok&&(await check.json()).length===1;}catch{}
+   return json({ready,modules_ready:modulesReady});
   }
   if(req.method!=='POST')return json({error:'Method not allowed'},405);
   if(Number(req.headers.get('content-length')||0)>15000000)return json({error:'Request too large'},413);
