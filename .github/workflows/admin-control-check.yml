@@ -42,6 +42,7 @@ jobs:
       - run: flutter create --platforms=android,ios --org com.sovera --project-name sovera .
       - run: python3 scripts/configure_mobile_auth.py
       - run: flutter pub get
+      - run: dart run flutter_launcher_icons
       - run: dart format lib test
       - run: flutter analyze
       - run: flutter test
