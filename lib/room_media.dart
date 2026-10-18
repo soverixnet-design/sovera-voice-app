@@ -62,13 +62,14 @@ class EffectSound with WidgetsBindingObserver {
 
 class RoomPhoto extends StatefulWidget {
   final String? roomId,photoPath;
-  final bool canEdit;
+  final bool canEdit, pathLoaded;
   final double size;
   const RoomPhoto({
     super.key,
     this.roomId,
     this.photoPath,
     this.canEdit = false,
+    this.pathLoaded = false,
     this.size = 48,
   });
   @override
@@ -91,6 +92,7 @@ class _RoomPhotoState extends State<RoomPhoto> {
     if (widget.roomId == null) return;
     try {
       var path=widget.photoPath;
+      if(path==null&&widget.pathLoaded)return;
       if(path==null){
       final row = await soveraClient
           .from('sovera_rooms')

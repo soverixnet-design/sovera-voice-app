@@ -24,7 +24,7 @@ class RoomCard extends StatelessWidget {
    child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
     Expanded(child:Stack(fit:StackFit.expand,children:[
      Positioned(right:-24,top:24,child:Container(width:115,height:115,decoration:BoxDecoration(shape:BoxShape.circle,border:Border.all(color:color.withValues(alpha:.2),width:16)))),
-     Center(child:roomId==null?const BrandLogo(size:76):RoomPhoto(roomId:roomId,photoPath:photoPath,size:112)),
+     Center(child:roomId==null?const BrandLogo(size:76):RoomPhoto(roomId:roomId,photoPath:photoPath,pathLoaded:true,size:112)),
      Positioned(left:10,top:10,right:46,child:Align(alignment:Alignment.topLeft,child:Container(padding:const EdgeInsets.symmetric(horizontal:8,vertical:5),decoration:BoxDecoration(color:Colors.black38,borderRadius:BorderRadius.circular(20)),child:Text(category,maxLines:1,overflow:TextOverflow.ellipsis,style:const TextStyle(fontSize:10,color:Colors.white))))),
      Positioned(right:0,top:0,child:IconButton(tooltip:followed?'Unfollow room':'Follow room',onPressed:onFollow,icon:Icon(followed?Icons.favorite_rounded:Icons.favorite_border_rounded,color:followed?pink:Colors.white,size:21))),
      Positioned(right:10,bottom:9,child:Container(padding:const EdgeInsets.symmetric(horizontal:7,vertical:4),decoration:BoxDecoration(color:Colors.black54,borderRadius:BorderRadius.circular(12)),child:Row(mainAxisSize:MainAxisSize.min,children:[const Icon(Icons.people_alt_rounded,size:13,color:Colors.white),const SizedBox(width:4),Text(memberCount?.toString()??'—',style:const TextStyle(fontSize:11,color:Colors.white))]))),
