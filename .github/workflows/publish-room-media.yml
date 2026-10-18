@@ -1,0 +1,27 @@
+name: Publish verified room media APK
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths: ['.github/workflows/publish-room-media.yml']
+permissions:
+  actions: read
+  contents: write
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+    steps:
+      - name: Download tested Android build
+        run: gh run download 39074948157 --name sovera-android-preview-apk --dir apk
+      - name: Verify APK archive
+        run: |
+          test -s apk/app-debug.apk
+          unzip -tq apk/app-debug.apk
+          mv apk/app-debug.apk apk/Sovera-room-media.apk
+          sha256sum apk/Sovera-room-media.apk
+      - name: Publish room media download
+        run: |
+          gh release create room-media-2026-10-18 apk/Sovera-room-media.apk --target "d5320eeb7c0c5b8847d7146b54d6ae5d95fbd669" --title "Sovera room media update" --notes "Adds animated gift preview cards, gallery room pictures for room owners, and entry/gift sound effects with mute controls. Existing room design retained. All 67 widget tests and Flutter analysis passed. Live voice, sending gifts between participants, and real-time room presence are not implemented by this update. Device gallery and audible playback require an Android device check. APK retains the existing application version code."
