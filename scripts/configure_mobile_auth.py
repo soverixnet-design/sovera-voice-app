@@ -40,3 +40,9 @@ if p.exists():
  if marker in text and 'PERMISSION_MICROPHONE=1' not in text:
   text=text.replace(marker,marker+"\n    target.build_configurations.each do |config|\n      config.build_settings['GCC_PREPROCESSOR_DEFINITIONS'] ||= ['$(inherited)', 'PERMISSION_MICROPHONE=1']\n    end")
   p.write_text(text)
+
+# permission_handler_android 13 requires API 37; retain the existing target/min SDK.
+p=Path('android/app/build.gradle.kts')
+if p.exists():
+ text=p.read_text().replace('compileSdk = flutter.compileSdkVersion','compileSdk = 37')
+ p.write_text(text)
