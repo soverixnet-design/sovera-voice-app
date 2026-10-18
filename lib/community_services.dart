@@ -6,7 +6,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'auth_gate.dart';
 import 'main.dart' show Glass, BrandLogo, gold;
 
-Future<dynamic> communityAction(String action,[Map<String,dynamic> data=const {}])=>soveraClient.rpc('sovera_app_action',params:{'p_action':action,'p_data':data});
+Future<dynamic> communityAction(String action,[Map<String,dynamic> data=const {}])async=>soveraClient.rpc('sovera_app_action',params:{'p_action':action,'p_data':data});
 String requestId(){final r=Random.secure();final b=List<int>.generate(16,(_)=>r.nextInt(256));b[6]=(b[6]&15)|64;b[8]=(b[8]&63)|128;final h=b.map((v)=>v.toRadixString(16).padLeft(2,'0')).join();return '${h.substring(0,8)}-${h.substring(8,12)}-${h.substring(12,16)}-${h.substring(16,20)}-${h.substring(20)}';}
 String countryFlag(dynamic value){final code=(value??'').toString().trim().toUpperCase();if(!RegExp(r'^[A-Z]{2}$').hasMatch(code))return '';return String.fromCharCodes(code.codeUnits.map((v)=>v+127397));}
 String communityError(Object error)=>error is PostgrestException?error.message:'Could not connect. Please retry.';

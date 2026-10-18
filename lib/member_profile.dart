@@ -1,3 +1,4 @@
+import 'community_services.dart';
 import 'admin_control.dart';
 import 'dart:async';
 
@@ -186,7 +187,7 @@ class _MemberProfilePageState extends State<MemberProfilePage> {
                 tint: cyan,
                 child: Column(
                   children: [
-                    ClipOval(
+                    GrantedProfileFrame(uid:card?['uid'],size:150,child:ClipOval(
                       child: card?['avatar_url'] is String
                           ? Image.network(
                               card!['avatar_url'] as String,
@@ -197,10 +198,10 @@ class _MemberProfilePageState extends State<MemberProfilePage> {
                                   const BrandLogo(size: 96),
                             )
                           : const BrandLogo(size: 96),
-                    ),
+                    )),
                     const SizedBox(height: 14),
                     Text(
-                      card!['display_name'].toString(),
+                      "${card!['display_name']} ${countryFlag(card!['country'])}",
                       textAlign: TextAlign.center,
                       style: const TextStyle(
                         fontSize: 24,

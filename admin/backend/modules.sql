@@ -148,7 +148,7 @@ begin
  elsif p_action='seller.save' then
   select * into target from public.sovera_profiles where uid=(p_data->>'uid')::bigint and not is_banned for update;if not found then raise exception 'Active user not found';end if;
   insert into public.sovera_coin_sellers(seller_uid,display_name,country,languages,description,published) values(target.uid,target.display_name,p_data->>'country',coalesce(p_data->>'languages',''),coalesce(p_data->>'description',''),coalesce((p_data->>'published')::boolean,false)) on conflict(seller_uid) do update set display_name=excluded.display_name,country=excluded.country,languages=excluded.languages,description=excluded.description,published=excluded.published,updated_at=now();
-  update public.sovera_reseller_applications set status=case when coalesce((p_data->>'published')::boolean,false) then 'approved' else 'declined' end where user_id=target.id;
+  update public.sovera_reseller_applications set status='approved' where user_id=target.id and coalesce((p_data->>'published')::boolean,false);
  elsif p_action='settings' then return (select to_jsonb(s) from public.sovera_system_settings s where id);
  elsif p_action='settings.save' then
   if nullif(p_data->>'daily_frame','') is not null and not exists(select 1 from public.sovera_admin_content where id=(p_data->>'daily_frame')::uuid and kind='frame' and published) then raise exception 'Choose a published frame';end if;
@@ -189,3 +189,14 @@ insert into storage.buckets(id,name,public,file_size_limit,allowed_mime_types) v
 create policy sovera_profile_photo_insert on storage.objects for insert to authenticated with check(bucket_id='sovera-profile-photos' and (storage.foldername(name))[1]=(select auth.uid())::text and not (select sovera_private.is_blocked()));
 create policy sovera_profile_photo_update on storage.objects for update to authenticated using(bucket_id='sovera-profile-photos' and (storage.foldername(name))[1]=(select auth.uid())::text and not (select sovera_private.is_blocked())) with check(bucket_id='sovera-profile-photos' and (storage.foldername(name))[1]=(select auth.uid())::text and not (select sovera_private.is_blocked()));
 create policy sovera_profile_photo_select on storage.objects for select to authenticated using(bucket_id='sovera-profile-photos' and (storage.foldername(name))[1]=(select auth.uid())::text);
+
+-- Keep directory names, public photos and country flags consistent with profile edits.
+alter table public.sovera_member_cards add column country text not null default '';
+grant insert(country),update(country) on public.sovera_member_cards to authenticated;
+update public.sovera_member_cards m set country=p.country from public.sovera_profiles p where p.id=m.user_id;
+create function public.sovera_sync_public_profile() returns trigger language plpgsql security invoker set search_path='' as $$begin update public.sovera_member_cards set display_name=new.display_name,avatar_url=new.avatar_url,bio=new.bio,country=new.country where user_id=new.id;return new;end$$;
+revoke all on function public.sovera_sync_public_profile() from public,anon,authenticated;
+create trigger sovera_profile_public_sync after update of display_name,avatar_url,bio,country on public.sovera_profiles for each row execute function public.sovera_sync_public_profile();
+create function public.sovera_member_country() returns trigger language plpgsql security invoker set search_path='' as $$begin select country into new.country from public.sovera_profiles where id=new.user_id;return new;end$$;
+revoke all on function public.sovera_member_country() from public,anon,authenticated;
+create trigger sovera_member_country before insert on public.sovera_member_cards for each row execute function public.sovera_member_country();
