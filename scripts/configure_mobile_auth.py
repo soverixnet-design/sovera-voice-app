@@ -30,3 +30,13 @@ data['NSPhotoLibraryUsageDescription']='Choose a profile picture for your Sovera
 data['NSMicrophoneUsageDescription']='Speak in a Sovera voice room when you enable your microphone.'
 data['FlutterDeepLinkingEnabled']=False
 with p.open('wb') as file:plistlib.dump(data,file)
+
+
+# Enable microphone requests with CocoaPods; no camera or blanket photo access.
+p=Path('ios/Podfile')
+if p.exists():
+ text=p.read_text()
+ marker='flutter_additional_ios_build_settings(target)'
+ if marker in text and 'PERMISSION_MICROPHONE=1' not in text:
+  text=text.replace(marker,marker+"\n    target.build_configurations.each do |config|\n      config.build_settings['GCC_PREPROCESSOR_DEFINITIONS'] ||= ['$(inherited)', 'PERMISSION_MICROPHONE=1']\n    end")
+  p.write_text(text)

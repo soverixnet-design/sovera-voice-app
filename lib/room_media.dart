@@ -61,12 +61,13 @@ class EffectSound with WidgetsBindingObserver {
 }
 
 class RoomPhoto extends StatefulWidget {
-  final String? roomId;
+  final String? roomId,photoPath;
   final bool canEdit;
   final double size;
   const RoomPhoto({
     super.key,
     this.roomId,
+    this.photoPath,
     this.canEdit = false,
     this.size = 48,
   });
@@ -83,15 +84,21 @@ class _RoomPhotoState extends State<RoomPhoto> {
     load();
   }
 
+  @override
+  void didUpdateWidget(covariant RoomPhoto oldWidget){super.didUpdateWidget(oldWidget);if(oldWidget.roomId!=widget.roomId||oldWidget.photoPath!=widget.photoPath){photo=null;load();}}
+
   Future<void> load() async {
     if (widget.roomId == null) return;
     try {
+      var path=widget.photoPath;
+      if(path==null){
       final row = await soveraClient
           .from('sovera_rooms')
           .select('photo_path')
           .eq('id', widget.roomId!)
           .single();
-      final path = row['photo_path'] as String?;
+      path = row['photo_path'] as String?;
+      }
       if (path == null) return;
       final data = await soveraClient.storage
           .from('sovera-room-photos')
@@ -344,3 +351,4 @@ class _GiftAnimationCardState extends State<GiftAnimationCard>
     );
   }
 }
+

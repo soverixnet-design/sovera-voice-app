@@ -1,5 +1,8 @@
 import 'package:livekit_client/livekit_client.dart' as rtc;
 import 'voice_connection.dart';
+import 'room_presence.dart';
+import 'startup_access.dart';
+import 'country_picker.dart';
 import 'dart:async';
 import 'community_services.dart';
 import 'admin_control.dart';
@@ -45,7 +48,7 @@ class Sovera extends StatelessWidget {
     theme: ThemeData.dark(useMaterial3: true).copyWith(
       scaffoldBackgroundColor: ink, colorScheme: const ColorScheme.dark(primary: violet, secondary: cyan),
       snackBarTheme: const SnackBarThemeData(behavior: SnackBarBehavior.floating),
-    ), home: preview ? const Home() : const AuthGate(),
+    ), home: preview ? const Home() : const StartupAccess(child:AuthGate()),
   );
 }
 
@@ -299,6 +302,7 @@ class _VoiceRoomState extends State<VoiceRoom> with WidgetsBindingObserver {
   if(occupant!=null){await profile(index);return;}
   setState(()=>seatBusy=true);
   try{
+   if(!await requestMicrophoneAccess()){if(mounted)notice('Allow microphone access to speak.');return;}
    await stopMicrophone();
    final result=await seatRequest('take',seat:index);
    if(!mounted||roomClosing||!seatActive){await seatRequest('leave');return;}
@@ -334,7 +338,8 @@ class _VoiceRoomState extends State<VoiceRoom> with WidgetsBindingObserver {
    await candidate.connect(credentials.url,credentials.token);
    if(!mounted||roomClosing){await candidate.disconnect();await candidate.dispose();return;}
    audioRoom=candidate;candidate=null;audioRoom!.addListener(audioChanged);
-   if(mounted&&!roomClosing){setState(()=>mySeat=null);await syncSeats();seatTimer?.cancel();seatTimer=Timer.periodic(const Duration(seconds:8),(_)=>syncSeats());}
+   RoomPresence.instance.enter(widget.roomId!);
+   if(mounted&&!roomClosing){setState(()=>mySeat=null);unawaited(syncSeats());seatTimer?.cancel();seatTimer=Timer.periodic(const Duration(seconds:8),(_)=>syncSeats());}
   }catch(error){
    if(candidate!=null){await candidate.disconnect();await candidate.dispose();}
    if(mounted&&!roomClosing)audioError=error is VoiceConnectionException?error.message:'Could not connect to voice. Tap Retry.';
@@ -343,6 +348,7 @@ class _VoiceRoomState extends State<VoiceRoom> with WidgetsBindingObserver {
  void audioChanged(){if(mounted&&!roomClosing)setState((){if(audioRoom?.localParticipant?.permissions.canPublish!=true)micMuted=true;});}
  Future<void> closeAudio()async{
   seatTimer?.cancel();
+  RoomPresence.instance.leave(widget.roomId);
   final room=audioRoom;audioRoom=null;
   if(room!=null){
    room.removeListener(audioChanged);
@@ -377,6 +383,12 @@ class _VoiceRoomState extends State<VoiceRoom> with WidgetsBindingObserver {
    if(mounted&&entry!=null&&ModalRoute.of(context)?.isCurrent==true)showEntryPreview(context,entry);
   });
  }
+ Future<void> editRoomCountry()async{
+ final code=await showDialog<String>(context:context,builder:(_)=>const RoomCountryDialog());
+ if(code==null||!mounted)return;
+ try{await soveraClient.from('sovera_rooms').update({'country':code}).eq('id',widget.roomId!).eq('owner_id',soveraClient.auth.currentUser!.id).select('id').single();if(mounted)notice('Room country saved.');}
+ catch(_){if(mounted)notice('Could not save room country. Please retry.');}
+ }
  bool get canEdit=>widget.roomId==null||soveraClient.auth.currentUser?.id==widget.ownerId;
  void notice(String text) => ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(text)));
  @override
@@ -386,6 +398,7 @@ class _VoiceRoomState extends State<VoiceRoom> with WidgetsBindingObserver {
  appBar:AppBar(backgroundColor:const Color(0xFF10182A),automaticallyImplyLeading:false,leadingWidth:44,leading:RoomTool(label:'Back',icon:Icons.arrow_back_ios_new_rounded,color:violet,onTap:()=>Navigator.maybePop(context)),titleSpacing:0,title:Row(children:[RoomPhoto(roomId:widget.roomId,canEdit:canEdit,size:32),const SizedBox(width:6),Expanded(child:Text(widget.name,maxLines:1,overflow:TextOverflow.ellipsis,style:const TextStyle(fontSize:14,fontWeight:FontWeight.bold)))]),actions:[
  RoomTool(label:'Minimize room',icon:Icons.unfold_less_rounded,color:cyan,onTap:minimize),
  RoomTool(label:'Frames & effects',icon:Icons.auto_awesome_rounded,color:violet,onTap:()=>Navigator.push(context,MaterialPageRoute<void>(builder:(_)=>const EffectsStudio()))),
+ if(canEdit&&widget.roomId!=null)RoomTool(label:'Room country',icon:Icons.flag_rounded,color:cyan,onTap:editRoomCountry),
  RoomTool(label:'Seat settings',icon:Icons.tune_rounded,color:gold,onTap:canEdit&&!savingSeats?settings:null),
  RoomTool(label:'Leave room',icon:Icons.logout_rounded,color:pink,onTap:(){minimizedRoom.value=null;if(Navigator.canPop(context)){Navigator.pop(context);}else{Navigator.pushReplacement(context,MaterialPageRoute<void>(builder:(_)=>const Home()));}}),
  ]),
@@ -488,3 +501,4 @@ class _VoiceRoomState extends State<VoiceRoom> with WidgetsBindingObserver {
  const SizedBox(height:12),Wrap(spacing:12,runSpacing:8,alignment:WrapAlignment.spaceBetween,crossAxisAlignment:WrapCrossAlignment.center,children:[const Text('Coins · —',style:TextStyle(color:gold)),FilledButton(onPressed:selectedGift==null?null:()=>previewGift(context),style:FilledButton.styleFrom(backgroundColor:const Color(0xFFF07D2A)),child:const Text('View selection'))]),
  ]))))));
 }
+

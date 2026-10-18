@@ -1,11 +1,10 @@
 import 'community_services.dart';
 import 'dart:async';
-import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import 'package:http/http.dart' as http;
 import 'main.dart' show Home, BrandLogo, cyan, minimizedRoom;
 import 'supabase_config.dart';
+import 'room_presence.dart';
 
 SupabaseClient get soveraClient => Supabase.instance.client;
 
@@ -29,14 +28,6 @@ Future<Map<String,dynamic>> ensureSoveraProfile(User user) async {
 }
 
 Future<void> startSocialSignIn(OAuthProvider provider) async {
-  final providerName=provider==OAuthProvider.facebook?'facebook':'google';
-  final label=provider==OAuthProvider.facebook?'Facebook':'Google';
-  final response=await http.get(Uri.parse('$supabaseUrl/auth/v1/settings'),headers:{'apikey':supabasePublishableKey}).timeout(const Duration(seconds:15));
-  if(response.statusCode!=200)throw const AuthException('Cannot reach the sign-in service. Please retry.');
-  final settings=jsonDecode(response.body) as Map<String,dynamic>;
-  if((settings['external'] as Map?)?[providerName]!=true){
-    throw AuthException('$label sign-in is not enabled yet. Please use another available sign-in method.');
-  }
   final opened=await soveraClient.auth.signInWithOAuth(provider,
     redirectTo:soveraRedirectUri,authScreenLaunchMode:LaunchMode.externalApplication,
     scopes:provider==OAuthProvider.facebook?'email':null,
@@ -57,6 +48,7 @@ class _AuthGateState extends State<AuthGate> {
   @override void initState(){
     super.initState();
     subscription=soveraClient.auth.onAuthStateChange.listen((state){
+      if(state.event==AuthChangeEvent.signedOut)unawaited(RoomPresence.instance.stop());
       if(state.event==AuthChangeEvent.signedOut||(state.event==AuthChangeEvent.signedIn&&profile?['id']!=state.session?.user.id))minimizedRoom.value=null;
       if((state.event==AuthChangeEvent.signedOut||(state.event==AuthChangeEvent.signedIn&&profile?['id']!=state.session?.user.id))&&mounted){
         Navigator.of(context).popUntil((route)=>route.isFirst);
@@ -85,7 +77,7 @@ class _AuthGateState extends State<AuthGate> {
   @override Widget build(BuildContext context){
     if(loading)return const Scaffold(body:Center(child:CircularProgressIndicator()));
     if(error!=null)return Scaffold(body:SafeArea(child:Center(child:Padding(padding:const EdgeInsets.all(28),child:Column(mainAxisSize:MainAxisSize.min,children:[const BrandLogo(size:100),const SizedBox(height:24),Text(error!,textAlign:TextAlign.center),const SizedBox(height:18),FilledButton(onPressed:refresh,child:const Text('Retry')),TextButton(onPressed:()async{try{await soveraClient.auth.signOut(scope:SignOutScope.local);}catch(_){if(mounted)setState(()=>error='Could not sign out. Please retry.');}},child:const Text('Back to sign-in'))])))));
-    if(profile!=null&&profile!.containsKey('onboarded')&&profile!['onboarded']!=true)return ProfileSetupPage(profile:profile!,onSaved:refresh);
+    if(profile!=null&&(profile!['country']??'').toString().trim().isEmpty)return ProfileSetupPage(profile:profile!,onSaved:refresh);
     if(profile!=null)return Home(key:ValueKey(profile!['id']),profile:profile);
     return const SoveraLoginPage();
   }
@@ -106,5 +98,6 @@ class _SoveraLoginPageState extends State<SoveraLoginPage>{
   finally{if(mounted)setState(()=>busyProvider=null);}
  }
  Widget providerButton(OAuthProvider provider,String label,IconData icon,Color background,Color foreground)=>SizedBox(width:double.infinity,child:FilledButton.icon(onPressed:busyProvider!=null?null:()=>signIn(provider),style:FilledButton.styleFrom(backgroundColor:background,foregroundColor:foreground,padding:const EdgeInsets.symmetric(horizontal:16,vertical:16)),icon:busyProvider==provider?const SizedBox(width:20,height:20,child:CircularProgressIndicator(strokeWidth:2)):Icon(icon),label:Text(busyProvider==provider?'Opening $label…':'Continue with $label',textAlign:TextAlign.center)));
- @override Widget build(BuildContext context)=>Scaffold(body:Container(decoration:const BoxDecoration(gradient:LinearGradient(begin:Alignment.topLeft,end:Alignment.bottomRight,colors:[Color(0xFF882580),Color(0xFF43249A),Color(0xFF25116B)])),child:SafeArea(child:Center(child:SingleChildScrollView(padding:const EdgeInsets.all(28),child:ConstrainedBox(constraints:const BoxConstraints(maxWidth:420),child:Column(children:[const BrandLogo(size:150),const SizedBox(height:24),const Text('Welcome to Sovera',textAlign:TextAlign.center,style:TextStyle(fontSize:30,fontWeight:FontWeight.w800)),const SizedBox(height:12),const Text('Your voice. Your world.',style:TextStyle(color:Colors.white70,fontSize:17)),const SizedBox(height:30),providerButton(OAuthProvider.facebook,'Facebook',Icons.facebook_rounded,const Color(0xFF1877F2),Colors.white),const SizedBox(height:14),providerButton(OAuthProvider.google,'Google',Icons.login_rounded,Colors.white,Colors.black),if(error!=null)Padding(padding:const EdgeInsets.only(top:20),child:Text(error!,textAlign:TextAlign.center,style:const TextStyle(color:Color(0xFFFFD0D0)))),const SizedBox(height:18),TextButton.icon(onPressed:busyProvider!=null?null:()=>Navigator.push<void>(context,MaterialPageRoute(builder:(_)=>const Home())),icon:const Icon(Icons.visibility_outlined),label:const Text('Explore design preview')),const SizedBox(height:24),const Text('Sign in with Facebook or Google to save your profile and referrals. Your account uses the provider you choose.',textAlign:TextAlign.center,style:TextStyle(color:Colors.white60,fontSize:12,height:1.5)),const SizedBox(height:20),const Text('Voice rooms and wallet services are still in development.',textAlign:TextAlign.center,style:TextStyle(color:cyan,fontSize:11))])))))));
+ @override Widget build(BuildContext context)=>Scaffold(body:Container(decoration:const BoxDecoration(gradient:LinearGradient(begin:Alignment.topLeft,end:Alignment.bottomRight,colors:[Color(0xFF882580),Color(0xFF43249A),Color(0xFF25116B)])),child:SafeArea(child:Center(child:SingleChildScrollView(padding:const EdgeInsets.all(28),child:ConstrainedBox(constraints:const BoxConstraints(maxWidth:420),child:Column(children:[const BrandLogo(size:150),const SizedBox(height:24),const Text('Welcome to Sovera',textAlign:TextAlign.center,style:TextStyle(fontSize:30,fontWeight:FontWeight.w800)),const SizedBox(height:12),const Text('Your voice. Your world.',style:TextStyle(color:Colors.white70,fontSize:17)),const SizedBox(height:30),providerButton(OAuthProvider.google,'Google',Icons.login_rounded,Colors.white,Colors.black),if(error!=null)Padding(padding:const EdgeInsets.only(top:20),child:Text(error!,textAlign:TextAlign.center,style:const TextStyle(color:Color(0xFFFFD0D0)))),const SizedBox(height:18),TextButton.icon(onPressed:busyProvider!=null?null:()=>Navigator.push<void>(context,MaterialPageRoute(builder:(_)=>const Home())),icon:const Icon(Icons.visibility_outlined),label:const Text('Explore design preview')),const SizedBox(height:24),const Text('Sign in with Google to save your profile and join voice rooms.',textAlign:TextAlign.center,style:TextStyle(color:Colors.white60,fontSize:12,height:1.5)),const SizedBox(height:20),const Text('Choose your profile photo and country after sign-in.',textAlign:TextAlign.center,style:TextStyle(color:cyan,fontSize:11))])))))));
 }
+

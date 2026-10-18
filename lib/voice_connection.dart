@@ -130,3 +130,4 @@ Future<VoiceSeatState> requestVoiceSeat({
     if (client == null) transport.close();
   }
 }
+

@@ -1,9 +1,9 @@
 import 'dart:async';
-import 'community_services.dart';
 import 'package:flutter/material.dart';
 import 'main.dart';
 import 'room_card.dart';
 import 'auth_gate.dart';
+import 'room_presence.dart';
 
 /// Authenticated directory. Demo rooms stay separate from persisted rooms.
 class CloudRooms extends StatefulWidget {
@@ -16,12 +16,12 @@ class CloudRoomsState extends State<CloudRooms>{
  Set<String> follows={};
  bool loading=true,writing=false;
  String? error;int revision=0;
- @override void initState(){super.initState();refresh();loadCounts();countTimer=Timer.periodic(const Duration(seconds:20),(_)=>loadCounts());}
- @override void dispose(){countTimer?.cancel();super.dispose();}
- Future<void> loadCounts()async{try{final result=await communityAction('presence.counts');if(mounted)setState((){counts=Map<String,dynamic>.from(result as Map);countsReady=true;});}catch(_){}}
- Future<void> refresh()async{
+ @override void initState(){super.initState();refresh();RoomPresence.instance.start();RoomPresence.instance.counts.addListener(updateCounts);updateCounts();countTimer=Timer.periodic(const Duration(seconds:30),(_)=>refresh(silent:true));}
+ @override void dispose(){countTimer?.cancel();RoomPresence.instance.counts.removeListener(updateCounts);super.dispose();}
+ void updateCounts(){if(mounted)setState((){counts=RoomPresence.instance.counts.value??{};countsReady=RoomPresence.instance.counts.value!=null;});}
+ Future<void> refresh({bool silent=false})async{
   final ticket=++revision;
-  setState((){loading=true;error=null;});
+  if(!silent)setState((){loading=true;error=null;});
   try{
    final data=await soveraClient.from('sovera_rooms').select().eq('is_closed',false).order('created_at',ascending:false).limit(100);
    final saved=await soveraClient.from('sovera_room_follows').select('room_id');
@@ -40,7 +40,8 @@ class CloudRoomsState extends State<CloudRooms>{
    if(existing!=null){await open(existing);return;}
    final name=await showDialog<String>(context:context,builder:(_)=>const TextEntryDialog(title:'Create your room',maxLength:40,saveLabel:'Create'));
    if(!mounted||name==null)return;
-   final room=await soveraClient.from('sovera_rooms').insert({'owner_id':user.id,'name':name}).select().single();
+   final owner=await soveraClient.from('sovera_profiles').select('country').eq('id',user.id).single();
+   final room=await soveraClient.from('sovera_rooms').insert({'owner_id':user.id,'name':name,if((owner['country']??'').toString().isNotEmpty)'country':owner['country']}).select().single();
    if(mounted){await refresh();if(mounted)await open(room);}
   }catch(_){notice('Could not open your room. Check your connection and retry.');}
   finally{if(mounted)setState(()=>writing=false);}
@@ -77,9 +78,10 @@ class CloudRoomsState extends State<CloudRooms>{
    else if(visible.isEmpty)const Glass(child:Text('No rooms here yet. Create your room or follow a community room.'))
    else LayoutBuilder(builder:(context,c)=>GridView.builder(shrinkWrap:true,physics:const NeverScrollableScrollPhysics(),itemCount:visible.length,gridDelegate:SliverGridDelegateWithFixedCrossAxisCount(crossAxisCount:c.maxWidth<300?1:2,mainAxisExtent:260+30*(MediaQuery.textScalerOf(context).scale(1)-1),crossAxisSpacing:12,mainAxisSpacing:12),itemBuilder:(context,i){
     final room=visible[i],id=visible[i]['id'] as String;
-    return RoomCard(roomId:id,name:room['name'] as String,category:room['category'] as String,subtitle:'${countsReady?(counts[id]??0):'—'} in room · ${room['seat_count']} seats · Audio pending',color:i.isEven?violet:cyan,followed:follows.contains(id),onOpen:()=>open(room),onFollow:writing?null:()=>follow(room));
+    return RoomCard(roomId:id,photoPath:room['photo_path'] as String?,country:(room['country']??'').toString(),memberCount:countsReady?(counts[id] as int? ?? 0):null,name:room['name'] as String,category:room['category'] as String,subtitle:'${room['seat_count']} seats · Live voice',color:i.isEven?violet:cyan,followed:follows.contains(id),onOpen:()=>open(room),onFollow:writing?null:()=>follow(room));
    })),
 
   ]);
  }
 }
+
