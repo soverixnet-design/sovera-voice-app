@@ -1,0 +1,27 @@
+name: Publish verified profile update APK
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths: ['.github/workflows/publish-profiles.yml']
+permissions:
+  actions: read
+  contents: write
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+    steps:
+      - name: Download tested Android APK
+        run: gh run download 39087681827 --name sovera-android-preview-apk --dir apk
+      - name: Verify and name APK
+        run: |
+          test -s apk/app-debug.apk
+          unzip -tq apk/app-debug.apk
+          mv apk/app-debug.apk apk/Sovera-v0.14.0.apk
+          sha256sum apk/Sovera-v0.14.0.apk
+      - name: Publish download
+        run: |
+          gh release create v0.14.0 apk/Sovera-v0.14.0.apk --target "cf0ac5d6ad38734646418ca5414ac07111b4105c" --title "Sovera 0.14.0 - Member profiles and private chat" --notes "Six-digit server-generated IDs from 100001; shared profiles with saved follow/unfollow, private text chat and conversation inbox, saved decorative medal styles, and a read-only received-gift showcase. Live voice, synchronized room presence/chat, gift settlement, recharge and Diamond exchange, games and ranking/event settlement remain pending. See PROFILE_STATUS.md. Device testing remains required."
