@@ -433,7 +433,7 @@ class _DirectChatPageState extends State<DirectChatPage>
   List<Map<String, dynamic>> rows = [];
   Timer? timer;
   bool sending = false, loading = true, fetching = false, active = true;
-  String? error;
+  String? error, sendError;
   @override
   void initState() {
     super.initState();
@@ -483,7 +483,7 @@ class _DirectChatPageState extends State<DirectChatPage>
   Future<void> send() async {
     final body = input.text.trim();
     if (body.isEmpty || body.length > 1000 || sending) return;
-    setState(() => sending = true);
+    setState(() {sending = true; sendError = null;});
     try {
       await widget.store.send(widget.viewerId, widget.targetId, body);
       if (!mounted) return;
@@ -495,11 +495,7 @@ class _DirectChatPageState extends State<DirectChatPage>
       });
     } catch (_) {
       if (mounted)
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Message was not sent. Your draft is kept.'),
-          ),
-        );
+        setState(() => sendError = 'Message was not sent. Your draft is kept.');
     } finally {
       if (mounted) setState(() => sending = false);
     }
@@ -543,6 +539,7 @@ class _DirectChatPageState extends State<DirectChatPage>
                     ],
                   ),
           ),
+          if(sendError!=null)Padding(padding:const EdgeInsets.symmetric(horizontal:12),child:Text(sendError!,style:const TextStyle(color:Colors.orange))),
           Padding(
             padding: const EdgeInsets.all(12),
             child: Row(
