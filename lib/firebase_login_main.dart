@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:http/http.dart' as http;
 import 'firebase_profile.dart';
+import 'firebase_rooms.dart';
 
 const _webClient = '486331346860-trjijmpedgurb05npsvao3d3v327b6ii.apps.googleusercontent.com';
 
@@ -180,7 +181,7 @@ class FirebaseSignedInPage extends StatefulWidget {
 class _FirebaseSignedInPageState extends State<FirebaseSignedInPage> {
   final profileClient = http.Client();
   late final profileApi = FirebaseProfileApi(uid:widget.user.uid,
-    token:() => widget.user.getIdToken(), client:profileClient);
+    token:() async => FirebaseAuth.instance.currentUser?.uid==widget.user.uid ? widget.user.getIdToken() : null, client:profileClient);
   @override void dispose() { profileClient.close(); super.dispose(); }
   bool busy = false;
   String? message;
@@ -213,7 +214,8 @@ class _FirebaseSignedInPageState extends State<FirebaseSignedInPage> {
       const SizedBox(height: 20),
       FirebaseProfileEditor(key:ValueKey(widget.user.uid),api:profileApi,initialName:widget.user.displayName??''),
       const SizedBox(height:16),
-      const Text('Account and profile connection. Rooms, wallet and games are not connected in this build.'),
+      FilledButton.icon(onPressed:()=>Navigator.of(context).push(MaterialPageRoute<void>(builder:(_)=>FirebaseRoomsPage(api:profileApi))),icon:const Icon(Icons.meeting_room),label:const Text('Open rooms')),
+      const Text('Profiles, public rooms and text chat use your server. Voice, wallet and games are not connected yet.'),
       if (message != null) Padding(padding: const EdgeInsets.symmetric(vertical: 16), child: Text(message!)),
       TextButton(onPressed: busy ? null : () => action(() async {
         await FirebaseAuth.instance.signOut();

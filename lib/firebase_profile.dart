@@ -15,18 +15,25 @@ class FirebaseProfileApi {
   FirebaseProfileApi({required this.uid, required this.token, required this.client});
   static final endpoint = Uri.parse('https://voice.soverixnet.com/sovera/account');
 
-  Future<Map<String, dynamic>?> request(String method, [Map<String, dynamic>? fields]) async {
+  Future<Map<String, dynamic>> call(String method, {String suffix='', Map<String,dynamic>? fields}) async {
     final access = await token();
     if (access == null || access.isEmpty) throw const ProfileApiError('Please sign in again.');
-    final req = http.Request(method, endpoint)..followRedirects = false;
+    final req = http.Request(method, endpoint.replace(path:'${endpoint.path}$suffix'))..followRedirects = false;
     req.headers.addAll({'Authorization': 'Bearer $access', 'Content-Type': 'application/json'});
     if (fields != null) req.body = jsonEncode(fields);
     final response = await http.Response.fromStream(await client.send(req).timeout(const Duration(seconds: 15)))
         .timeout(const Duration(seconds: 15));
     if (response.statusCode == 401) throw const ProfileApiError('Your session expired. Sign out and sign in again.');
+    if(response.statusCode==429) throw const ProfileApiError('Please wait a moment before sending again.');
+    if(response.statusCode==409 && response.body.contains('Save your profile first')) throw const ProfileApiError('Save your profile before opening a room.');
     if (response.statusCode != 200) throw const ProfileApiError('Profile could not be saved or loaded. Please retry.');
     final data = jsonDecode(response.body);
-    if (data is! Map || !data.containsKey('profile')) throw const ProfileApiError('Invalid profile response. Please retry.');
+    if(data is! Map) throw const ProfileApiError('Invalid server response. Please retry.');
+    return Map<String,dynamic>.from(data);
+  }
+  Future<Map<String, dynamic>?> request(String method, [Map<String,dynamic>? fields]) async {
+    final data=await call(method,fields:fields);
+    if (!data.containsKey('profile')) throw const ProfileApiError('Invalid profile response. Please retry.');
     final row = data['profile'];
     if (row == null && method == 'GET') return null;
     if (row is! Map || row['firebase_uid'] != uid || row['display_name'] is! String || row['country'] is! String) {

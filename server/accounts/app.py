@@ -4,7 +4,8 @@ import os
 import sqlite3
 import time
 from pathlib import Path
-from fastapi import FastAPI, Header, HTTPException
+from fastapi import FastAPI, Header, HTTPException, Query
+from .rooms import Rooms, RoomInput, MessageInput
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 class ProfileInput(BaseModel):
@@ -53,7 +54,7 @@ def create_app(profiles, verify):
 
     @app.middleware('http')
     async def private_responses(request, call_next):
-        if request.method == 'PUT':
+        if request.method in ('PUT', 'POST'):
             length = request.headers.get('content-length')
             if length is None or not length.isdecimal() or int(length)>8192:
                 from fastapi.responses import JSONResponse
@@ -78,7 +79,7 @@ def create_app(profiles, verify):
 
     @app.get('/sovera/account/health')
     def health():
-        return {'ready':True, 'profiles':True, 'wallet':False, 'games':False}
+        return {'ready':True, 'profiles':True, 'rooms':True, 'chat':True, 'voice':False, 'wallet':False, 'games':False}
 
     @app.get('/sovera/account')
     async def get_profile(authorization: str | None = Header(default=None)):
@@ -89,6 +90,42 @@ def create_app(profiles, verify):
     async def save_profile(data:ProfileInput, authorization: str | None = Header(default=None)):
         uid = await actor(authorization)
         return {'profile':await asyncio.to_thread(profiles.save, uid, data)}
+    rooms = Rooms(profiles.path)
+
+    @app.get('/sovera/account/rooms')
+    async def directory(authorization: str | None = Header(default=None)):
+        await actor(authorization)
+        return {'rooms':await asyncio.to_thread(rooms.directory)}
+
+    @app.post('/sovera/account/rooms')
+    async def create_room(data:RoomInput, authorization: str | None = Header(default=None)):
+        uid=await actor(authorization)
+        return {'room':await asyncio.to_thread(rooms.save,uid,data)}
+
+    @app.put('/sovera/account/rooms/{room}')
+    async def edit_room(room:str,data:RoomInput,authorization: str | None = Header(default=None)):
+        uid=await actor(authorization)
+        return {'room':await asyncio.to_thread(rooms.save,uid,data,room)}
+
+    @app.put('/sovera/account/rooms/{room}/presence')
+    async def join(room:str,authorization: str | None = Header(default=None)):
+        uid=await actor(authorization)
+        return await asyncio.to_thread(rooms.presence,uid,room)
+
+    @app.delete('/sovera/account/rooms/{room}/presence')
+    async def leave(room:str,authorization: str | None = Header(default=None)):
+        uid=await actor(authorization)
+        return await asyncio.to_thread(rooms.presence,uid,room,True)
+
+    @app.get('/sovera/account/rooms/{room}/messages')
+    async def messages(room:str,after:int=Query(default=0,ge=0),authorization: str | None = Header(default=None)):
+        await actor(authorization)
+        return {'messages':await asyncio.to_thread(rooms.messages,room,after)}
+
+    @app.post('/sovera/account/rooms/{room}/messages')
+    async def send(room:str,data:MessageInput,authorization: str | None = Header(default=None)):
+        uid=await actor(authorization)
+        return await asyncio.to_thread(rooms.send,uid,room,data)
     return app
 
 def create():

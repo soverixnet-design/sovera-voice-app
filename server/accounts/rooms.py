@@ -1,0 +1,103 @@
+"""Persistent public room directory and chat, without voice or coin claims."""
+from contextlib import contextmanager
+import sqlite3
+import time
+import uuid
+from fastapi import HTTPException
+from pydantic import BaseModel, ConfigDict, Field
+
+class RoomInput(BaseModel):
+    model_config=ConfigDict(extra='forbid',str_strip_whitespace=True)
+    name:str=Field(min_length=1,max_length=40)
+    seats:int=Field(default=9,strict=True)
+
+class MessageInput(BaseModel):
+    model_config=ConfigDict(extra='forbid',str_strip_whitespace=True)
+    text:str=Field(min_length=1,max_length=500)
+    request_id:uuid.UUID
+
+class Rooms:
+    def __init__(self,path,clock=time.time):
+        self.path,self.clock=str(path),clock
+        with self.db() as db:
+            db.executescript('''
+            CREATE TABLE IF NOT EXISTS account_rooms(
+              id TEXT PRIMARY KEY,owner_uid TEXT NOT NULL UNIQUE,name TEXT NOT NULL,
+              seats INTEGER NOT NULL,created_at REAL NOT NULL);
+            CREATE TABLE IF NOT EXISTS account_presence(
+              uid TEXT PRIMARY KEY,room_id TEXT NOT NULL,seen_at REAL NOT NULL);
+            CREATE TABLE IF NOT EXISTS account_messages(
+              id INTEGER PRIMARY KEY AUTOINCREMENT,room_id TEXT NOT NULL,
+              sender_uid TEXT NOT NULL,request_id TEXT NOT NULL,text TEXT NOT NULL,
+              name TEXT NOT NULL,country TEXT NOT NULL,created_at REAL NOT NULL,
+              UNIQUE(sender_uid,request_id));
+            CREATE INDEX IF NOT EXISTS account_message_room ON account_messages(room_id,id);
+            CREATE INDEX IF NOT EXISTS account_presence_room ON account_presence(room_id,seen_at);
+            ''')
+    @contextmanager
+    def db(self):
+        db=sqlite3.connect(self.path,timeout=10)
+        db.row_factory=sqlite3.Row
+        try:
+            with db:
+                yield db
+        finally:
+            db.close()
+    def profile(self,db,uid):
+        p=db.execute('SELECT * FROM account_profiles WHERE firebase_uid=?',(uid,)).fetchone()
+        if not p: raise HTTPException(409,'Save your profile first')
+        return p
+    def exists(self,db,room):
+        if not db.execute('SELECT 1 FROM account_rooms WHERE id=?',(room,)).fetchone():
+            raise HTTPException(404,'Room not found')
+    def directory(self):
+        with self.db() as db:
+            return [dict(r) for r in db.execute('''SELECT r.*,p.display_name AS owner_name,
+                p.country,p.avatar_url,(SELECT count(*) FROM account_presence a
+                WHERE a.room_id=r.id AND a.seen_at>?) AS occupants
+                FROM account_rooms r JOIN account_profiles p ON p.firebase_uid=r.owner_uid
+                ORDER BY r.created_at DESC LIMIT 100''',(self.clock()-90,)).fetchall()]
+    def save(self,uid,data,room=None):
+        if data.seats not in (5,6,9,12): raise HTTPException(422,'Choose 5, 6, 9 or 12 seats')
+        with self.db() as db:
+            db.execute('BEGIN IMMEDIATE')
+            self.profile(db,uid)
+            existing=db.execute('SELECT * FROM account_rooms WHERE owner_uid=?',(uid,)).fetchone()
+            if room:
+                self.exists(db,room)
+                if not existing or existing['id']!=room: raise HTTPException(403,'Only the room owner can edit it')
+                db.execute('UPDATE account_rooms SET name=?,seats=? WHERE id=?',(data.name,data.seats,room))
+            elif existing:
+                return dict(existing)
+            else:
+                room=str(uuid.uuid4())
+                db.execute('INSERT INTO account_rooms VALUES(?,?,?,?,?)',(room,uid,data.name,data.seats,self.clock()))
+            return dict(db.execute('SELECT * FROM account_rooms WHERE id=?',(room,)).fetchone())
+    def presence(self,uid,room,leave=False):
+        with self.db() as db:
+            self.exists(db,room)
+            if leave: db.execute('DELETE FROM account_presence WHERE uid=? AND room_id=?',(uid,room))
+            else:
+                self.profile(db,uid)
+                db.execute('INSERT INTO account_presence VALUES(?,?,?) ON CONFLICT(uid) DO UPDATE SET room_id=excluded.room_id,seen_at=excluded.seen_at',(uid,room,self.clock()))
+            return {'saved':True}
+    def messages(self,room,after=0):
+        with self.db() as db:
+            self.exists(db,room)
+            if after:
+                rows=db.execute('SELECT id,text,name,country,created_at FROM account_messages WHERE room_id=? AND id>? ORDER BY id LIMIT 50',(room,after)).fetchall()
+            else:
+                rows=list(reversed(db.execute('SELECT id,text,name,country,created_at FROM account_messages WHERE room_id=? ORDER BY id DESC LIMIT 50',(room,)).fetchall()))
+            return [dict(r) for r in rows]
+    def send(self,uid,room,data):
+        with self.db() as db:
+            db.execute('BEGIN IMMEDIATE')
+            self.exists(db,room);p=self.profile(db,uid)
+            old=db.execute('SELECT * FROM account_messages WHERE sender_uid=? AND request_id=?',(uid,str(data.request_id))).fetchone()
+            if old:
+                if old['text']!=data.text or old['room_id']!=room: raise HTTPException(409,'Request ID already used')
+                return {'id':old['id']}
+            last=db.execute('SELECT max(created_at) FROM account_messages WHERE sender_uid=?',(uid,)).fetchone()[0]
+            if last is not None and self.clock()-last<1: raise HTTPException(429,'Wait before sending another message')
+            cur=db.execute('INSERT INTO account_messages(room_id,sender_uid,request_id,text,name,country,created_at) VALUES(?,?,?,?,?,?,?)',(room,uid,str(data.request_id),data.text,p['display_name'],p['country'],self.clock()))
+            return {'id':cur.lastrowid}
