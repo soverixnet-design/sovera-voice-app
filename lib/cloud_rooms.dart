@@ -1,3 +1,5 @@
+import 'dart:async';
+import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'main.dart';
 import 'room_card.dart';
@@ -12,16 +14,24 @@ class CloudRooms extends StatefulWidget {
 class CloudRoomsState extends State<CloudRooms>{
  List<Map<String,dynamic>> rows=[];
  Set<String> follows={};
+ Map<String,Uint8List> covers={};
+ Map<String,int> counts={};
+ Timer? presenceRefresh;
+
  bool loading=true,writing=false;
  String? error;int revision=0;
- @override void initState(){super.initState();refresh();}
+ @override void initState(){super.initState();refresh();presenceRefresh=Timer.periodic(const Duration(seconds:15),(_)=>loadCounts());}
+ @override void dispose(){presenceRefresh?.cancel();super.dispose();}
+ Future<void> loadCounts()async{try{final data=await soveraClient.rpc('sovera_room_counts');if(mounted)setState(()=>counts={for(final row in (data as List))row['room_id'] as String:(row['online_count'] as num).toInt()});}catch(_){/* The count is unavailable, not zero. */}}
+ Future<void> loadCovers(List<Map<String,dynamic>> incoming)async{for(final room in incoming){final path=room['photo_path'] as String?;if(path==null||path.isEmpty)continue;final id=room['id'] as String;try{final bytes=await soveraClient.storage.from('sovera-room-photos').download(path);if(mounted&&rows.any((r)=>r['id']==id&&r['photo_path']==path))setState(()=>covers[id]=bytes);}catch(_){/* Keep placeholder. */}}}
+
  Future<void> refresh()async{
   final ticket=++revision;
   setState((){loading=true;error=null;});
   try{
    final data=await soveraClient.from('sovera_rooms').select().order('created_at',ascending:false).limit(100);
    final saved=await soveraClient.from('sovera_room_follows').select('room_id');
-   if(mounted&&ticket==revision)setState((){rows=data;follows=saved.map((r)=>r['room_id'] as String).toSet();loading=false;});
+   if(mounted&&ticket==revision){setState((){rows=data;covers={};follows=saved.map((r)=>r['room_id'] as String).toSet();loading=false;});loadCounts();loadCovers(data);}
   }catch(_){if(mounted&&ticket==revision)setState((){error='Could not load rooms. Please retry.';loading=false;});}
  }
  void notice(String text){if(mounted)ScaffoldMessenger.of(context).showSnackBar(SnackBar(content:Text(text)));}
@@ -71,9 +81,9 @@ class CloudRoomsState extends State<CloudRooms>{
    if(loading)const Padding(padding:EdgeInsets.all(24),child:CircularProgressIndicator())
    else if(error!=null)TextButton(onPressed:refresh,child:Text(error!))
    else if(visible.isEmpty)const Glass(child:Text('No rooms here yet. Create your room or follow a community room.'))
-   else LayoutBuilder(builder:(context,c)=>GridView.builder(shrinkWrap:true,physics:const NeverScrollableScrollPhysics(),itemCount:visible.length,gridDelegate:SliverGridDelegateWithFixedCrossAxisCount(crossAxisCount:c.maxWidth<300?1:2,mainAxisExtent:260+30*(MediaQuery.textScalerOf(context).scale(1)-1),crossAxisSpacing:12,mainAxisSpacing:12),itemBuilder:(context,i){
+   else LayoutBuilder(builder:(context,c)=>GridView.builder(shrinkWrap:true,physics:const NeverScrollableScrollPhysics(),itemCount:visible.length,gridDelegate:SliverGridDelegateWithFixedCrossAxisCount(crossAxisCount:c.maxWidth<300?1:2,mainAxisExtent:252+30*(MediaQuery.textScalerOf(context).scale(1)-1),crossAxisSpacing:12,mainAxisSpacing:12),itemBuilder:(context,i){
     final room=visible[i],id=visible[i]['id'] as String;
-    return RoomCard(name:room['name'] as String,category:room['category'] as String,subtitle:'${room['seat_count']} seats · Voice coming soon',color:i.isEven?violet:cyan,followed:follows.contains(id),onOpen:()=>open(room),onFollow:writing?null:()=>follow(room));
+    return RoomCard(name:room['name'] as String,category:room['category'] as String,subtitle:'',country:room['country'] as String?,onlineCount:counts[id],coverBytes:covers[id],color:i.isEven?violet:cyan,followed:follows.contains(id),onOpen:()=>open(room),onFollow:writing?null:()=>follow(room));
    })),
 
   ]);
