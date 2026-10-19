@@ -93,7 +93,7 @@ class _FirebaseDuelPageState extends State<FirebaseDuelPage>{
           textAlign:TextAlign.center,style:const TextStyle(fontSize:18,fontWeight:FontWeight.bold)),
       if(winner!=null)
         Padding(padding:const EdgeInsets.all(10),
-          child:Text(winner=='draw'?'Draw!':'$winner wins!',
+          child:Text(winner=='timeout'?'Match timed out · no winner':winner=='draw'?'Draw!':'$winner wins!',
             textAlign:TextAlign.center,style:const TextStyle(fontSize:22,fontWeight:FontWeight.bold,color:Colors.amber))),
       if(waitingCount>0&&queuePosition==null)
         Text('$waitingCount player(s) queued for the next match.',
