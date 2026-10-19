@@ -104,7 +104,7 @@ void main(){
     })));
     await tester.pumpAndSettle();
     await tester.tap(find.byTooltip('Gift effects'));await tester.pumpAndSettle();
-    expect(find.textContaining('no Coins'),findsWidgets);
+    expect(find.textContaining('No Coins'),findsOneWidget);
     await tester.tap(find.text('Friend'));await tester.pumpAndSettle();
     await tester.tap(find.text('Send effect'));await tester.pumpAndSettle();
     expect(sent?['recipient_uid'],'bob');
