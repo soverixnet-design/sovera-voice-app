@@ -144,5 +144,29 @@ class DuelTests(unittest.TestCase):
         self.assertEqual(self.client.post(uri+'/restart',headers=self.people['eve']).status_code,409)
         self.assertEqual(self.client.post(uri+'/cancel').status_code,401)
 
+    def test_abandoned_duel_times_out_and_next_queued_user_can_play(self):
+        uri=self.base+'/duel'
+        for uid in ('alice','bob','eve'):
+            self.heartbeat(uid)
+        self.client.post(uri+'/join',headers=self.people['alice'])
+        self.client.post(uri+'/join',headers=self.people['bob'])
+        self.client.post(uri+'/join',headers=self.people['eve'])
+        with sqlite3.connect(self.path) as db:
+            db.execute('UPDATE account_room_duels SET updated_at=updated_at-130 WHERE room_id=?',(self.room,))
+        first=self.client.get(uri,headers=self.people['eve']).json()
+        second=self.client.get(uri,headers=self.people['bob']).json()
+        self.assertEqual(first['winner'],'timeout')
+        self.assertEqual(second['winner'],'timeout')
+        self.assertEqual(first['revision'],second['revision'])
+        self.assertIsNone(first['turn_uid'])
+        self.assertEqual(self.client.post(uri+'/restart',headers=self.people['eve']).status_code,409)
+        with sqlite3.connect(self.path) as db:
+            db.execute('UPDATE account_room_duels SET updated_at=updated_at-6 WHERE room_id=?',(self.room,))
+        upcoming=self.client.post(uri+'/restart',headers=self.people['eve']).json()
+        self.assertEqual(upcoming['player_x'],'eve')
+        self.assertEqual(upcoming['player_o'],'alice')
+        self.assertIsNone(upcoming['winner'])
+        self.assertEqual(upcoming['board'],list('.........'))
+
 if __name__=='__main__':
     unittest.main()
