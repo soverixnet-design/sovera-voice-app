@@ -2,6 +2,7 @@ import 'dart:io';
 import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:sovera/effects_studio.dart';
 import 'package:sovera/cosmetic_art.dart';
@@ -50,6 +51,8 @@ void main() {
   expect(find.text('ID · 1075212'),findsOneWidget);
   await tester.enterText(find.byType(TextField),'Hello everyone');
   await tester.tap(find.byTooltip('Send local message')); await tester.pump();
+  await tester.scrollUntilVisible(find.byType(RoomChatBubble),200,scrollable:find.byType(Scrollable).first);
+  await tester.pump();
   final bubble=tester.widget<RoomChatBubble>(find.byType(RoomChatBubble));
   expect(bubble.message.tag,effectPacks.last);
   expect(bubble.message.userId,'1075212');
@@ -62,6 +65,11 @@ void main() {
  testWidgets('Export corrected frame and compact chat review',(tester)async {
   tester.view.physicalSize=const Size(390,844);tester.view.devicePixelRatio=1;
   addTearDown(tester.view.resetPhysicalSize);addTearDown(tester.view.resetDevicePixelRatio);
+  await tester.runAsync(()async {
+   await (FontLoader('MaterialIcons')..addFont(rootBundle.load('fonts/MaterialIcons-Regular.otf'))).load();
+   final font=File('/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf');
+   if(await font.exists())await (FontLoader('Roboto')..addFont(Future.value(ByteData.sublistView(await font.readAsBytes())))).load();
+  });
   previewAvatarFrame.value=effectPacks.last; previewNameTag.value=effectPacks.last;
   effectProfileName.value='Shakil'; effectProfileId.value='1075212';
   final key=GlobalKey();
