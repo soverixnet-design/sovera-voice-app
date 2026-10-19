@@ -60,13 +60,14 @@ class FirebaseRoomSettingsDialog extends StatefulWidget {
   @override State<FirebaseRoomSettingsDialog> createState()=>_FirebaseRoomSettingsDialogState();
 }
 class _FirebaseRoomSettingsDialogState extends State<FirebaseRoomSettingsDialog>{
-  late final TextEditingController name=TextEditingController(text:widget.name);
-  late int seats=widget.seats;
+  late final TextEditingController name;
+  late int seats;
+  @override void initState(){super.initState();name=TextEditingController(text:widget.name);seats=widget.seats;}
   @override void dispose(){name.dispose();super.dispose();}
   @override Widget build(BuildContext context)=>AlertDialog(
     title:const Text('Room settings'),
     content:SingleChildScrollView(child:Column(mainAxisSize:MainAxisSize.min,crossAxisAlignment:CrossAxisAlignment.start,children:[
-      TextField(controller:name,maxLength:40,decoration:const InputDecoration(labelText:'Room name')),
+      TextField(controller:name,maxLength:40,onChanged:(_)=>setState((){}),decoration:const InputDecoration(labelText:'Room name')),
       const SizedBox(height:8),
       const Text('Seats',style:TextStyle(fontWeight:FontWeight.bold)),
       const SizedBox(height:8),
