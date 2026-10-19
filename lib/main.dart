@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'member_profile.dart';
 import 'room_media.dart';
 import 'referral.dart';
@@ -262,8 +263,9 @@ class VoiceRoom extends StatefulWidget {
 }
 class _VoiceRoomState extends State<VoiceRoom> {
  int seats=9;bool micMuted=true; int? partnerSeat; SeatBond bond=SeatBond.friendship; bool savingSeats=false; int? mySeat; String? selectedGift;
+ Timer? presenceTimer;
  final messages=<String>[]; final input=TextEditingController();
- @override void initState(){super.initState();seats=widget.draft?.seats??widget.initialSeats;mySeat=widget.draft?.mySeat;partnerSeat=widget.draft?.partnerSeat;bond=widget.draft?.bond??SeatBond.friendship;micMuted=widget.draft?.muted??true;messages.addAll(widget.draft?.messages??[]);
+ @override void initState(){super.initState();startPresence();seats=widget.draft?.seats??widget.initialSeats;mySeat=widget.draft?.mySeat;partnerSeat=widget.draft?.partnerSeat;bond=widget.draft?.bond??SeatBond.friendship;micMuted=widget.draft?.muted??true;messages.addAll(widget.draft?.messages??[]);
   WidgetsBinding.instance.addPostFrameCallback((_){
    final entry=previewEntryEffect.value;
    if(mounted&&entry!=null&&ModalRoute.of(context)?.isCurrent==true)showEntryPreview(context,entry);
@@ -271,13 +273,17 @@ class _VoiceRoomState extends State<VoiceRoom> {
  }
  bool get canEdit=>widget.roomId==null||soveraClient.auth.currentUser?.id==widget.ownerId;
  void notice(String text) => ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(text)));
+ Future<void> heartbeat()async{if(widget.roomId==null)return;try{await soveraClient.rpc('sovera_room_enter',params:{'p_room_id':widget.roomId});}catch(_){/* Network loss expires within 45 seconds. */}}
+ void startPresence(){if(widget.roomId==null)return;heartbeat();presenceTimer=Timer.periodic(const Duration(seconds:15),(_)=>heartbeat());}
+ void stopPresence(){presenceTimer?.cancel();if(widget.roomId!=null)soveraClient.rpc('sovera_room_exit',params:{'p_room_id':widget.roomId}).catchError((Object _)=>null);}
  @override
- void dispose(){input.dispose();super.dispose();}
+ void dispose(){stopPresence();input.dispose();super.dispose();}
  @override
  Widget build(BuildContext context) => Scaffold(backgroundColor: const Color(0xFF0C0D0F),
  appBar:AppBar(backgroundColor:const Color(0xFF10182A),automaticallyImplyLeading:false,leadingWidth:44,leading:RoomTool(label:'Back',icon:Icons.arrow_back_ios_new_rounded,color:violet,onTap:()=>Navigator.maybePop(context)),titleSpacing:0,title:Row(children:[RoomPhoto(roomId:widget.roomId,canEdit:canEdit,size:32),const SizedBox(width:6),Expanded(child:Text(widget.name,maxLines:1,overflow:TextOverflow.ellipsis,style:const TextStyle(fontSize:14,fontWeight:FontWeight.bold)))]),actions:[
  RoomTool(label:'Minimize room',icon:Icons.unfold_less_rounded,color:cyan,onTap:minimize),
  RoomTool(label:'Frames & effects',icon:Icons.auto_awesome_rounded,color:violet,onTap:()=>Navigator.push(context,MaterialPageRoute<void>(builder:(_)=>const EffectsStudio()))),
+ RoomTool(label:'Room country',icon:Icons.flag_rounded,color:gold,onTap:canEdit&&widget.roomId!=null?changeRoomCountry:null),
  RoomTool(label:'Seat settings',icon:Icons.tune_rounded,color:gold,onTap:canEdit&&!savingSeats?settings:null),
  RoomTool(label:'Leave room',icon:Icons.logout_rounded,color:pink,onTap:(){minimizedRoom.value=null;if(Navigator.canPop(context)){Navigator.pop(context);}else{Navigator.pushReplacement(context,MaterialPageRoute<void>(builder:(_)=>const Home()));}}),
  ]),
@@ -324,6 +330,25 @@ class _VoiceRoomState extends State<VoiceRoom> {
  ])))));
  if(!mounted||applied==null)return;
  setState((){if(applied){mySeat=own;partnerSeat=peer;bond=draft;}else{partnerSeat=null;}});
+ }
+ Future<void> changeRoomCountry()async{
+  if(!canEdit||widget.roomId==null)return;
+  String selected='BD';
+  final code=await showDialog<String>(context:context,builder:(dialogContext)=>StatefulBuilder(builder:(dialogContext,update)=>AlertDialog(title:const Text('Room country'),content:DropdownButtonFormField<String>(initialValue:selected,isExpanded:true,decoration:const InputDecoration(labelText:'Country flag'),items:const [
+   DropdownMenuItem(value:'BD',child:Text('🇧🇩 Bangladesh')),
+   DropdownMenuItem(value:'OM',child:Text('🇴🇲 Oman')),
+   DropdownMenuItem(value:'SA',child:Text('🇸🇦 Saudi Arabia')),
+   DropdownMenuItem(value:'AE',child:Text('🇦🇪 UAE')),
+   DropdownMenuItem(value:'QA',child:Text('🇶🇦 Qatar')),
+   DropdownMenuItem(value:'KW',child:Text('🇰🇼 Kuwait')),
+   DropdownMenuItem(value:'IN',child:Text('🇮🇳 India')),
+   DropdownMenuItem(value:'PK',child:Text('🇵🇰 Pakistan')),
+   DropdownMenuItem(value:'MY',child:Text('🇲🇾 Malaysia')),
+   DropdownMenuItem(value:'US',child:Text('🇺🇸 United States')),
+   DropdownMenuItem(value:'GB',child:Text('🇬🇧 United Kingdom')),
+  ],onChanged:(value){if(value!=null)update(()=>selected=value);}),actions:[TextButton(onPressed:()=>Navigator.pop(dialogContext),child:const Text('Cancel')),FilledButton(onPressed:()=>Navigator.pop(dialogContext,selected),child:const Text('Save'))]))));
+  if(code==null||!mounted)return;
+  try{await soveraClient.from('sovera_rooms').update({'country':code}).eq('id',widget.roomId!).eq('owner_id',widget.ownerId!).select('id').single();if(mounted)notice('Room country saved.');}catch(_){if(mounted)notice('Could not save room country.');}
  }
  void send(){if(input.text.trim().isEmpty)return;setState((){messages.add(input.text.trim());input.clear();});}
  Future<void> settings()async{
