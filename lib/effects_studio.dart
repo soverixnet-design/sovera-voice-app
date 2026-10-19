@@ -12,7 +12,7 @@ class EffectPack {
   final String name, asset;
   final Color color;
   final String? entryAsset, voiceAsset, medalAsset, tagAsset, stillAsset, entryStillAsset;
- final double portraitDiameter,portraitY;
+ final double portraitDiameter,portraitY,portraitX;
  final double? portraitHeight;
  final int entryDurationMs;
   final Rect? frameNameBox;
@@ -23,7 +23,7 @@ class EffectPack {
     this.entryAsset,
     this.voiceAsset,
     this.medalAsset,
-    this.frameNameBox,this.portraitHeight,this.entryDurationMs=3200,this.tagAsset,this.stillAsset,this.entryStillAsset,this.portraitDiameter=.43,this.portraitY=.53,
+    this.frameNameBox,this.portraitX=.5,this.portraitHeight,this.entryDurationMs=3200,this.tagAsset,this.stillAsset,this.entryStillAsset,this.portraitDiameter=.43,this.portraitY=.53,
   });
 }
 
@@ -52,9 +52,9 @@ const effectPacks = [
  EffectPack('Tiger Queen','assets/effects/royal-gold.webp',gold,stillAsset:'assets/effects/royal-gold-still.png',entryAsset:'assets/effects/tiger-queen-entry.webp',entryStillAsset:'assets/effects/tiger-queen-still.webp',entryDurationMs:12000,portraitDiameter:.61,portraitY:.52),
  EffectPack('Crown Violet','assets/effects/crown-violet.webp',violet,stillAsset:'assets/effects/crown-violet-still.webp',portraitDiameter:.50,portraitY:.46,frameNameBox:Rect.fromLTWH(.23,.77,.54,.10)),
  EffectPack('Royal Horses','assets/effects/royal-horses-clean.png',gold,stillAsset:'assets/effects/royal-horses-clean.png',portraitDiameter:.43,portraitY:.44,frameNameBox:Rect.fromLTWH(.18,.74,.64,.10)),
- EffectPack('Solar Crown','assets/effects/solar-crown.webp',gold,stillAsset:'assets/effects/solar-crown-still.webp',portraitDiameter:.46,portraitY:.48,tagAsset:'assets/effects/solar-nameplate.webp'),
- EffectPack('Sunrise Crown','assets/effects/sunrise-crown.webp',gold,stillAsset:'assets/effects/sunrise-crown-still.webp',portraitDiameter:.45,portraitY:.46,tagAsset:'assets/effects/solar-nameplate.webp'),
- EffectPack('Rose Crown','assets/effects/rose-crown.webp',pink,stillAsset:'assets/effects/rose-crown-still.webp',portraitDiameter:.45,portraitHeight:.57,portraitY:.46,tagAsset:'assets/effects/rose-nameplate.webp'),
+ EffectPack('Solar Crown','assets/effects/solar-crown.webp',gold,stillAsset:'assets/effects/solar-crown-still.webp',portraitDiameter:.40,portraitHeight:.414,portraitX:.493,portraitY:.525,tagAsset:'assets/effects/solar-nameplate.webp'),
+ EffectPack('Sunrise Crown','assets/effects/sunrise-crown.webp',gold,stillAsset:'assets/effects/sunrise-crown-still.webp',portraitDiameter:.398,portraitHeight:.44,portraitX:.608,portraitY:.499,tagAsset:'assets/effects/solar-nameplate.webp'),
+ EffectPack('Rose Crown','assets/effects/rose-crown.webp',pink,stillAsset:'assets/effects/rose-crown-still.webp',portraitDiameter:.417,portraitHeight:.487,portraitX:.61,portraitY:.446,tagAsset:'assets/effects/rose-nameplate.webp'),
 
 ];
 
@@ -99,7 +99,7 @@ class EffectPortrait extends StatelessWidget {
     return SizedBox(width: canvasSize, height: canvasSize, child: FittedBox(
       fit: BoxFit.scaleDown,
       child: SizedBox(width: canvasSize, height: canvasSize, child: Stack(children: [
-        Positioned(left: inset + (artSize-width)/2,
+        Positioned(left: inset + artSize*pack.portraitX-width/2,
           top: inset + artSize*pack.portraitY-height/2, width: width, height: height,
           child: ClipOval(child: ColoredBox(color: const Color(0xFF131522),
             child: FittedBox(fit: BoxFit.cover, child: child)))),
