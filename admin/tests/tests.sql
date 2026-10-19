@@ -38,5 +38,13 @@ select public.sovera_admin_run('00000000-0000-4000-8000-000000000002','staff.sav
 insert into public.sovera_rooms(id,owner_id,name) values('33333333-3333-4333-8333-333333333333','00000000-0000-4000-8000-000000000005','Test room');
 do $$ begin begin perform public.sovera_admin_run('00000000-0000-4000-8000-000000000006','room.save','{"id":"33333333-3333-4333-8333-333333333333","name":"Intrusion","seat_count":5,"is_closed":true}');raise exception 'TEST: room scope bypass';exception when raise_exception then if SQLERRM<>'Room outside assigned scope' then raise;end if;end;end $$;
 select public.sovera_admin_run('00000000-0000-4000-8000-000000000002','content.save','{"kind":"notice","title":"Test notice","payload":{"text":"Hello"},"published":true}');
+do $$ declare original_id bigint; begin
+ select uid into original_id from public.sovera_profiles where id='00000000-0000-4000-8000-000000000005';
+ perform public.sovera_admin_run('00000000-0000-4000-8000-000000000002','user.vip','{"target":"00000000-0000-4000-8000-000000000005","vip_id":"765","vip_expires_at":"2030-01-01T00:00:00Z"}');
+ if not exists(select 1 from public.sovera_profiles where id='00000000-0000-4000-8000-000000000005' and uid=original_id and vip_id='765' and vip_expires_at='2030-01-01T00:00:00Z') then raise exception 'TEST: VIP grant changed original ID or lost expiry'; end if;
+ if exists(select 1 from public.sovera_member_cards where user_id='00000000-0000-4000-8000-000000000005' and (vip_id is distinct from '765' or vip_expires_at is distinct from '2030-01-01T00:00:00Z'::timestamptz)) then raise exception 'TEST: public VIP expiry not synchronized'; end if;
+ perform public.sovera_admin_run('00000000-0000-4000-8000-000000000002','user.vip','{"target":"00000000-0000-4000-8000-000000000005","vip_id":""}');
+ if exists(select 1 from public.sovera_profiles where id='00000000-0000-4000-8000-000000000005' and (vip_id is not null or vip_expires_at is not null or uid<>original_id)) then raise exception 'TEST: VIP removal did not restore base identity'; end if;
+end $$;
 reset role;
 rollback;

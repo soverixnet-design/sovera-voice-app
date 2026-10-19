@@ -1,3 +1,4 @@
+import 'public_identity.dart';
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'main.dart';
@@ -13,10 +14,11 @@ class CloudRooms extends StatefulWidget {
 }
 class CloudRoomsState extends State<CloudRooms>{
  List<Map<String,dynamic>> rows=[];Map<String,dynamic> counts={};bool countsReady=false;Timer? countTimer;
- Set<String> follows={};
+ Set<String> follows={};Set<String> identityOwners={};
  bool loading=true,writing=false;
  String? error;int revision=0;
  @override void initState(){super.initState();refresh();RoomPresence.instance.start();RoomPresence.instance.counts.addListener(updateCounts);updateCounts();countTimer=Timer.periodic(const Duration(seconds:30),(_)=>refresh(silent:true));}
+ @override void didUpdateWidget(covariant CloudRooms oldWidget){super.didUpdateWidget(oldWidget);if(oldWidget.query!=widget.query)refresh(silent:true);}
  @override void dispose(){countTimer?.cancel();RoomPresence.instance.counts.removeListener(updateCounts);super.dispose();}
  void updateCounts(){if(mounted)setState((){counts=RoomPresence.instance.counts.value??{};countsReady=RoomPresence.instance.counts.value!=null;});}
  Future<void> refresh({bool silent=false})async{
@@ -24,8 +26,11 @@ class CloudRoomsState extends State<CloudRooms>{
   if(!silent)setState((){loading=true;error=null;});
   try{
    final data=await soveraClient.from('sovera_rooms').select().eq('is_closed',false).order('created_at',ascending:false).limit(100);
+   final matches=<String>{};
+   final q=widget.query.trim();final numeric=int.tryParse(q);
+   if(numeric!=null){final cards=await soveraClient.from('sovera_member_cards').select().or('uid.eq.$numeric,vip_id.eq.$q');for(final card in cards){if(matchesPublicIdentity(card,q))matches.add(card['user_id'] as String);}}
    final saved=await soveraClient.from('sovera_room_follows').select('room_id');
-   if(mounted&&ticket==revision)setState((){rows=data;follows=saved.map((r)=>r['room_id'] as String).toSet();loading=false;});
+   if(mounted&&ticket==revision)setState((){rows=data;identityOwners=matches;follows=saved.map((r)=>r['room_id'] as String).toSet();loading=false;});
   }catch(_){if(mounted&&ticket==revision)setState((){error='Could not load rooms. Please retry.';loading=false;});}
  }
  void notice(String text){if(mounted)ScaffoldMessenger.of(context).showSnackBar(SnackBar(content:Text(text)));}
@@ -71,7 +76,7 @@ class CloudRoomsState extends State<CloudRooms>{
   finally{if(mounted)setState(()=>writing=false);}
  }
  @override Widget build(BuildContext context){
-  final visible=rows.where((r)=>(r['name'] as String).toLowerCase().contains(widget.query.trim().toLowerCase())&&(widget.filter!='Following'||follows.contains(r['id']))).toList();
+  final visible=rows.where((r)=>((r['name'] as String).toLowerCase().contains(widget.query.trim().toLowerCase())||identityOwners.contains(r['owner_id']))&&(widget.filter!='Following'||follows.contains(r['id']))).toList();
   if(widget.filter=='All')visible.sort((a,b)=>(a['name'] as String).compareTo(b['name'] as String));
   return Column(children:[
    Wrap(spacing:8,runSpacing:8,crossAxisAlignment:WrapCrossAlignment.center,children:[const Text('Community rooms',style:TextStyle(fontWeight:FontWeight.bold)),IconButton(tooltip:'Refresh rooms',onPressed:loading?null:refresh,icon:const Icon(Icons.refresh_rounded)),FilledButton.icon(onPressed:writing?null:myRoom,icon:const Icon(Icons.add),label:const Text('My room'))]),

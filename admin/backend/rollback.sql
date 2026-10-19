@@ -18,8 +18,8 @@ update public.sovera_profiles p set uid=m.old_uid from sovera_private.admin_orig
 alter table public.sovera_profiles alter column uid set generated always;
 alter table public.sovera_profiles add constraint sovera_uid_six_digits check(uid between 100001 and 999999);
 do $$ declare n bigint;begin select coalesce(max(uid),100000)+1 into n from public.sovera_profiles;execute format('alter sequence public.sovera_profiles_uid_seq minvalue 100001 maxvalue 999999 start with 100001 restart with %s no cycle',n);end $$;
-alter table public.sovera_profiles drop column vip_id,drop column is_banned;
-alter table public.sovera_member_cards drop column vip_id;
+alter table public.sovera_profiles drop column vip_id,drop column vip_expires_at,drop column is_banned;
+alter table public.sovera_member_cards drop column vip_id,drop column vip_expires_at;
 grant insert,update on public.sovera_member_cards to authenticated;
 alter table public.sovera_rooms drop column is_closed;
 alter table public.sovera_support_tickets drop column admin_reply,drop column replied_at;

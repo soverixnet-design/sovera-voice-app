@@ -1,3 +1,4 @@
+import 'public_identity.dart';
 import 'community_services.dart';
 import 'admin_control.dart';
 import 'dart:async';
@@ -87,7 +88,8 @@ class MemberProfilePage extends StatefulWidget {
   State<MemberProfilePage> createState() => _MemberProfilePageState();
 }
 
-class _MemberProfilePageState extends State<MemberProfilePage> {
+class _MemberProfilePageState extends State<MemberProfilePage> with VipExpiryRefresh<MemberProfilePage> {
+ @override String get identityRevision=>publicIdentity(card);
   Map<String, dynamic>? card;
   List<Map<String, dynamic>> gifts = [];
   bool loading = true, busy = false, following = false;
@@ -213,14 +215,14 @@ class _MemberProfilePageState extends State<MemberProfilePage> {
                       crossAxisAlignment: WrapCrossAlignment.center,
                       children: [
                         SelectableText(
-                          'ID · ${card!['uid']}',
+                          'ID · ${publicIdentity(card)}',
                           style: const TextStyle(color: cyan),
                         ),
                         IconButton(
                           tooltip: 'Copy member ID',
                           onPressed: () async {
                             await Clipboard.setData(
-                              ClipboardData(text: card!['uid'].toString()),
+                              ClipboardData(text: publicIdentity(card)),
                             );
                             notice('User ID copied.');
                           },
@@ -228,7 +230,7 @@ class _MemberProfilePageState extends State<MemberProfilePage> {
                         ),
                       ],
                     ),
-                    VipIdentityBadge(value:card?['vip_id']),
+                    VipIdentityBadge(value:activeVipId(card)),
                     if ((card?['bio'] ?? '').toString().isNotEmpty)
                       Text(card!['bio'].toString(), textAlign: TextAlign.center),
                     if (!own)

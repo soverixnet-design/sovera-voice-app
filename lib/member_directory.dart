@@ -1,3 +1,4 @@
+import 'public_identity.dart';
 import 'member_profile.dart';
 import 'package:flutter/material.dart';
 import 'auth_gate.dart';
@@ -21,8 +22,9 @@ class SupabaseMemberStore extends MemberStore{
  }
  @override Future<List<Map<String,dynamic>>> members(String own,String query,int offset)async{
   var request=soveraClient.from('sovera_member_cards').select().eq('listed',true).neq('user_id',own);
-  if(query.trim().isNotEmpty){final id=int.tryParse(query.trim());if(id!=null){request=query.trim().length<8?request.eq('vip_id',query.trim()):request.eq('uid',id);}else{final escaped=query.trim().replaceAll('\\',r'\\').replaceAll('%',r'\%').replaceAll('_',r'\_');request=request.ilike('display_name','%$escaped%');}}
-  return await request.order('uid').range(offset,offset+19);
+  if(query.trim().isNotEmpty){final id=int.tryParse(query.trim());if(id!=null){request=request.or('uid.eq.$id,vip_id.eq.${query.trim()}');}else{final escaped=query.trim().replaceAll('\\',r'\\').replaceAll('%',r'\%').replaceAll('_',r'\_');request=request.ilike('display_name','%$escaped%');}}
+  final rows=await request.order('uid').range(offset,offset+19);
+  return int.tryParse(query.trim())==null?rows:rows.where((row)=>matchesPublicIdentity(row,query)).toList();
  }
  @override Future<void> publish(Map<String,dynamic> profile,bool listed)async{await soveraClient.from('sovera_member_cards').upsert({'user_id':profile['id'],'uid':profile['uid'],'display_name':profile['display_name']??'Sovera member','avatar_url':profile['avatar_url'],'bio':profile['bio']??'','listed':listed});}
  @override Future<void> follow(String own,String target,bool value)async{
@@ -34,7 +36,8 @@ class MemberDirectory extends StatefulWidget{
  const MemberDirectory({super.key,this.profile,this.store=const SupabaseMemberStore()});
  @override State<MemberDirectory> createState()=>_MemberDirectoryState();
 }
-class _MemberDirectoryState extends State<MemberDirectory>{
+class _MemberDirectoryState extends State<MemberDirectory> with VipExpiryRefresh<MemberDirectory>{
+ @override String get identityRevision=>rows.map((row)=>publicIdentity(row)).join('|');
  final search=TextEditingController();List<Map<String,dynamic>> rows=[];Set<String> followed={},busyIds={};bool listed=false,loading=false,publishing=false,more=false;String? error;int revision=0;
  @override void initState(){super.initState();if(widget.profile!=null)load();}
  @override void dispose(){revision++;search.dispose();super.dispose();}
@@ -67,7 +70,7 @@ class _MemberDirectoryState extends State<MemberDirectory>{
  TextField(controller:search,maxLength:80,textInputAction:TextInputAction.search,onSubmitted:(_)=>load(),decoration:InputDecoration(labelText:'Find member by name, ID or VIP ID',counterText:'',prefixIcon:const Icon(Icons.search_rounded),suffixIcon:IconButton(tooltip:'Search people',onPressed:()=>load(),icon:const Icon(Icons.arrow_forward_rounded)),border:const OutlineInputBorder())),
  const SizedBox(height:20),if(loading)const LinearProgressIndicator(),if(error!=null)TextButton(onPressed:()=>load(),child:Text(error!)),
  if(!loading&&error==null&&rows.isEmpty)const Glass(child:Text('No discoverable members found. Try another name or ID.')),
- for(final row in rows)Padding(padding:const EdgeInsets.only(bottom:12),child:Glass(tint:followed.contains(row['user_id'])?gold:cyan,child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[TextButton.icon(onPressed:()=>openProfile(row['user_id'] as String),icon:const Icon(Icons.account_circle_rounded),label:Text(row['display_name'].toString(),style:const TextStyle(fontSize:19,fontWeight:FontWeight.bold))),const SizedBox(height:8),SelectableText('ID · ${row['uid']}',style:const TextStyle(color:Colors.white60)),const SizedBox(height:12),FilledButton.icon(onPressed:busyIds.contains(row['user_id'])||loading?null:()=>toggle(row['user_id'] as String),icon:Icon(followed.contains(row['user_id'])?Icons.person_remove_alt_1_rounded:Icons.person_add_alt_1_rounded),label:Text(busyIds.contains(row['user_id'])?'Saving…':followed.contains(row['user_id'])?'Unfollow':'Follow'))]))),
+ for(final row in rows)Padding(padding:const EdgeInsets.only(bottom:12),child:Glass(tint:followed.contains(row['user_id'])?gold:cyan,child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[TextButton.icon(onPressed:()=>openProfile(row['user_id'] as String),icon:const Icon(Icons.account_circle_rounded),label:Text(row['display_name'].toString(),style:const TextStyle(fontSize:19,fontWeight:FontWeight.bold))),const SizedBox(height:8),SelectableText('ID · ${publicIdentity(row)}',style:const TextStyle(color:Colors.white60)),const SizedBox(height:12),FilledButton.icon(onPressed:busyIds.contains(row['user_id'])||loading?null:()=>toggle(row['user_id'] as String),icon:Icon(followed.contains(row['user_id'])?Icons.person_remove_alt_1_rounded:Icons.person_add_alt_1_rounded),label:Text(busyIds.contains(row['user_id'])?'Saving…':followed.contains(row['user_id'])?'Unfollow':'Follow'))]))),
  if(more&&!loading)TextButton(onPressed:()=>load(next:true),child:const Text('Load more people')),
  ],
  ]));

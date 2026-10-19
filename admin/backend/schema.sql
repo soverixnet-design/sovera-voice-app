@@ -15,13 +15,13 @@ end $$;
 alter table public.sovera_profiles alter column uid set generated always;
 alter table public.sovera_profiles add constraint sovera_uid_eight_digits check(uid between 10000001 and 99999999);
 do $$ declare n bigint;begin select coalesce(max(uid),10000000)+1 into n from public.sovera_profiles;execute format('alter sequence public.sovera_profiles_uid_seq minvalue 10000001 maxvalue 99999999 start with 10000001 restart with %s no cycle',n);end $$;
-alter table public.sovera_profiles add column vip_id text unique check(vip_id ~ '^(0|[1-9][0-9]{0,6})$'),add column is_banned boolean not null default false;
-alter table public.sovera_member_cards add column vip_id text;
+alter table public.sovera_profiles add column vip_id text unique check(vip_id ~ '^(0|[1-9][0-9]{0,6})$'),add column vip_expires_at timestamptz,add column is_banned boolean not null default false;
+alter table public.sovera_member_cards add column vip_id text,add column vip_expires_at timestamptz;
 revoke insert,update on public.sovera_member_cards from authenticated;
 grant insert(user_id,uid,display_name,listed,avatar_url,bio,medal_styles),update(user_id,uid,display_name,listed,avatar_url,bio,medal_styles) on public.sovera_member_cards to authenticated;
-create function public.sovera_sync_vip_identity() returns trigger language plpgsql security invoker set search_path='' as $$ begin update public.sovera_member_cards set vip_id=new.vip_id where user_id=new.id;return new;end $$;
+create function public.sovera_sync_vip_identity() returns trigger language plpgsql security invoker set search_path='' as $$ begin update public.sovera_member_cards set vip_id=new.vip_id,vip_expires_at=new.vip_expires_at where user_id=new.id;return new;end $$;
 revoke all on function public.sovera_sync_vip_identity() from public,anon,authenticated;
-create trigger sovera_sync_vip after update of vip_id on public.sovera_profiles for each row when(old.vip_id is distinct from new.vip_id) execute function public.sovera_sync_vip_identity();
+create trigger sovera_sync_vip after update of vip_id,vip_expires_at on public.sovera_profiles for each row when(old.vip_id is distinct from new.vip_id or old.vip_expires_at is distinct from new.vip_expires_at) execute function public.sovera_sync_vip_identity();
 alter table public.sovera_rooms add column is_closed boolean not null default false;
 alter table public.sovera_support_tickets add column admin_reply text not null default '' check(char_length(admin_reply)<=3000),add column replied_at timestamptz;
 
@@ -104,7 +104,7 @@ begin
    update public.sovera_profiles set is_banned=(p_data->>'banned')::boolean where id=target.id;
   elsif p_action='user.vip' then
    if s.role<>'owner' and exists(select 1 from public.sovera_admin_staff where user_id=target.id and role='owner') then raise exception 'Protected account';end if;
-   update public.sovera_profiles set vip_id=nullif(btrim(p_data->>'vip_id'),'') where id=target.id;
+   update public.sovera_profiles set vip_id=nullif(btrim(p_data->>'vip_id'),''),vip_expires_at=case when nullif(btrim(p_data->>'vip_id'),'') is null then null else nullif(p_data->>'vip_expires_at','')::timestamptz end where id=target.id;
   elsif p_action='staff.save' then
    if exists(select 1 from public.sovera_admin_staff where user_id=target.id and role='owner') then raise exception 'Owner account cannot be changed here';end if;
    role_name:=p_data->>'role';if role_name not in('manager','admin','agent','room_admin','support') then raise exception 'Invalid staff role';end if;
@@ -159,7 +159,7 @@ grant execute on function public.sovera_admin_run(uuid,text,jsonb) to service_ro
 grant select,insert,update on public.sovera_profiles,public.sovera_member_cards,public.sovera_rooms,public.sovera_support_tickets,public.sovera_reseller_accounts to service_role;
 notify pgrst,'reload schema';
 
-create function public.sovera_copy_member_vip() returns trigger language plpgsql security invoker set search_path='' as $$ begin select vip_id into new.vip_id from public.sovera_profiles where id=new.user_id;return new;end $$;
+create function public.sovera_copy_member_vip() returns trigger language plpgsql security invoker set search_path='' as $$ begin select vip_id,vip_expires_at into new.vip_id,new.vip_expires_at from public.sovera_profiles where id=new.user_id;return new;end $$;
 revoke all on function public.sovera_copy_member_vip() from public,anon,authenticated;
 create trigger sovera_copy_member_vip before insert on public.sovera_member_cards for each row execute function public.sovera_copy_member_vip();
 insert into storage.buckets(id,name,public,file_size_limit,allowed_mime_types) values('sovera-admin-assets','sovera-admin-assets',true,10485760,array['image/png','image/jpeg','image/webp','video/mp4','audio/mpeg','audio/wav']) on conflict(id) do nothing;
