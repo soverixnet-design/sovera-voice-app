@@ -46,8 +46,10 @@ void main(){
     expect(find.text('WINNING COLOR: RED'),findsOneWidget);
     expect(find.text('2 winners this round'),findsOneWidget);
     expect(find.text('Shakil'),findsOneWidget);
-    expect(find.text('Friend'),findsOneWidget);
     expect(find.textContaining('No Coins are wagered'),findsOneWidget);
+    await tester.scrollUntilVisible(find.text('Friend'),200,
+      scrollable:find.byType(Scrollable).first);
+    expect(find.text('Friend'),findsOneWidget);
     await tester.pumpWidget(const SizedBox());
   });
 
