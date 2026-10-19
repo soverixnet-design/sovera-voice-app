@@ -8,6 +8,7 @@ from fastapi import FastAPI, Header, HTTPException, Query
 from .rooms import Rooms, RoomInput, MessageInput, RoomEffectInput
 from .duel import RoomDuel, MoveInput
 from .global_games import GlobalColors, ColorPick
+from .food_wheel import FoodWheel, FoodChoice
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 class ProfileInput(BaseModel):
@@ -81,7 +82,7 @@ def create_app(profiles, verify, *, voice=False):
 
     @app.get('/sovera/account/health')
     def health():
-        return {'ready':True, 'profiles':True, 'rooms':True, 'chat':True, 'voice':voice, 'room_effects':True, 'free_duel':True, 'global_color_game':True, 'wallet':False, 'games':False}
+        return {'ready':True, 'profiles':True, 'rooms':True, 'chat':True, 'voice':voice, 'room_effects':True, 'free_duel':True, 'global_color_game':True, 'food_wheel_preview':True, 'wallet':False, 'games':False}
 
     @app.get('/sovera/account')
     async def get_profile(authorization: str | None = Header(default=None)):
@@ -95,6 +96,7 @@ def create_app(profiles, verify, *, voice=False):
     rooms = Rooms(profiles.path)
     duel = RoomDuel(profiles.path)
     colors = GlobalColors(profiles.path)
+    food_wheel = FoodWheel(profiles.path)
 
     @app.get('/sovera/account/rooms')
     async def directory(authorization: str | None = Header(default=None)):
@@ -179,6 +181,16 @@ def create_app(profiles, verify, *, voice=False):
     async def global_color_pick(data:ColorPick,authorization: str | None = Header(default=None)):
         uid=await actor(authorization)
         return await asyncio.to_thread(colors.pick,uid,data)
+
+    @app.get('/sovera/account/wheel/state')
+    async def wheel_state(authorization: str | None = Header(default=None)):
+        uid=await actor(authorization)
+        return await asyncio.to_thread(food_wheel.state,uid)
+
+    @app.post('/sovera/account/wheel/pick')
+    async def wheel_pick(data:FoodChoice,authorization: str | None = Header(default=None)):
+        uid=await actor(authorization)
+        return await asyncio.to_thread(food_wheel.choose,uid,data)
 
     if voice:
         from .voice import attach_voice
