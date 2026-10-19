@@ -1,0 +1,32 @@
+[Unit]
+Description=Sovera Firebase account profiles
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+DynamicUser=yes
+StateDirectory=sovera-account
+StateDirectoryMode=0700
+WorkingDirectory=/opt/sovera-account
+LoadCredential=firebase.json:/etc/sovera-food/firebase-reader.json
+Environment=SOVERA_FIREBASE_PROJECT=sovera-app-7d1d6
+Environment=GOOGLE_APPLICATION_CREDENTIALS=%d/firebase.json
+Environment=SOVERA_ACCOUNT_DATABASE=/var/lib/sovera-account/profiles.sqlite3
+ExecStart=/opt/sovera-food-staging/.venv/bin/uvicorn server.accounts.app:create --factory --host 127.0.0.1 --port 8092 --no-access-log
+Restart=on-failure
+RestartSec=5
+UMask=0077
+NoNewPrivileges=yes
+ProtectSystem=strict
+ProtectHome=yes
+PrivateTmp=yes
+PrivateDevices=yes
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectControlGroups=yes
+RestrictSUIDSGID=yes
+CapabilityBoundingSet=
+
+[Install]
+WantedBy=multi-user.target
