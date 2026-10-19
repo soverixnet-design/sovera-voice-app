@@ -83,6 +83,46 @@ class _FirebaseRoomSettingsDialogState extends State<FirebaseRoomSettingsDialog>
   );
 }
 
+/// Cosmetic room effects are deliberately separate from paid gift settlement.
+class FirebaseRoomEffectPicker extends StatefulWidget {
+  final List<Map<String,dynamic>> people;
+  const FirebaseRoomEffectPicker({super.key,required this.people});
+  @override State<FirebaseRoomEffectPicker> createState()=>_FirebaseRoomEffectPickerState();
+}
+class _FirebaseRoomEffectPickerState extends State<FirebaseRoomEffectPicker>{
+  String? recipient;
+  String effect='rose';
+  @override void initState(){super.initState();if(widget.people.isNotEmpty)recipient=widget.people.first['uid'] as String?;}
+  @override Widget build(BuildContext context)=>AlertDialog(
+    title:const Text('Send room effect'),
+    content:SizedBox(width:340,child:SingleChildScrollView(child:Column(mainAxisSize:MainAxisSize.min,crossAxisAlignment:CrossAxisAlignment.start,children:[
+      const Text('Select an online member',style:TextStyle(fontWeight:FontWeight.bold)),
+      for(final person in widget.people) ListTile(
+        dense:true,contentPadding:EdgeInsets.zero,
+        leading:Icon(recipient==person['uid']?Icons.radio_button_checked:Icons.radio_button_unchecked),
+        title:Text(person['name'].toString(),maxLines:1,overflow:TextOverflow.ellipsis),
+        subtitle:Text('ID: ${person['uid']}',
+          maxLines:1,overflow:TextOverflow.ellipsis,style:const TextStyle(fontSize:11)),
+        onTap:()=>setState(()=>recipient=person['uid'] as String),
+      ),
+      const SizedBox(height:8),
+      const Text('Choose effect',style:TextStyle(fontWeight:FontWeight.bold)),
+      Wrap(spacing:6,runSpacing:4,children:[
+        for(final option in const ['rose','heart','sparkle','crown'])
+          ChoiceChip(label:Text(option),selected:effect==option,onSelected:(_)=>setState(()=>effect=option)),
+      ]),
+      const Padding(padding:EdgeInsets.only(top:12),child:Text(
+        'Free visual effect only. No Coins are spent and no Diamonds are awarded.',
+        style:TextStyle(color:Colors.white70,fontSize:12))),
+    ]))),
+    actions:[
+      TextButton(onPressed:()=>Navigator.pop(context),child:const Text('Cancel')),
+      FilledButton(onPressed:recipient==null?null:()=>Navigator.pop(context,{'recipient_uid':recipient!,'kind':effect}),
+        child:const Text('Send effect')),
+    ],
+  );
+}
+
 class FirebaseRoomChat extends StatefulWidget {
   final FirebaseProfileApi api;final Map<String,dynamic> room;
   const FirebaseRoomChat({super.key,required this.api,required this.room});
@@ -90,7 +130,9 @@ class FirebaseRoomChat extends StatefulWidget {
 }
 class _FirebaseRoomChatState extends State<FirebaseRoomChat> with WidgetsBindingObserver {
   final input=TextEditingController();final messages=<Map<String,dynamic>>[];
-  Timer? timer;bool syncing=false,sending=false,savingRoom=false;String? error,pendingId,pendingText;
+  Timer? timer;bool syncing=false,sending=false,savingRoom=false,sendingEffect=false;String? error,pendingId,pendingText;
+  String? pendingEffectId,pendingEffectKey;
+  List<Map<String,dynamic>> roomEffects=[];
   late String roomName;late int seatCount;
   bool get isOwner=>widget.room['owner_uid']==widget.api.uid;
   DateTime? heartbeat;
@@ -107,6 +149,12 @@ class _FirebaseRoomChatState extends State<FirebaseRoomChat> with WidgetsBinding
       }
       final data=await widget.api.call('GET',suffix:'$path/messages');
       if(mounted)setState((){messages..clear()..addAll((data['messages'] as List).map((r)=>Map<String,dynamic>.from(r as Map)));error=null;});
+      // Older server versions may not support cosmetic effects yet.
+      try{
+        final events=await widget.api.call('GET',suffix:'$path/effects');
+        final entries=events['effects'];
+        if(mounted&&entries is List)setState(()=>roomEffects=entries.whereType<Map>().map((r)=>Map<String,dynamic>.from(r)).toList());
+      }catch(_){if(mounted)setState(()=>roomEffects=[]);}
     }catch(e){if(mounted)setState(()=>error=_error(e));}finally{syncing=false;}
   }
   Future<void> editRoom()async{
@@ -123,6 +171,37 @@ class _FirebaseRoomChatState extends State<FirebaseRoomChat> with WidgetsBinding
     }catch(e){if(mounted)setState(()=>error=_error(e));}
     finally{if(mounted)setState(()=>savingRoom=false);}
   }
+  Future<void> chooseEffect()async{
+    if(sendingEffect)return;
+    setState(()=>sendingEffect=true);
+    try{
+      final found=await widget.api.call('GET',suffix:'$path/people');
+      if(!mounted)return;
+      final raw=found['people'];
+      if(raw is! List)throw const ProfileApiError('Invalid member list');
+      final people=raw.whereType<Map>().map((p)=>Map<String,dynamic>.from(p)).toList();
+      if(people.isEmpty){
+        if(mounted)ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content:Text('No online members yet.')));
+        return;
+      }
+      setState(()=>sendingEffect=false);
+      final selected=await showDialog<Map<String,String>>(context:context,builder:(_)=>FirebaseRoomEffectPicker(people:people));
+      if(!mounted||selected==null)return;
+      setState(()=>sendingEffect=true);
+      final key='${selected['recipient_uid']}:${selected['kind']}';
+      if(pendingEffectKey!=key){pendingEffectId=_requestId();pendingEffectKey=key;}
+      final response=await widget.api.call('POST',suffix:'$path/effects',fields:{
+        ...selected,'request_id':pendingEffectId,
+      });
+      if(response['visual_only']!=true)throw const ProfileApiError('Unexpected effect response');
+      pendingEffectId=null;pendingEffectKey=null;
+      if(mounted)ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content:Text('Room effect shared · no Coins spent.')));
+      await sync();
+    }catch(e){
+      if(mounted)ScaffoldMessenger.of(context).showSnackBar(SnackBar(content:Text(_error(e))));
+    }finally{if(mounted)setState(()=>sendingEffect=false);}
+  }
+
   Future<void> send()async{
     final text=input.text.trim();if(sending||text.isEmpty)return;
     if(pendingText!=null&&pendingText!=text){setState(()=>error='Retry the pending message before changing its text.');return;}
@@ -133,9 +212,25 @@ class _FirebaseRoomChatState extends State<FirebaseRoomChat> with WidgetsBinding
       input.clear();pendingId=null;pendingText=null;await sync();
     }catch(e){if(mounted)setState(()=>error=_error(e));}finally{if(mounted)setState(()=>sending=false);}
   }
-  @override Widget build(BuildContext context)=>Scaffold(appBar:AppBar(title:Text(roomName),actions:[if(isOwner)IconButton(tooltip:'Room settings',onPressed:savingRoom?null:editRoom,icon:const Icon(Icons.tune_rounded))]),body:SafeArea(child:Column(children:[
+  @override Widget build(BuildContext context)=>Scaffold(appBar:AppBar(title:Text(roomName),actions:[
+    IconButton(tooltip:'Gift effects',onPressed:sendingEffect?null:chooseEffect,icon:const Icon(Icons.card_giftcard_rounded)),
+    if(isOwner)IconButton(tooltip:'Room settings',onPressed:savingRoom?null:editRoom,icon:const Icon(Icons.tune_rounded))]),body:SafeArea(child:Column(children:[
     if(isOwner)Padding(padding:const EdgeInsets.symmetric(vertical:3),child:Text('$seatCount seats · Owner settings',style:const TextStyle(fontSize:12,color:Colors.white70))),
     FirebaseVoicePanel(api:widget.api,roomId:widget.room['id'] as String),
+    if(roomEffects.isNotEmpty)AnimatedSwitcher(
+      duration:const Duration(milliseconds:300),
+      child:Card(
+        key:ValueKey(roomEffects.last['id']),
+        color:const Color(0xFF37265A),
+        child:ListTile(
+          leading:const Icon(Icons.auto_awesome_rounded,color:Colors.amber),
+          title:Text('${roomEffects.last['sender_name']} → ${roomEffects.last['recipient_name']}',
+            maxLines:1,overflow:TextOverflow.ellipsis),
+          subtitle:Text('${roomEffects.last['kind']} · Visual only · 15s',
+            maxLines:1,overflow:TextOverflow.ellipsis),
+        ),
+      ),
+    ),
     if(error!=null)Padding(padding:const EdgeInsets.all(8),child:Text(error!)),
     Expanded(child:ListView(padding:const EdgeInsets.all(12),children:[for(final message in messages)Card(child:ListTile(title:Text('${message['name']} ${_flag(message['country'].toString())}'),subtitle:Text(message['text'] as String)))])),
     Padding(padding:const EdgeInsets.all(12),child:Row(children:[Expanded(child:TextField(controller:input,enabled:!sending,readOnly:pendingId!=null,maxLength:500,decoration:const InputDecoration(labelText:'Message'))),IconButton(onPressed:sending?null:send,icon:const Icon(Icons.send))])),
