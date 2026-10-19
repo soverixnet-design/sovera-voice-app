@@ -78,6 +78,43 @@ void main(){
     expect(find.byTooltip('Room settings'),findsNothing);
     await tester.pumpWidget(const SizedBox());await tester.pumpAndSettle();
   });
+  testWidgets('gift effect selects actual online recipient and never submits coins',(tester)async{
+    Map<String,dynamic>? sent;
+    final api=FirebaseProfileApi(uid:'alice',token:()async=>'token',client:MockClient((request)async{
+      if(request.url.path.endsWith('/people')){
+        return http.Response(jsonEncode({'people':[
+          {'uid':'alice','name':'Shakil','country':'BD'},
+          {'uid':'bob','name':'Friend','country':'OM'}]}),200);
+      }
+      if(request.url.path.endsWith('/effects') && request.method=='POST'){
+        sent=Map<String,dynamic>.from(jsonDecode(request.body) as Map);
+        return http.Response('{"id":1,"saved":true,"visual_only":true}',200);
+      }
+      if(request.url.path.endsWith('/effects')){
+        return http.Response(jsonEncode({'effects':sent==null?[]:[{
+          'id':1,'kind':'rose','sender_name':'Shakil','recipient_name':'Friend',
+          'sender_uid':'alice','recipient_uid':'bob','created_at':1,
+        }],'server_now':1}),200);
+      }
+      if(request.url.path.endsWith('/messages'))return http.Response('{"messages":[]}',200);
+      return http.Response('{"saved":true}',200);
+    }));
+    await tester.pumpWidget(MaterialApp(home:FirebaseRoomChat(api:api,room:const {
+      'id':'room-1','name':'Friends','owner_uid':'alice','seats':9
+    })));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byTooltip('Gift effects'));await tester.pumpAndSettle();
+    expect(find.textContaining('no Coins'),findsWidgets);
+    await tester.tap(find.text('Friend'));await tester.pumpAndSettle();
+    await tester.tap(find.text('Send effect'));await tester.pumpAndSettle();
+    expect(sent?['recipient_uid'],'bob');
+    expect(sent?['kind'],'rose');
+    expect(sent!.containsKey('coins'),isFalse);
+    expect(sent!['request_id'],isNotNull);
+    expect(find.textContaining('Shakil → Friend'),findsOneWidget);
+    await tester.pumpWidget(const SizedBox());await tester.pumpAndSettle();
+  });
+
   testWidgets('directory uses server country and participant count',(tester)async{
     final api=FirebaseProfileApi(uid:'alice',token:()async=>'token',client:MockClient((r)async=>http.Response(jsonEncode({'rooms':[{'id':'room-1','name':'My room','owner_uid':'alice','owner_name':'Shakil','country':'BD','avatar_url':null,'occupants':2,'seats':9}]}),200)));
     await tester.pumpWidget(MaterialApp(home:FirebaseRoomsPage(api:api)));await tester.pumpAndSettle();
