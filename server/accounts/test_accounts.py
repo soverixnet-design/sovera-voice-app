@@ -74,6 +74,49 @@ class RoomTests(unittest.TestCase):
         self.assertEqual(len(rows),1);self.assertEqual(rows[0]['name'],'Shakil')
         self.assertEqual(self.client.get(path).status_code,401)
 
+    def test_room_visual_effects_are_verified_live_and_idempotent(self):
+        import uuid
+        from server.accounts.rooms import Rooms
+        room=self.make_room()
+        base='/sovera/account/rooms/'+room
+        alice={'Authorization':'Bearer alice'}
+        bob={'Authorization':'Bearer bob'}
+        self.client.put('/sovera/account',json={**self.data,'display_name':'Friend'},headers=bob)
+        self.assertEqual(self.client.post(base+'/effects',
+            json={'recipient_uid':'bob','kind':'heart','request_id':str(uuid.uuid4())},
+            headers=alice).status_code,409)
+        self.client.put(base+'/presence',headers=alice)
+        self.client.put(base+'/presence',headers=bob)
+        people=self.client.get(base+'/people',headers=alice).json()['people']
+        self.assertEqual({p['uid'] for p in people},{'alice','bob'})
+        key=str(uuid.uuid4())
+        request={'recipient_uid':'bob','kind':'heart','request_id':key}
+        first=self.client.post(base+'/effects',json=request,headers=alice)
+        self.assertEqual(first.status_code,200)
+        self.assertTrue(first.json()['visual_only'])
+        again=self.client.post(base+'/effects',json=request,headers=alice)
+        self.assertEqual(first.json(),again.json())
+        self.assertEqual(self.client.post(base+'/effects',
+            json={**request,'kind':'rose'},headers=alice).status_code,409)
+        events=self.client.get(base+'/effects',headers=bob).json()['effects']
+        self.assertEqual(len(events),1)
+        self.assertEqual(events[0]['sender_name'],'Shakil')
+        self.assertEqual(events[0]['recipient_name'],'Friend')
+        self.assertEqual(events[0]['kind'],'heart')
+        self.assertEqual(self.client.get(base+'/effects').status_code,401)
+        self.assertEqual(self.client.post(base+'/effects',
+            json={**request,'request_id':str(uuid.uuid4()),'coins':100},
+            headers=alice).status_code,422)
+        self.assertEqual(self.client.post(base+'/effects',
+            json={**request,'request_id':str(uuid.uuid4())},
+            headers=alice).status_code,429)
+        self.client.delete(base+'/presence',headers=bob)
+        self.assertEqual(self.client.post(base+'/effects',
+            json={**request,'request_id':str(uuid.uuid4())},
+            headers=alice).status_code,409)
+        self.assertEqual(self.client.get(base+'/people',headers=alice).json()['people'][0]['uid'],'alice')
+        self.assertEqual(len(Rooms(self.path,clock=lambda:0).effects(room)['effects']),0)
+
     def test_counts_expire_and_duplicate_heartbeats_do_not_inflate(self):
         from server.accounts.rooms import Rooms
         room=self.make_room(); now=[1000.]
