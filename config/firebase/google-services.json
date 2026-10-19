@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "486331346860",
+    "project_id": "sovera-app-7d1d6",
+    "storage_bucket": "sovera-app-7d1d6.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:486331346860:android:40c135895f2ab81a315409",
+        "android_client_info": {
+          "package_name": "com.sovera.sovera"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyB_VFxK6IXwvPtm84LV6kojh1s_zsQN-Wg"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

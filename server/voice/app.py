@@ -19,6 +19,9 @@ from livekit.protocol import models
 # Installer reads these public settings from the existing gateway.
 BASE = os.environ['SOVERA_AUTH_URL']
 APIKEY = os.environ['SOVERA_PUBLIC_KEY']
+AUTH_PROVIDER = os.environ.get('SOVERA_AUTH_PROVIDER', 'supabase')
+FIREBASE_PROJECT = os.environ.get('SOVERA_FIREBASE_PROJECT', '')
+FIREBASE_KEY = os.environ.get('SOVERA_FIREBASE_PUBLIC_KEY', '')
 LEASE_SECONDS = 35
 seats = {}
 lock = asyncio.Lock()
@@ -108,7 +111,63 @@ async def lifespan(app):
 app = FastAPI(docs_url=None, redoc_url=None, openapi_url=None, lifespan=lifespan)
 
 
+async def authorize_firebase(body, authorization):
+    """Verify with Google's Auth service, then enforce Firestore document rules.
+
+    The ID token is never decoded without verification. No service-account key
+    is needed: reads use the caller's token and remain subject to Firestore RLS.
+    Missing data and network failures fail closed before any LiveKit grant.
+    """
+    if not authorization.startswith('Bearer ') or not authorization[7:].strip():
+        raise HTTPException(401, 'Sign in required')
+    if not FIREBASE_PROJECT or not FIREBASE_KEY:
+        raise HTTPException(503, 'Firebase authentication is not configured')
+    try:
+        async with httpx.AsyncClient(timeout=10) as client:
+            checked = await client.post(
+                'https://identitytoolkit.googleapis.com/v1/accounts:lookup',
+                params={'key': FIREBASE_KEY},
+                json={'idToken': authorization[7:]})
+            if checked.status_code in (400, 401, 403):
+                raise HTTPException(401, 'Session expired')
+            if checked.status_code != 200:
+                raise HTTPException(503, 'Authentication unavailable')
+            users = checked.json().get('users', [])
+            if len(users) != 1 or users[0].get('disabled') is True:
+                raise HTTPException(401, 'Account unavailable')
+            uid = users[0]['localId']
+            if not isinstance(uid, str) or not uid or len(uid) > 128 or '/' in uid:
+                raise HTTPException(401, 'Invalid account')
+            # A key from another project cannot be used to trust its identities:
+            # the same bearer must also read documents in this fixed project.
+            base = ('https://firestore.googleapis.com/v1/projects/' +
+                    FIREBASE_PROJECT + '/databases/(default)/documents/')
+            headers = {'Authorization': authorization}
+            profile = await client.get(base + 'sovera_profiles/' + uid, headers=headers)
+            room = await client.get(base + 'sovera_rooms/' + str(body.room_id), headers=headers)
+            if profile.status_code in (403, 404) or room.status_code in (403, 404):
+                raise HTTPException(403, 'Account or room unavailable')
+            if profile.status_code != 200 or room.status_code != 200:
+                raise HTTPException(503, 'Permission check unavailable')
+            pfields = profile.json()['fields']
+            rfields = room.json()['fields']
+            if pfields.get('is_banned', {}).get('booleanValue') is not False:
+                raise HTTPException(403, 'Account unavailable')
+            if rfields.get('is_closed', {}).get('booleanValue') is not False:
+                raise HTTPException(403, 'Room unavailable')
+            count = int(rfields['seat_count']['integerValue'])
+            if not 1 <= count <= 100:
+                raise HTTPException(503, 'Seat configuration unavailable')
+            return uid, count
+    except (httpx.HTTPError, ValueError, KeyError, TypeError, AttributeError):
+        raise HTTPException(503, 'Authentication unavailable')
+
+
 async def authorize(body, authorization):
+    if AUTH_PROVIDER == 'firebase':
+        return await authorize_firebase(body, authorization)
+    if AUTH_PROVIDER != 'supabase':
+        raise HTTPException(503, 'Authentication provider unavailable')
     if not authorization.startswith('Bearer '):
         raise HTTPException(401, 'Sign in required')
     headers = {'apikey': APIKEY, 'Authorization': authorization}
