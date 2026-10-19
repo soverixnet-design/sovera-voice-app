@@ -13,13 +13,13 @@ class CloudRooms extends StatefulWidget {
  @override State<CloudRooms> createState()=>CloudRoomsState();
 }
 class CloudRoomsState extends State<CloudRooms>{
- List<Map<String,dynamic>> rows=[];Map<String,dynamic> counts={};bool countsReady=false;Timer? countTimer;
+ List<Map<String,dynamic>> rows=[];Map<String,dynamic> counts={};bool countsReady=false;Timer? countTimer;Timer? identitySearchTimer;
  Set<String> follows={};Set<String> identityOwners={};
  bool loading=true,writing=false;
  String? error;int revision=0;
  @override void initState(){super.initState();refresh();RoomPresence.instance.start();RoomPresence.instance.counts.addListener(updateCounts);updateCounts();countTimer=Timer.periodic(const Duration(seconds:30),(_)=>refresh(silent:true));}
- @override void didUpdateWidget(covariant CloudRooms oldWidget){super.didUpdateWidget(oldWidget);if(oldWidget.query!=widget.query)refresh(silent:true);}
- @override void dispose(){countTimer?.cancel();RoomPresence.instance.counts.removeListener(updateCounts);super.dispose();}
+ @override void didUpdateWidget(covariant CloudRooms oldWidget){super.didUpdateWidget(oldWidget);if(oldWidget.query!=widget.query&&(int.tryParse(widget.query.trim())!=null||int.tryParse(oldWidget.query.trim())!=null)){identitySearchTimer?.cancel();identitySearchTimer=Timer(const Duration(milliseconds:400),(){if(mounted)refresh(silent:true);});}}
+ @override void dispose(){identitySearchTimer?.cancel();countTimer?.cancel();RoomPresence.instance.counts.removeListener(updateCounts);super.dispose();}
  void updateCounts(){if(mounted)setState((){counts=RoomPresence.instance.counts.value??{};countsReady=RoomPresence.instance.counts.value!=null;});}
  Future<void> refresh({bool silent=false})async{
   final ticket=++revision;
