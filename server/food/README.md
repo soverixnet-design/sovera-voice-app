@@ -63,3 +63,21 @@ state/round_start/round_result/big_win events. No credentials in query strings.
 
 Tests: `python -m unittest server.food.test_food -v` after installing the same
 FastAPI/httpx versions pinned in the existing CI workflow. No live funds needed.
+
+
+## Firebase adapter added
+`identity.py` implements token verification with `check_revoked=True`, disabled
+account and strict `sovera_profiles/{uid}.is_banned == false` checks. Owner
+permission requires the Admin-only custom claim `sovera_owner: true`; an editable
+profile role never grants access. SDK failures deny access without exposing SDK
+error bodies. `runtime.py` wires this adapter but refuses startup until the one
+wallet migration is explicitly confirmed and an existing absolute wallet DB path
+is supplied. ADC must be installed securely on the existing host; no new server
+credentials have been generated or committed.
+
+Live setup observed 2026-10-19: default Firestore Standard database created in
+asia-south1 on Spark with production rules denying all client reads/writes.
+It is EMPTY; profiles/rooms/wallet data have NOT been migrated. No new app auth
+flow, owner grant, paid plan, server deployment or real coin game activation was
+performed. SSH to the existing host is currently unreachable from this runtime,
+and its DigitalOcean web console returns Site Unavailable in this cloud browser.
