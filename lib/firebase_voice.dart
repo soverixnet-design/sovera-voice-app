@@ -5,6 +5,26 @@ import 'firebase_profile.dart';
 import 'startup_access.dart' show requestMicrophoneAccess;
 import 'voice_connection.dart' show VoiceSeatState, voiceServerUrl;
 
+/// The server grants microphone publishing asynchronously after a seat lease.
+/// Do not discard a valid seat just because the RTC permission event is slow.
+Future<bool> waitForMicPublishPermission({
+  required bool Function() canPublish,
+  required bool Function() canContinue,
+  int checks=80,
+  Duration interval=const Duration(milliseconds:100),
+  Future<void> Function(Duration)? wait,
+}) async {
+  for(var i=0;i<checks;i++){
+    if(!canContinue())return false;
+    if(canPublish())return true;
+    if(i+1<checks){
+      if(wait!=null){await wait(interval);}
+      else{await Future<void>.delayed(interval);}
+    }
+  }
+  return false;
+}
+
 /// Live audio uses Firebase bearer authentication and server-owned seat leases.
 class FirebaseVoicePanel extends StatefulWidget {
   final FirebaseProfileApi api;
@@ -50,23 +70,52 @@ class _FirebaseVoicePanelState extends State<FirebaseVoicePanel> with WidgetsBin
     catch(_){await mute();seats=VoiceSeatState(seats.count,null,seats.occupants);error='Seat connection lost. Take a seat again.';}
     finally{busy=false;if(mounted&&!closing)setState((){});}
   }
-  Future<void> take(int index)async{
-    if(busy||!connected||!active||closing)return;
+  bool get canUseMicrophone=>mounted&&active&&!closing&&connected;
+  Future<bool> awaitPublishPermission(int generation)=>waitForMicPublishPermission(
+    canPublish:()=>room?.localParticipant?.permissions.canPublish==true,
+    canContinue:()=>canUseMicrophone&&generation==epoch,
+  );
+
+  /// Retry publishing without discarding the already-authorized room seat.
+  Future<void> enableMic()async{
+    if(busy||!canUseMicrophone||seats.mine==null)return;
     setState(()=>busy=true);
+    final generation=epoch;
+    try{
+      if(!await requestMicrophoneAccess())throw StateError('Microphone denied');
+      seats=VoiceSeatState.parse(await request('renew'));
+      if(seats.mine==null)throw StateError('Seat expired');
+      if(!await awaitPublishPermission(generation))throw StateError('Publish permission delayed');
+      if(!canUseMicrophone||generation!=epoch)return;
+      await room!.localParticipant!.setMicrophoneEnabled(true);
+      muted=false;error=null;
+    }catch(_){
+      await mute();
+      error='Microphone could not start. Check phone permission, then tap Enable mic again.';
+    }finally{busy=false;if(mounted&&!closing)setState((){});}
+  }
+
+  Future<void> take(int index)async{
+    if(busy||!canUseMicrophone)return;
+    setState(()=>busy=true);
+    final generation=epoch;
     try{
       if(!await requestMicrophoneAccess())throw StateError('Microphone denied');
       await mute();
       seats=VoiceSeatState.parse(await request('take',seat:index));
-      for(var i=0;i<20&&mounted&&active&&!closing;i++){
-        if(room?.localParticipant?.permissions.canPublish==true)break;
-        await Future<void>.delayed(const Duration(milliseconds:100));
-      }
-      if(!mounted||!active||closing){await request('leave');return;}
-      if(seats.mine!=index||room?.localParticipant?.permissions.canPublish!=true)throw StateError('No speaking permission');
-      await room!.localParticipant!.setMicrophoneEnabled(true);muted=false;error=null;
-    }catch(_){await mute();try{await request('leave');}catch(_){} seats=VoiceSeatState(seats.count,null,seats.occupants);error='Could not enable microphone. Check permission and retry.';}
-    finally{busy=false;if(mounted&&!closing)setState((){});}
+      if(seats.mine!=index)throw StateError('Seat not granted');
+      if(!await awaitPublishPermission(generation))throw StateError('Publish permission delayed');
+      if(!canUseMicrophone||generation!=epoch)return;
+      await room!.localParticipant!.setMicrophoneEnabled(true);
+      muted=false;error=null;
+    }catch(_){
+      await mute();
+      error=seats.mine==index
+        ?'Seat reserved, but microphone is off. Tap Enable mic to retry or Leave seat.'
+        :'Could not take this seat. Check permission and retry.';
+    }finally{busy=false;if(mounted&&!closing)setState((){});}
   }
+
   Future<void> leave()async{
     if(busy)return;setState(()=>busy=true);
     await mute();
@@ -87,7 +136,7 @@ class _FirebaseVoicePanelState extends State<FirebaseVoicePanel> with WidgetsBin
   }
   @override void dispose(){closing=true;WidgetsBinding.instance.removeObserver(this);unawaited(closeAudio().catchError((Object _){}));unawaited(request('leave').then<void>((_){}).catchError((Object _){}));super.dispose();}
   @override Widget build(BuildContext context)=>Padding(padding:const EdgeInsets.all(8),child:Column(mainAxisSize:MainAxisSize.min,children:[
-    Row(children:[const Icon(Icons.headset),const SizedBox(width:8),Expanded(child:Text(connected?(muted?'Live audio · Listening':'Live audio · Microphone on'):'Audio disconnected')),if(!connected)TextButton(onPressed:busy||!active?null:connect,child:Text(busy?'Connecting…':'Connect')),if(connected&&seats.mine!=null)TextButton(onPressed:busy?null:leave,child:const Text('Leave seat'))]),
+    Row(children:[const Icon(Icons.headset),const SizedBox(width:8),Expanded(child:Text(connected?(muted?'Live audio · Listening':'Live audio · Microphone on'):'Audio disconnected')),if(!connected)TextButton(onPressed:busy||!active?null:connect,child:Text(busy?'Connecting…':'Connect')),if(connected&&seats.mine!=null)...[TextButton(onPressed:busy?null:muted?enableMic:()async{await mute();if(mounted)setState((){});},child:Text(muted?'Enable mic':'Mute')),TextButton(onPressed:busy?null:leave,child:const Text('Leave seat'))]]),
     if(connected)Wrap(spacing:6,children:[for(var i=0;i<seats.count;i++)OutlinedButton(onPressed:busy||seats.occupants.containsKey(i)?null:()=>take(i),child:Text(seats.mine==i?'${i+1} · You':seats.occupants.containsKey(i)?'${i+1} · Busy':'Seat ${i+1}'))]),
     if(error!=null)Text(error!,style:const TextStyle(color:Colors.orange)),
   ]));
