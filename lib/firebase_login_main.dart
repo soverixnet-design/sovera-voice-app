@@ -3,6 +3,8 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:google_sign_in/google_sign_in.dart';
+import 'package:http/http.dart' as http;
+import 'firebase_profile.dart';
 
 const _webClient = '486331346860-trjijmpedgurb05npsvao3d3v327b6ii.apps.googleusercontent.com';
 
@@ -57,7 +59,7 @@ class FirebaseLoginApp extends StatelessWidget {
         if (snapshot.connectionState == ConnectionState.waiting) {
           return const Scaffold(body: Center(child: CircularProgressIndicator()));
         }
-        return snapshot.data == null ? const FirebaseLoginPage() : FirebaseSignedInPage(user: snapshot.data!);
+        return snapshot.data == null ? const FirebaseLoginPage() : FirebaseSignedInPage(key:ValueKey(snapshot.data!.uid),user: snapshot.data!);
       },
     ),
   );
@@ -143,7 +145,7 @@ class _FirebaseLoginPageState extends State<FirebaseLoginPage> {
           const SizedBox(height: 20),
           const Text('Welcome to Sovera', textAlign: TextAlign.center, style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold)),
           const SizedBox(height: 10),
-          const Text('Sign-in connection check', textAlign: TextAlign.center),
+          const Text('Google / email account and profile', textAlign: TextAlign.center),
           const SizedBox(height: 24),
           FilledButton.icon(onPressed: busy ? null : google, icon: const Icon(Icons.login), label: const Text('Continue with Google')),
           const Padding(padding: EdgeInsets.symmetric(vertical: 18), child: Text('or use email', textAlign: TextAlign.center)),
@@ -176,6 +178,10 @@ class FirebaseSignedInPage extends StatefulWidget {
 }
 
 class _FirebaseSignedInPageState extends State<FirebaseSignedInPage> {
+  final profileClient = http.Client();
+  late final profileApi = FirebaseProfileApi(uid:widget.user.uid,
+    token:() => widget.user.getIdToken(), client:profileClient);
+  @override void dispose() { profileClient.close(); super.dispose(); }
   bool busy = false;
   String? message;
   Future<void> action(Future<void> Function() task) async {
@@ -205,7 +211,9 @@ class _FirebaseSignedInPageState extends State<FirebaseSignedInPage> {
         TextButton(onPressed: busy ? null : () => action(() => widget.user.reload()), child: const Text('I have verified my email')),
       ],
       const SizedBox(height: 20),
-      const Text('This build checks Google and email sign-in. Rooms, wallet and games are not connected in this build.'),
+      FirebaseProfileEditor(key:ValueKey(widget.user.uid),api:profileApi,initialName:widget.user.displayName??''),
+      const SizedBox(height:16),
+      const Text('Account and profile connection. Rooms, wallet and games are not connected in this build.'),
       if (message != null) Padding(padding: const EdgeInsets.symmetric(vertical: 16), child: Text(message!)),
       TextButton(onPressed: busy ? null : () => action(() async {
         await FirebaseAuth.instance.signOut();
