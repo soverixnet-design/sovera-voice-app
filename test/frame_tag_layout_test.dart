@@ -5,7 +5,6 @@ import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:sovera/effects_studio.dart';
-import 'package:sovera/cosmetic_art.dart';
 import 'package:sovera/account_cards.dart';
 import 'package:sovera/main.dart';
 
@@ -23,7 +22,7 @@ void main() {
    await tester.pumpWidget(screen(SingleChildScrollView(child:ProfileIdentityCard(name:'Visible profile name',bio:'',onEdit:(){}))));
    await tester.pumpAndSettle();
    final frame=tester.getRect(find.byType(EffectPortrait));
-   final art=tester.getRect(find.descendant(of:find.byType(EffectPortrait),matching:find.byType(CosmeticArt)).first);
+   final art=tester.getRect(find.byKey(const ValueKey('frame-art-viewport')));
    final label=tester.getRect(find.text('Visible profile name'));
    expect(art.left,greaterThanOrEqualTo(frame.left-.01));
    expect(art.right,lessThanOrEqualTo(frame.right+.01));

@@ -99,17 +99,19 @@ class EffectPortrait extends StatelessWidget {
     return SizedBox(width: canvasSize, height: canvasSize, child: FittedBox(
       fit: BoxFit.scaleDown,
       child: SizedBox(width: canvasSize, height: canvasSize, child: Stack(children: [
-        Positioned(left: inset + artSize*pack.portraitX-width/2,
+        Positioned(left: inset + (artSize-width)/2,
           top: inset + artSize*pack.portraitY-height/2, width: width, height: height,
           child: ClipOval(child: ColoredBox(color: const Color(0xFF131522),
             child: FittedBox(fit: BoxFit.cover, child: child)))),
-        Positioned(left: inset, top: inset, width: artSize, height: artSize,
+        Positioned.fill(child:ClipRect(key:const ValueKey('frame-art-viewport'),child:Stack(children:[
+         Positioned(left: inset+artSize*(.5-pack.portraitX), top: inset, width: artSize, height: artSize,
           child: IgnorePointer(child: CosmeticArt(
             asset: MediaQuery.disableAnimationsOf(context) ? (pack.stillAsset ?? pack.asset)
               : speaking ? (pack.voiceAsset ?? pack.asset) : pack.asset,
             phase: phase, label: speaking ? 'Speaking effect' : pack.name))),
+        ]))),
         if (pack.frameNameBox case final box?) Positioned(
-          left: inset+artSize*box.left, top: inset+artSize*box.top,
+          left: inset+artSize*(box.left+.5-pack.portraitX), top: inset+artSize*box.top,
           width: artSize*box.width, height: artSize*box.height,
           child: ValueListenableBuilder<String>(valueListenable: effectProfileName,
             builder: (context, name, _) => FittedBox(fit: BoxFit.scaleDown,
