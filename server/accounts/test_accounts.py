@@ -115,7 +115,7 @@ class RoomTests(unittest.TestCase):
             json={**request,'request_id':str(uuid.uuid4())},
             headers=alice).status_code,409)
         self.assertEqual(self.client.get(base+'/people',headers=alice).json()['people'][0]['uid'],'alice')
-        self.assertEqual(len(Rooms(self.path,clock=lambda:0).effects(room)['effects']),0)
+        self.assertEqual(len(Rooms(self.path,clock=lambda:__import__('time').time()+20).effects(room)['effects']),0)
 
     def test_counts_expire_and_duplicate_heartbeats_do_not_inflate(self):
         from server.accounts.rooms import Rooms
