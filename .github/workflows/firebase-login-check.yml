@@ -64,6 +64,29 @@ jobs:
           print(public)
           Path('build/firebase-signing-fingerprints.txt').write_text(public + '\n')
           PY
+      - name: Build smaller Food Wheel release preview (Firebase entry point)
+        run: flutter build apk --release --target lib/firebase_login_main.dart
+      - name: Verify and fingerprint release preview
+        run: |
+          python3 - <<'PY'
+          import os, subprocess, zipfile
+          from pathlib import Path
+          apk=Path('build/app/outputs/flutter-apk/app-release.apk')
+          assert apk.stat().st_size>5_000_000
+          with zipfile.ZipFile(apk) as z:
+              assert z.testzip() is None
+              assert 'assets/flutter_assets/assets/games/food-wheel.html' in z.namelist()
+              wheel=z.read('assets/flutter_assets/assets/games/food-wheel.html')
+              assert b'Food Wheel' in wheel and b'SoveraWheelBridge' in wheel
+          signers=sorted((Path(os.environ['ANDROID_HOME'])/'build-tools').glob('*/apksigner'))
+          result=subprocess.run([str(signers[-1]),'verify','--print-certs',str(apk)],
+                                check=True,text=True,capture_output=True)
+          print('\n'.join(x for x in result.stdout.splitlines() if 'certificate SHA-' in x))
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: sovera-food-wheel-android-release-preview
+          path: build/app/outputs/flutter-apk/app-release.apk
       - uses: actions/upload-artifact@v4
         with:
           name: sovera-firebase-login-check-not-full-app
