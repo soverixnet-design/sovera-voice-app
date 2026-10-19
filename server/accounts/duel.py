@@ -35,6 +35,17 @@ class RoomDuel:
         if not found:
             raise HTTPException(409,'Join this room to play')
 
+    def _expire_idle(self,db,room,now):
+        """Resolve abandoned/inactive games without inventing a winner.
+        Call inside a write transaction, ensuring every viewer sees one state.
+        """
+        row=db.execute("""SELECT updated_at,winner FROM account_room_duels
+            WHERE room_id=?""",(room,)).fetchone()
+        if row is not None and row['winner'] is None and now-row['updated_at']>=120:
+            db.execute("""UPDATE account_room_duels
+                SET winner='timeout',turn_uid=NULL,revision=revision+1,updated_at=?
+                WHERE room_id=? AND winner IS NULL""",(now,room))
+
     def _snapshot(self,db,room,viewer=None):
         waiting=db.execute("""SELECT user_id FROM account_room_duel_queue
             WHERE room_id=? ORDER BY enqueued_at,user_id""",(room,)).fetchall()
@@ -66,13 +77,16 @@ class RoomDuel:
 
     def state(self,room,viewer=None):
         with self.rooms.db() as db:
+            db.execute('BEGIN IMMEDIATE')
             self.rooms.exists(db,room)
+            self._expire_idle(db,room,self.clock())
             return self._snapshot(db,room,viewer)
 
     def join(self,uid,room):
         with self.rooms.db() as db:
             db.execute('BEGIN IMMEDIATE')
             self._require_active(db,room,uid)
+            self._expire_idle(db,room,self.clock())
             state=self._snapshot(db,room)
             if state['player_x'] is None:
                 db.execute("""INSERT INTO account_room_duels
@@ -90,6 +104,7 @@ class RoomDuel:
         with self.rooms.db() as db:
             db.execute('BEGIN IMMEDIATE')
             self._require_active(db,room,uid)
+            self._expire_idle(db,room,self.clock())
             state=self._snapshot(db,room)
             if not state['ready'] or state['winner'] is not None:
                 raise HTTPException(409,'No active duel')
@@ -125,6 +140,7 @@ class RoomDuel:
             db.execute('BEGIN IMMEDIATE')
             self._require_active(db,room,uid)
             now=self.clock()
+            self._expire_idle(db,room,now)
             state=self._snapshot(db,room,uid)
             if state['winner'] is None:
                 raise HTTPException(409,'Finish the current game first')
