@@ -1,3 +1,4 @@
+import 'public_identity.dart';
 import 'compact_gifts.dart';
 import 'package:livekit_client/livekit_client.dart' as rtc;
 import 'voice_connection.dart';
@@ -104,7 +105,7 @@ class _HomeState extends State<Home> {
  ('The Sovera Hall of Fame','Explore ranking designs and room honors.',Icons.emoji_events_rounded,gold),
  ('Something worth celebrating','Explore upcoming community features.',Icons.celebration_rounded,pink),
  ];
- @override void initState(){super.initState();if(widget.profile!=null){filter='All';WidgetsBinding.instance.addPostFrameCallback((_){claimDaily();});}displayName=widget.profile?['display_name'] as String? ?? 'Preview guest';bio=widget.profile?['bio'] as String? ?? '';effectProfileName.value=displayName;}
+ @override void initState(){super.initState();if(widget.profile!=null){filter='All';WidgetsBinding.instance.addPostFrameCallback((_){claimDaily();});}displayName=widget.profile?['display_name'] as String? ?? 'Preview guest';bio=widget.profile?['bio'] as String? ?? '';effectProfileName.value=displayName;effectProfileId.value=publicIdentity(widget.profile);}
  @override void dispose(){search.dispose();pageScroll.dispose();super.dispose();}
  void selectTab(int value){setState((){tab=value;if(value==0)banner=0;});WidgetsBinding.instance.addPostFrameCallback((_){if(mounted&&pageScroll.hasClients)pageScroll.jumpTo(0);});}
  void go(Widget screen)=>Navigator.push(context,MaterialPageRoute<void>(builder:(_)=>screen));
@@ -262,7 +263,7 @@ class _RankingsState extends State<Rankings> {
  ]));
 }
 class RoomDraft{
- final String name;final String? roomId,ownerId;final int seats;final int? mySeat,partnerSeat;final SeatBond bond;final bool muted;final List<String> messages;
+ final String name;final String? roomId,ownerId;final int seats;final int? mySeat,partnerSeat;final SeatBond bond;final bool muted;final List<RoomChatMessage> messages;
  const RoomDraft({required this.name,this.roomId,this.ownerId,required this.seats,this.mySeat,this.partnerSeat,required this.bond,required this.muted,required this.messages});
 }
 final minimizedRoom=ValueNotifier<RoomDraft?>(null);
@@ -378,8 +379,12 @@ class _VoiceRoomState extends State<VoiceRoom> with WidgetsBindingObserver {
  }
 
  int seats=9;bool micMuted=true; int? partnerSeat; SeatBond bond=SeatBond.friendship; bool savingSeats=false; int? mySeat; String? selectedGift;
- final messages=<String>[]; final input=TextEditingController();
+ final messages=<RoomChatMessage>[]; final input=TextEditingController();
+ Timer? arrivalTimer;
+ bool showTagArrival=false;
  @override void initState(){super.initState();WidgetsBinding.instance.addObserver(this);pingPresence();if(widget.roomId!=null)presenceTimer=Timer.periodic(const Duration(seconds:25),(_)=>pingPresence());seats=widget.draft?.seats??widget.initialSeats;mySeat=widget.draft?.mySeat;partnerSeat=widget.draft?.partnerSeat;bond=widget.draft?.bond??SeatBond.friendship;micMuted=widget.draft?.muted??true;messages.addAll(widget.draft?.messages??[]);
+  showTagArrival=widget.draft==null&&previewNameTag.value?.tagAsset!=null;
+  if(showTagArrival)arrivalTimer=Timer(const Duration(seconds:6),(){if(mounted)setState(()=>showTagArrival=false);});
   WidgetsBinding.instance.addPostFrameCallback((_){
    if(widget.roomId!=null)connectAudio();
    final entry=previewEntryEffect.value;
@@ -395,7 +400,7 @@ class _VoiceRoomState extends State<VoiceRoom> with WidgetsBindingObserver {
  bool get canEdit=>widget.roomId==null||soveraClient.auth.currentUser?.id==widget.ownerId;
  void notice(String text) => ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(text)));
  @override
- void dispose(){for(final entry in flyingGiftOverlays){entry.remove();}flyingGiftOverlays.clear();roomClosing=true;unawaited(closeAudio());WidgetsBinding.instance.removeObserver(this);presenceTimer?.cancel();leavePresence();input.dispose();super.dispose();}
+ void dispose(){arrivalTimer?.cancel();for(final entry in flyingGiftOverlays){entry.remove();}flyingGiftOverlays.clear();roomClosing=true;unawaited(closeAudio());WidgetsBinding.instance.removeObserver(this);presenceTimer?.cancel();leavePresence();input.dispose();super.dispose();}
  @override
  Widget build(BuildContext context) => Scaffold(backgroundColor: const Color(0xFF0C0D0F),
  appBar:AppBar(backgroundColor:const Color(0xFF10182A),automaticallyImplyLeading:false,leadingWidth:44,leading:RoomTool(label:'Back',icon:Icons.arrow_back_ios_new_rounded,color:violet,onTap:()=>Navigator.maybePop(context)),titleSpacing:0,title:Row(children:[RoomPhoto(roomId:widget.roomId,canEdit:canEdit,size:32),const SizedBox(width:6),Expanded(child:Text(widget.name,maxLines:1,overflow:TextOverflow.ellipsis,style:const TextStyle(fontSize:14,fontWeight:FontWeight.bold)))]),actions:[
@@ -409,6 +414,7 @@ class _VoiceRoomState extends State<VoiceRoom> with WidgetsBindingObserver {
  Expanded(child: ListView(padding:const EdgeInsets.symmetric(horizontal:18,vertical:12),children:[
  Wrap(spacing:8,runSpacing:8,crossAxisAlignment:WrapCrossAlignment.center,children:[ActionChip(avatar:const Icon(Icons.emoji_events_rounded,color:gold,size:18),label:const Text('Room honors'),onPressed:()=>Navigator.push(context,MaterialPageRoute<void>(builder:(_)=>const Rankings()))),Text(widget.roomId==null?'OFFLINE PREVIEW':'LIVE VOICE ROOM',maxLines:2,style:const TextStyle(color:Colors.white38,fontSize:10))]),
  const SizedBox(height:6),
+ if(showTagArrival)Padding(padding:const EdgeInsets.symmetric(vertical:8),child:Glass(tint:cyan,padding:const EdgeInsets.all(10),child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[const Text('Joined the room',style:TextStyle(fontSize:10,color:Colors.white60)),CosmeticIdentityLine(name:effectProfileName.value,userId:effectProfileId.value,tag:previewNameTag.value)]))),
  Align(alignment:Alignment.center,child:TextButton.icon(onPressed:connections,icon:const Icon(Icons.handshake_rounded,color:cyan),label:const Text('Friendship & CP preview'))),
  LayoutBuilder(builder:(context,constraints){
  final seatSize=(constraints.maxWidth/roomSeatColumns-24).clamp(36.0,64.0);
@@ -425,7 +431,7 @@ class _VoiceRoomState extends State<VoiceRoom> with WidgetsBindingObserver {
  if(mySeat!=null&&widget.roomId==null)Text(micMuted?'Mic indicator: muted · Live audio unavailable':'Mic indicator: unmuted preview · Live audio unavailable',textAlign:TextAlign.center,style:TextStyle(color:micMuted?pink:cyan,fontSize:10)),
  const SizedBox(height:16),const Text('Local chat preview',style:TextStyle(color:gold,fontWeight:FontWeight.bold)),
  const SizedBox(height:12),const Text('Welcome to Sovera. Take a seat and explore the room design.',style:TextStyle(color:Colors.white54,fontSize:12)),const SizedBox(height:12),
- for(final m in messages)Padding(padding:const EdgeInsets.only(bottom:8),child:Glass(tint:gold,padding:const EdgeInsets.all(12),child:Text('You: $m'))),
+ for(final m in messages)Padding(padding:const EdgeInsets.only(bottom:8),child:RoomChatBubble(message:m)),
  ])),
  Padding(padding:const EdgeInsets.fromLTRB(10,6,10,14),child:Row(children:[IconButton(tooltip:widget.roomId==null?(micMuted?'Unmute preview':'Mute preview'):(micMuted?'Unmute microphone':'Mute microphone'),onPressed:micChanging?null:toggleMic,icon:Icon(micMuted?Icons.mic_off_rounded:Icons.mic_rounded,color:micMuted?pink:cyan)),Expanded(child:TextField(controller:input,maxLength:300,decoration:const InputDecoration(hintText:'Local message…',counterText:'',border:InputBorder.none),onSubmitted:(_)=>send())),IconButton(tooltip:'Send local message',onPressed:send,icon:const Icon(Icons.send_rounded,color:gold)),IconButton.filled(tooltip:'Preview gifts',onPressed:gifts,style:IconButton.styleFrom(backgroundColor:const Color(0xFFB6642B)),icon:const Icon(Icons.card_giftcard_rounded))])),
  ])))),
@@ -465,7 +471,7 @@ class _VoiceRoomState extends State<VoiceRoom> with WidgetsBindingObserver {
  if(!mounted||applied==null)return;
  setState((){if(applied){mySeat=own;partnerSeat=peer;bond=draft;}else{partnerSeat=null;}});
  }
- void send(){if(input.text.trim().isEmpty)return;setState((){messages.add(input.text.trim());input.clear();});}
+ void send(){if(input.text.trim().isEmpty)return;setState((){messages.add(RoomChatMessage(text:input.text.trim(),name:effectProfileName.value,userId:effectProfileId.value,tag:previewNameTag.value));input.clear();});}
  Future<void> settings()async{
  if(!canEdit||savingSeats)return;
  int draft=seats;

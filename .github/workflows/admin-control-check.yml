@@ -48,6 +48,10 @@ jobs:
       - run: dart format lib test
       - run: flutter analyze
       - run: flutter test
+      - uses: actions/upload-artifact@v4
+        with:
+          name: frame-tag-layout-review
+          path: build/design-review/frame-tag-fit.png
       - run: flutter build apk --debug
       - uses: actions/upload-artifact@v4
         with:

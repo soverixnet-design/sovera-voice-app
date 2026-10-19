@@ -13,6 +13,7 @@ class EffectPack {
   final Color color;
   final String? entryAsset, voiceAsset, medalAsset, tagAsset, stillAsset, entryStillAsset;
  final double portraitDiameter,portraitY;
+ final double? portraitHeight;
  final int entryDurationMs;
   final Rect? frameNameBox;
   const EffectPack(
@@ -22,7 +23,7 @@ class EffectPack {
     this.entryAsset,
     this.voiceAsset,
     this.medalAsset,
-    this.frameNameBox,this.entryDurationMs=3200,this.tagAsset,this.stillAsset,this.entryStillAsset,this.portraitDiameter=.43,this.portraitY=.53,
+    this.frameNameBox,this.portraitHeight,this.entryDurationMs=3200,this.tagAsset,this.stillAsset,this.entryStillAsset,this.portraitDiameter=.43,this.portraitY=.53,
   });
 }
 
@@ -50,15 +51,16 @@ const effectPacks = [
  EffectPack('Phoenix Queen','assets/effects/phoenix.png',Color(0xFFFF8B3D),entryAsset:'assets/effects/phoenix-queen-entry.webp',entryStillAsset:'assets/effects/phoenix-queen-still.webp',entryDurationMs:13800),
  EffectPack('Tiger Queen','assets/effects/royal-gold.webp',gold,stillAsset:'assets/effects/royal-gold-still.png',entryAsset:'assets/effects/tiger-queen-entry.webp',entryStillAsset:'assets/effects/tiger-queen-still.webp',entryDurationMs:12000,portraitDiameter:.61,portraitY:.52),
  EffectPack('Crown Violet','assets/effects/crown-violet.webp',violet,stillAsset:'assets/effects/crown-violet-still.webp',portraitDiameter:.50,portraitY:.46,frameNameBox:Rect.fromLTWH(.23,.77,.54,.10)),
- EffectPack('Royal Horses','assets/effects/royal-horses.webp',gold,stillAsset:'assets/effects/royal-horses-still.webp',portraitDiameter:.43,portraitY:.40,frameNameBox:Rect.fromLTWH(.25,.74,.50,.10)),
+ EffectPack('Royal Horses','assets/effects/royal-horses-clean.png',gold,stillAsset:'assets/effects/royal-horses-clean.png',portraitDiameter:.43,portraitY:.44,frameNameBox:Rect.fromLTWH(.18,.74,.64,.10)),
  EffectPack('Solar Crown','assets/effects/solar-crown.webp',gold,stillAsset:'assets/effects/solar-crown-still.webp',portraitDiameter:.46,portraitY:.48,tagAsset:'assets/effects/solar-nameplate.webp'),
  EffectPack('Sunrise Crown','assets/effects/sunrise-crown.webp',gold,stillAsset:'assets/effects/sunrise-crown-still.webp',portraitDiameter:.45,portraitY:.46,tagAsset:'assets/effects/solar-nameplate.webp'),
- EffectPack('Rose Crown','assets/effects/rose-crown.webp',pink,stillAsset:'assets/effects/rose-crown-still.webp',portraitDiameter:.45,portraitY:.46,tagAsset:'assets/effects/rose-nameplate.webp'),
+ EffectPack('Rose Crown','assets/effects/rose-crown.webp',pink,stillAsset:'assets/effects/rose-crown-still.webp',portraitDiameter:.45,portraitHeight:.57,portraitY:.46,tagAsset:'assets/effects/rose-nameplate.webp'),
 
 ];
 
 /// Local visual preference only. It does not grant account inventory.
 final effectProfileName=ValueNotifier<String>('Sovera guest');
+final effectProfileId=ValueNotifier<String>('');
 final previewAvatarFrame = ValueNotifier<EffectPack?>(null);
 final previewEntryEffect = ValueNotifier<EffectPack?>(null);
 final previewMedal = ValueNotifier<EffectPack?>(null);
@@ -88,46 +90,37 @@ class EffectPortrait extends StatelessWidget {
     this.portraitSize,
   });
   @override
-  Widget build(BuildContext context) => SizedBox(
-        width: size,
-        height: size,
-        child: Stack(
-          clipBehavior: Clip.none,
-          children: [
-            Positioned(
-              left: portraitSize == null ? size * (.5-pack.portraitDiameter/2) : (size-portraitSize!)/2,
-              top: portraitSize == null ? size * (pack.portraitY-pack.portraitDiameter/2) : (size-portraitSize!)/2,
-              width: portraitSize ?? size * pack.portraitDiameter,
-              height: portraitSize ?? size * pack.portraitDiameter,
-              child: ClipOval(
-                child: ColoredBox(
-                  color: const Color(0xFF131522),
-                  child: FittedBox(fit: BoxFit.contain, child: child),
-                ),
-              ),
-            ),
-            Positioned(
-              left: portraitSize == null ? 0 : (size-portraitSize!/pack.portraitDiameter)/2,
-              top: portraitSize == null ? 0 : size/2-(portraitSize!/pack.portraitDiameter)*pack.portraitY,
-              width: portraitSize == null ? size : portraitSize!/pack.portraitDiameter,
-              height: portraitSize == null ? size : portraitSize!/pack.portraitDiameter,
-              child: CosmeticArt(
-                asset: MediaQuery.disableAnimationsOf(context)?(pack.stillAsset??pack.asset):speaking ? (pack.voiceAsset ?? pack.asset) : pack.asset,
-                phase: phase,
-                label: speaking ? 'Speaking effect' : pack.name,
-              ),
-            ),
-            if(pack.frameNameBox!=null)Positioned(left:size*pack.frameNameBox!.left,top:size*pack.frameNameBox!.top,width:size*pack.frameNameBox!.width,height:size*pack.frameNameBox!.height,child:ValueListenableBuilder<String>(valueListenable:effectProfileName,builder:(context,name,_)=>FittedBox(fit:BoxFit.scaleDown,child:Text(name,maxLines:1,style:TextStyle(color:const Color(0xFFFFF1BF),fontSize:size*.055,fontWeight:FontWeight.w800,shadows:const [Shadow(color:Colors.black,blurRadius:3)]))))),
-            if (speaking)
-              Positioned.fill(
-                child: IgnorePointer(
-                  child:
-                      CustomPaint(painter: _SpeakingPainter(pack.color, phase)),
-                ),
-              ),
-          ],
-        ),
-      );
+  Widget build(BuildContext context) {
+    final artSize = portraitSize == null ? size : portraitSize! / pack.portraitDiameter;
+    final canvasSize = math.max(size, artSize);
+    final inset = (canvasSize - artSize) / 2;
+    final width = artSize * pack.portraitDiameter;
+    final height = artSize * (pack.portraitHeight ?? pack.portraitDiameter);
+    return SizedBox(width: canvasSize, height: canvasSize, child: FittedBox(
+      fit: BoxFit.scaleDown,
+      child: SizedBox(width: canvasSize, height: canvasSize, child: Stack(children: [
+        Positioned(left: inset + (artSize-width)/2,
+          top: inset + artSize*pack.portraitY-height/2, width: width, height: height,
+          child: ClipOval(child: ColoredBox(color: const Color(0xFF131522),
+            child: FittedBox(fit: BoxFit.cover, child: child)))),
+        Positioned(left: inset, top: inset, width: artSize, height: artSize,
+          child: IgnorePointer(child: CosmeticArt(
+            asset: MediaQuery.disableAnimationsOf(context) ? (pack.stillAsset ?? pack.asset)
+              : speaking ? (pack.voiceAsset ?? pack.asset) : pack.asset,
+            phase: phase, label: speaking ? 'Speaking effect' : pack.name))),
+        if (pack.frameNameBox case final box?) Positioned(
+          left: inset+artSize*box.left, top: inset+artSize*box.top,
+          width: artSize*box.width, height: artSize*box.height,
+          child: ValueListenableBuilder<String>(valueListenable: effectProfileName,
+            builder: (context, name, _) => FittedBox(fit: BoxFit.scaleDown,
+              child: Text(name, maxLines: 1, style: TextStyle(color: const Color(0xFFFFF1BF),
+                fontSize: artSize*.055, fontWeight: FontWeight.w800,
+                shadows: const [Shadow(color: Colors.black, blurRadius: 3)]))))),
+        if (speaking) Positioned.fill(child: IgnorePointer(
+          child: CustomPaint(painter: _SpeakingPainter(pack.color, phase)))),
+      ])),
+    ));
+  }
 }
 
 class FramePreviewAdapter extends StatelessWidget {
@@ -151,7 +144,7 @@ class FramePreviewAdapter extends StatelessWidget {
                 builder: (phase) => EffectPortrait(
                   pack: pack,
                   size: size,
-                  portraitSize: portraitSize ?? size*.64,
+                  portraitSize: portraitSize,
                   phase: phase,
                   child: child,
                 ),
@@ -197,7 +190,7 @@ class ProfileStylePreview extends StatelessWidget {
  @override Widget build(BuildContext context)=>ValueListenableBuilder<EffectPack?>(valueListenable:previewMedal,builder:(context,medal,_)=>ValueListenableBuilder<EffectPack?>(valueListenable:previewNameTag,builder:(context,tag,_)=>Column(children:[
   const Text('Style preview',style:TextStyle(fontSize:11,color:Colors.white54)),const SizedBox(height:8),
   ProfileRankingMedals(extra:medal?.medalAsset==null?null:SizedBox(width:76,height:88,child:CosmeticLoop(builder:(phase)=>CosmeticArt(asset:medal!.medalAsset!,phase:phase,label:'Top Host cosmetic medal')))),
-  if(tag?.tagAsset!=null)SizedBox(height:76,width:270,child:CosmeticLoop(builder:(phase)=>NamedTagArt(asset:tag!.tagAsset!,phase:phase))),
+  if(tag?.tagAsset!=null)SizedBox(height:32,width:120,child:CosmeticLoop(builder:(phase)=>NamedTagArt(asset:tag!.tagAsset!,phase:phase))),
  ])));
 }
 
@@ -281,7 +274,7 @@ class _EntryPreviewState extends State<_EntryPreview>
         Positioned(left:24,right:24,bottom:math.max(12.0,constraints.maxHeight*.08),child:IgnorePointer(child:Center(child:Container(
           padding:const EdgeInsets.symmetric(horizontal:18,vertical:10),
           decoration:BoxDecoration(color:const Color(0xD912172D),borderRadius:BorderRadius.circular(28),border:Border.all(color:widget.pack.color.withValues(alpha:.5)),boxShadow:[BoxShadow(color:widget.pack.color.withValues(alpha:.18),blurRadius:18)]),
-          child:Column(mainAxisSize:MainAxisSize.min,children:[ValueListenableBuilder<String>(valueListenable:effectProfileName,builder:(context,name,_)=>Text(name,maxLines:1,overflow:TextOverflow.ellipsis,textAlign:TextAlign.center,style:const TextStyle(color:Colors.white,fontSize:17,fontWeight:FontWeight.w800))),Text(widget.pack.name,maxLines:1,overflow:TextOverflow.ellipsis,textAlign:TextAlign.center,style:TextStyle(color:widget.pack.color,fontSize:12,fontWeight:FontWeight.w600))]),
+          child:Column(mainAxisSize:MainAxisSize.min,children:[ValueListenableBuilder<String>(valueListenable:effectProfileName,builder:(context,name,_)=>Text(name,maxLines:1,overflow:TextOverflow.ellipsis,textAlign:TextAlign.center,style:const TextStyle(color:Colors.white,fontSize:17,fontWeight:FontWeight.w800))),Text(widget.pack.name,maxLines:1,overflow:TextOverflow.ellipsis,textAlign:TextAlign.center,style:TextStyle(color:widget.pack.color,fontSize:12,fontWeight:FontWeight.w600)),ValueListenableBuilder<String>(valueListenable:effectProfileId,builder:(context,id,_)=>id.isEmpty?const SizedBox.shrink():Text('ID · $id',style:const TextStyle(fontSize:11,color:cyan))),ValueListenableBuilder<EffectPack?>(valueListenable:previewNameTag,builder:(context,tag,_)=>CompactCosmeticTag(pack:tag))]),
         )))),
         Positioned(top:8,right:8,child:IconButton.filled(tooltip:'Close entry preview',style:IconButton.styleFrom(backgroundColor:const Color(0xCC12172D)),onPressed:()=>Navigator.pop(context),icon:const Icon(Icons.close_rounded))),
       ]);
@@ -451,8 +444,8 @@ class _EffectsStudioState extends State<EffectsStudio>
                       );
                     if (asset != null)
                       return SizedBox(
-                        height: kind == 4 ? 100 : 270,
-                        width: 270,
+                        height: kind == 4 ? 36 : 270,
+                        width: kind == 4 ? 140 : 270,
                         child:kind==4?NamedTagArt(asset:asset,phase:pulse.value):CosmeticArt(
                           asset: MediaQuery.disableAnimationsOf(context)&&kind==1?(pack.entryStillAsset??asset):asset,
                           phase: pulse.value,
@@ -590,4 +583,43 @@ class _EffectsStudioState extends State<EffectsStudio>
 class NamedTagArt extends StatelessWidget{
  final String asset;final double phase;const NamedTagArt({super.key,required this.asset,this.phase=0});
  @override Widget build(BuildContext context)=>LayoutBuilder(builder:(context,c){final named=asset.contains('nameplate');final still=asset.replaceFirst('.webp','-still.webp');return Stack(fit:StackFit.expand,children:[CosmeticArt(asset:named&&MediaQuery.disableAnimationsOf(context)?still:asset,phase:phase,label:'Sovera Legend cosmetic tag'),if(named)Positioned(left:c.maxWidth*.30,top:c.maxHeight*.37,width:c.maxWidth*.60,height:c.maxHeight*.34,child:ValueListenableBuilder<String>(valueListenable:effectProfileName,builder:(context,name,_)=>FittedBox(fit:BoxFit.scaleDown,child:Text(name,maxLines:1,style:const TextStyle(color:Colors.white,fontSize:18,fontWeight:FontWeight.w800,shadows:[Shadow(color:Colors.black,blurRadius:3)]))))) ]);});
+}
+
+/// Decorative tag, kept separate from identity and server-verified privileges.
+class CompactCosmeticTag extends StatelessWidget {
+ final EffectPack? pack;
+ const CompactCosmeticTag({super.key, this.pack});
+ @override Widget build(BuildContext context) {
+  if(pack?.tagAsset==null)return const SizedBox.shrink();
+  return Semantics(label:'Cosmetic name tag',child:SizedBox(width:96,height:28,
+    child:NamedTagArt(asset:pack!.tagAsset!)));
+ }
+}
+
+class CosmeticIdentityLine extends StatelessWidget {
+ final String name, userId;
+ final EffectPack? tag;
+ const CosmeticIdentityLine({super.key,required this.name,this.userId='',this.tag});
+ @override Widget build(BuildContext context)=>Wrap(spacing:6,runSpacing:3,
+  crossAxisAlignment:WrapCrossAlignment.center,children:[
+   Text(name,maxLines:1,overflow:TextOverflow.ellipsis,style:const TextStyle(fontSize:12,fontWeight:FontWeight.w700)),
+   if(userId.isNotEmpty)Text('ID · $userId',style:const TextStyle(fontSize:11,color:cyan)),
+   CompactCosmeticTag(pack:tag),
+  ]);
+}
+
+class RoomChatMessage {
+ final String text,name,userId;
+ final EffectPack? tag;
+ const RoomChatMessage({required this.text,required this.name,this.userId='',this.tag});
+}
+
+class RoomChatBubble extends StatelessWidget {
+ final RoomChatMessage message;
+ const RoomChatBubble({super.key,required this.message});
+ @override Widget build(BuildContext context)=>Glass(tint:gold,padding:const EdgeInsets.all(12),
+  child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
+   CosmeticIdentityLine(name:message.name,userId:message.userId,tag:message.tag),
+   const SizedBox(height:5),Text(message.text),
+  ]));
 }
