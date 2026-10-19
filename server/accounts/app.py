@@ -49,7 +49,7 @@ class Profiles:
                     data.bio, data.avatar_url, int(time.time())))
         return self.get(uid)
 
-def create_app(profiles, verify):
+def create_app(profiles, verify, *, voice=False):
     app = FastAPI(docs_url=None, redoc_url=None, openapi_url=None)
 
     @app.middleware('http')
@@ -79,7 +79,7 @@ def create_app(profiles, verify):
 
     @app.get('/sovera/account/health')
     def health():
-        return {'ready':True, 'profiles':True, 'rooms':True, 'chat':True, 'voice':False, 'wallet':False, 'games':False}
+        return {'ready':True, 'profiles':True, 'rooms':True, 'chat':True, 'voice':voice, 'wallet':False, 'games':False}
 
     @app.get('/sovera/account')
     async def get_profile(authorization: str | None = Header(default=None)):
@@ -126,6 +126,9 @@ def create_app(profiles, verify):
     async def send(room:str,data:MessageInput,authorization: str | None = Header(default=None)):
         uid=await actor(authorization)
         return await asyncio.to_thread(rooms.send,uid,room,data)
+    if voice:
+        from .voice import attach_voice
+        attach_voice(app, rooms, actor)
     return app
 
 def create():
@@ -145,4 +148,4 @@ def create():
         if account.disabled:
             raise ValueError('Account unavailable')
         return uid
-    return create_app(Profiles(path), verify)
+    return create_app(Profiles(path), verify, voice=os.environ.get('SOVERA_ACCOUNT_VOICE') == '1')

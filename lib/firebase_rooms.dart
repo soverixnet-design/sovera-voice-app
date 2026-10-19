@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:math';
 import 'package:flutter/material.dart';
 import 'firebase_profile.dart';
+import 'firebase_voice.dart';
 import 'country_picker.dart' show soveraCountries;
 
 String _flag(String code) => RegExp(r'^[A-Z]{2}$').hasMatch(code)
@@ -40,7 +41,7 @@ class _FirebaseRoomsPageState extends State<FirebaseRoomsPage> {
   Future<void> open(Map<String,dynamic> room)=>Navigator.of(context).push<void>(MaterialPageRoute(builder:(_)=>FirebaseRoomChat(api:widget.api,room:room))).then((_){if(mounted)load();});
   @override Widget build(BuildContext context)=>Scaffold(appBar:AppBar(title:const Text('Sovera rooms'),actions:[IconButton(onPressed:busy?null:load,icon:const Icon(Icons.refresh))]),body:ListView(padding:const EdgeInsets.all(16),children:[
     FilledButton.icon(onPressed:busy?null:create,icon:const Icon(Icons.add_home),label:const Text('Create / open my room')),
-    const Padding(padding:EdgeInsets.symmetric(vertical:12),child:Text('Public rooms and saved text chat. Voice connection is still pending.')),
+    const Padding(padding:EdgeInsets.symmetric(vertical:12),child:Text('Public rooms, saved text chat and live audio.')),
     if(busy)const LinearProgressIndicator(),if(error!=null)Text(error!),
     if(!busy&&rows.isEmpty&&error==null)const Text('No rooms yet. Create the first room.'),
     for(final room in rows)Card(child:ListTile(
@@ -86,7 +87,7 @@ class _FirebaseRoomChatState extends State<FirebaseRoomChat> with WidgetsBinding
     }catch(e){if(mounted)setState(()=>error=_error(e));}finally{if(mounted)setState(()=>sending=false);}
   }
   @override Widget build(BuildContext context)=>Scaffold(appBar:AppBar(title:Text(widget.room['name'] as String)),body:SafeArea(child:Column(children:[
-    const Padding(padding:EdgeInsets.all(12),child:Text('Saved text chat · microphone and coin features are not connected.')),
+    FirebaseVoicePanel(api:widget.api,roomId:widget.room['id'] as String),
     if(error!=null)Padding(padding:const EdgeInsets.all(8),child:Text(error!)),
     Expanded(child:ListView(padding:const EdgeInsets.all(12),children:[for(final message in messages)Card(child:ListTile(title:Text('${message['name']} ${_flag(message['country'].toString())}'),subtitle:Text(message['text'] as String)))])),
     Padding(padding:const EdgeInsets.all(12),child:Row(children:[Expanded(child:TextField(controller:input,enabled:!sending,readOnly:pendingId!=null,maxLength:500,decoration:const InputDecoration(labelText:'Message'))),IconButton(onPressed:sending?null:send,icon:const Icon(Icons.send))])),

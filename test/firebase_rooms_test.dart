@@ -5,7 +5,18 @@ import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 import 'package:sovera/firebase_profile.dart';
 import 'package:sovera/firebase_rooms.dart';
+import 'package:sovera/firebase_voice.dart';
 void main(){
+  testWidgets('voice requires explicit connection and shows no fake seats',(tester)async{
+    var calls=0;
+    final api=FirebaseProfileApi(uid:'alice',token:()async=>'token',client:MockClient((r)async{calls++;return http.Response('',503);}));
+    await tester.pumpWidget(MaterialApp(home:Scaffold(body:FirebaseVoicePanel(api:api,roomId:'room'))));
+    expect(calls,0);expect(find.text('Audio disconnected'),findsOneWidget);
+    await tester.tap(find.text('Connect'));await tester.pumpAndSettle();
+    expect(find.textContaining('could not connect'),findsOneWidget);
+    expect(find.text('Live audio · Microphone on'),findsNothing);
+    await tester.pumpWidget(const SizedBox());await tester.pumpAndSettle();
+  });
   testWidgets('directory uses server country and participant count',(tester)async{
     final api=FirebaseProfileApi(uid:'alice',token:()async=>'token',client:MockClient((r)async=>http.Response(jsonEncode({'rooms':[{'id':'room-1','name':'My room','owner_uid':'alice','owner_name':'Shakil','country':'BD','avatar_url':null,'occupants':2,'seats':9}]}),200)));
     await tester.pumpWidget(MaterialApp(home:FirebaseRoomsPage(api:api)));await tester.pumpAndSettle();

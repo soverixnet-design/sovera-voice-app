@@ -12,16 +12,17 @@ import httpx
 import jwt
 from fastapi import FastAPI, Header, HTTPException
 from fastapi.responses import JSONResponse
-from pydantic import BaseModel, StrictInt
+from pydantic import BaseModel, ConfigDict, StrictInt
 from livekit import api
 from livekit.protocol import models
 
 # Installer reads these public settings from the existing gateway.
-BASE = os.environ['SOVERA_AUTH_URL']
-APIKEY = os.environ['SOVERA_PUBLIC_KEY']
+BASE = os.environ.get('SOVERA_AUTH_URL', '')
+APIKEY = os.environ.get('SOVERA_PUBLIC_KEY', '')
 AUTH_PROVIDER = os.environ.get('SOVERA_AUTH_PROVIDER', 'supabase')
 FIREBASE_PROJECT = os.environ.get('SOVERA_FIREBASE_PROJECT', '')
 FIREBASE_KEY = os.environ.get('SOVERA_FIREBASE_PUBLIC_KEY', '')
+ROOM_PREFIX = os.environ.get('SOVERA_VOICE_ROOM_PREFIX', '')
 LEASE_SECONDS = 35
 seats = {}
 lock = asyncio.Lock()
@@ -29,6 +30,7 @@ lk = None
 
 
 class Join(BaseModel):
+    model_config = ConfigDict(extra="forbid")
     room_id: uuid.UUID
     action: Literal['join', 'state', 'take', 'leave', 'renew'] = 'join'
     seat: StrictInt | None = None
@@ -53,7 +55,9 @@ async def enforce():
         rooms = await lk.room.list_rooms(api.ListRoomsRequest())
         for room in rooms.rooms:
             try:
-                uuid.UUID(room.name)
+                if not room.name.startswith(ROOM_PREFIX):
+                    continue
+                uuid.UUID(room.name[len(ROOM_PREFIX):])
             except ValueError:
                 continue
             participants = await lk.room.list_participants(
@@ -208,7 +212,7 @@ async def health():
 @app.post('/sovera/token')
 async def token(body: Join, authorization: str = Header(default='')):
     uid, count = await authorize(body, authorization)
-    room = str(body.room_id)
+    room = ROOM_PREFIX + str(body.room_id)
     if body.action == 'join':
         now = int(time.time())
         claims = {'iss': os.environ['LIVEKIT_API_KEY'], 'sub': uid,
