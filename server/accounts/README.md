@@ -134,3 +134,47 @@ completion does not mean that the Firebase-account server is already updated.
 The updater checks authentication and health after service restart. Do not
 merge this branch into the old Supabase production main without verifying the
 Firebase app entrypoint and new server endpoints together.
+
+
+## Original multiplayer Food Wheel preview
+
+The user's original **ফুড হুইল গেম.html** is now preserved at
+`assets/games/food-wheel.html`. All of its 3D wheel, food-item imagery,
+result sheet, and visual layout are retained. Both browser-generated rounds,
+fake bots, dummy balance, and browser-side winning decisions were replaced
+with a restricted `SoveraWheelBridge` that proxies only verified Firebase API
+requests from Flutter's local-asset WebView. It never exposes the Firebase ID
+token or service credentials to browser JavaScript.
+
+The **same global wheel** is visible to *all authenticated members*, in any
+room or in the full-screen lobby. It is not 1v1 and does not require a seat.
+
+- `GET /sovera/account/wheel/state` returns the same room-independent round
+  ID, phase, timestamp, outcome, exact wheel stop slot, results history and
+  actual signed-in winners. The current person's pick is private.
+- `POST /sovera/account/wheel/pick` accepts ONLY one of the original eight
+  food names plus the current round number. Each user can pick once per round.
+  Repeated same-pick retries are idempotent; changed/late picks are rejected.
+- Every global round has 20 seconds to pick, 5 seconds to spin and 5 seconds to
+  display results. A backend-generated, SQLite-persisted winning food and
+  visual index are reused on every device. The app requests updates about once
+  per second and interpolates the visual animation from **server** time.
+- Original Salad/Pizza outcomes and their matching food groups are supported.
+  The server reports actual winner names based on stored user selections,
+  never prefilled bot names or fabricated payouts.
+- The original UI opens as a full-screen WebView from the lobby and as a
+  64%-height bottom sheet within a voice room; Flutter draws the genuine
+  voice seat UI separately.
+
+**Important:** This is a *free connected gameplay preview*, not a real Coin
+or Diamond betting product. The chips remain visible as original artwork,
+but the client refuses paid bets and the backend does not debit or credit any
+wallet. The separate `server/food` monetary ledger is not linked to existing
+profile wallets and must not be activated as a second spendable balance.
+Atomic migration/ledger reconciliation and administrator approval are
+prerequisites for real-money/coin wagers or Diamond prizes.
+
+Tests: `python -m unittest server.accounts.test_food_wheel -v` and
+`flutter test test/firebase_food_wheel_test.dart`. Phone-to-phone verification
+and authorised server deployment remain necessary. Commits to GitHub are NOT
+automatically changes to the protected, running DigitalOcean account service.
