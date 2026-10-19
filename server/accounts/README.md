@@ -24,3 +24,25 @@ Run `python -m unittest server.accounts.test_accounts -v` for cross-account
 isolation, restart persistence, forged permission rejection and private responses.
 The Flutter full-app data stores still need migration; this module does not claim
 that login, room creation, profile onboarding or gifts work end-to-end yet.
+
+
+## Firebase live voice
+
+`update_voice.sh` adds authenticated POST `/sovera/account/voice` using the
+existing LiveKit installation, without changing the legacy voice unit. It reads
+server-only credentials through systemd EnvironmentFile and requires the
+existing `/root/sovera-livekit-secrets.env`. Firebase room names use `fb-<UUID>`
+so independent seat reconcilers never alter each other's permissions.
+
+The account service verifies revoked/disabled Firebase sessions, requires a
+saved SQLite profile and existing room, and reads seat counts from the server.
+Join tokens cannot publish. Speaking requires a seat lease tied to the current
+LiveKit participant SID; renew every eight seconds, expiry after 35 seconds.
+Backgrounding disconnects local audio. Authentication and lease tests do not
+prove two-device audio: verify actual speaking/listening on Android after the
+server update and new APK installation. Wallet and games remain disabled.
+
+The updater backs up code, unit and SQLite, validates tests and health, and
+restores previous service code on failure. It does not restore the database
+over newer profile/chat writes. A successful update prints
+`FIREBASE_VOICE_API_READY`. No private key belongs in the app or repository.
