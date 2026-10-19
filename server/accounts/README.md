@@ -92,3 +92,45 @@ wallet migration and atomic gift settlement; 16+ full games, matchmaking,
 live rankings, room gift-to-avatar effects, device push and release signing.
 Do not merge the preview branch with the production main app without
 verifying that the matching backend has been deployed and tested.
+
+
+## One shared game and winner list across all rooms
+
+`server/accounts/global_games.py` provides a **free Global Color Game** with
+one SQLite-backed sequence of rounds for the whole Sovera account service,
+not a different timer or winner for each phone or room.
+
+- `GET /sovera/account/games/colors`: authenticated shared state, authoritative
+  `round`, `phase`, `server_now_ms`, `phase_ends_ms`, verified winners and
+  last eight settled results.
+- `POST /sovera/account/games/colors/pick`: only a valid signed-in profile can
+  choose a color for the current open round. The server locks one color per
+  user/round; same-choice retries are idempotent and stale/changed picks fail.
+- Each round consists of a **25-second pick**, **10-second reveal** and
+  **5-second break**. A single server draw is stored atomically after picking
+  closes; winner names and totals are computed from actual persisted picks.
+- After downtime, only the last outstanding round is settled and a new round
+  begins. No backfilled fabricated draws. On restart the results and picks
+  survive as long as the existing account SQLite file stays persistent.
+- The Flutter game reads `server_now_ms` and advances a local monotonic clock
+  between responses, refreshing approximately once per second. The room and
+  directory winner strips refresh every two seconds. This is **near-real-time
+  authenticated polling**, not WebSocket push or guaranteed zero-latency sync.
+- The global round is shared across all rooms; the older XO Duel is still a
+  two-player room game with spectators. The global color result appears on
+  the room screen and in the room directory with the same round ID/winner count.
+- **No paid betting or prizes are connected**. `wallet=false` and
+  `games=false` are intentionally retained in health; the separate
+  `global_color_game=true` means only the free shared game is available.
+  There is no client-side draw or fake Coin/Diamond settlement.
+
+Run:
+`python -m unittest server.accounts.test_accounts server.accounts.test_duel server.accounts.test_global_games server.accounts.test_voice -v`.
+
+The deployment remains **source-ready but not activated on the host** until
+an authorized server operator runs the pinned, backup-first updater
+`server/accounts/update_voice.sh` on the existing host. Android build/test
+completion does not mean that the Firebase-account server is already updated.
+The updater checks authentication and health after service restart. Do not
+merge this branch into the old Supabase production main without verifying the
+Firebase app entrypoint and new server endpoints together.
