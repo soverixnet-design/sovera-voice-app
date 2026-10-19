@@ -245,7 +245,7 @@ async function refresh(){
  if(inflight)return;inflight=true;
  try{
    const response=await rpc('state');
-   if(!response||response.game!=='food-wheel'||!Number.isInteger(response.round)||
+   if(!response||response.game!=='food-wheel'||response.realCoinsEnabled!==false||response.diamondsEnabled!==false||response.isDemo!==true||!Number.isInteger(response.round)||
       !Number.isInteger(response.serverNow)||!Number.isInteger(response.endsAt)||
       !['bet','spin','result'].includes(response.phase))throw new Error('সার্ভারের তথ্য সঠিক নয়');
    if(response.round<lastRound)return;
