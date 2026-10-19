@@ -1,0 +1,348 @@
+<!DOCTYPE html>
+<html lang="bn">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>ফুড হুইল গেম</title>
+<style>
+:root{--teal:#00bcb0;--red:#d62828;--wood:#a8472b;--gold:#ffe66d;--cream:#fff1d6;--ink:#4a2410;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{height:100%;margin:0;background:#1a1020;font-family:system-ui,-apple-system,"Noto Sans Bengali",sans-serif;color:var(--ink);overflow:hidden}
+#app{height:100%;max-width:480px;margin:0 auto;display:flex;flex-direction:column;position:relative}
+#room{flex:0 0 0;overflow:hidden;background:linear-gradient(#7a3b2e,#e0894a 60%,#3a4a7a);color:#fff;position:relative;transition:flex-basis .3s}
+.inside #room{flex-basis:36%}
+#room .mics{display:flex;gap:18px;justify-content:center;padding-top:80px}
+#room .mics i{width:56px;height:56px;border-radius:50%;border:2px solid #fff6;display:block}
+#room b{position:absolute;left:12px;top:10px;background:#0006;padding:6px 12px;border-radius:20px;font-size:13px}
+#game{flex:1;background:var(--teal);display:flex;flex-direction:column;position:relative;min-height:0}
+.top{display:flex;justify-content:space-between;align-items:center;padding:8px 12px;color:#fff;font-weight:700;font-size:14px}
+.top button{width:34px;height:34px;border-radius:50%;border:0;background:#0a8f86;color:#fff;font-size:16px;margin-left:6px}
+#stage{flex:1;position:relative;min-height:0;display:flex;align-items:center;justify-content:center}
+#wheel{position:relative;width:min(100%,62vh);aspect-ratio:1;max-height:100%}
+.inside #wheel{width:min(92%,38vh)}
+.slot{position:absolute;width:27%;aspect-ratio:1/1.05;transform:translate(-50%,-50%);background:var(--cream);border-radius:50% 50% 14px 14px/38% 38% 14px 14px;border:3px solid #e8b27a;text-align:center;cursor:pointer;transition:transform .12s,box-shadow .12s;padding-top:2%}
+.slot .e{font-size:clamp(24px,8vw,40px);line-height:1}
+.slot .m{position:absolute;right:6%;top:6%;font-weight:900;color:#5b2bb5;font-size:clamp(11px,3.4vw,16px)}
+.slot .b{position:absolute;left:0;right:0;bottom:0;height:34%;background:var(--gold);border-radius:4px 4px 10px 10px;font-weight:800;font-size:clamp(11px,3.4vw,15px);display:flex;align-items:center;justify-content:center;border-top:3px dashed #f0c23d}
+.slot.on{transform:translate(-50%,-50%) scale(1.12);box-shadow:0 0 0 4px #fff,0 0 22px 6px #fff8;z-index:3}
+.slot.win{animation:pop .5s 3}
+@keyframes pop{50%{transform:translate(-50%,-50%) scale(1.25)}}
+#hub{position:absolute;left:50%;top:50%;width:30%;aspect-ratio:1;transform:translate(-50%,-50%);border-radius:50%;background:radial-gradient(#b9f06a,#e9a85a 70%);border:5px solid var(--wood);display:flex;flex-direction:column;align-items:center;justify-content:flex-end;padding-bottom:9%;font-weight:800;font-size:clamp(10px,3vw,13px);z-index:2;color:var(--ink);text-align:center;line-height:1.15}
+#hub big{font-size:clamp(20px,7vw,32px);color:#fff;text-shadow:0 2px 0 var(--wood)}
+#hub .big{font-size:clamp(26px,9vw,44px);position:absolute;top:18%}
+.spoke{position:absolute;left:50%;top:50%;width:2.5%;height:38%;background:var(--wood);transform-origin:50% 0;border-radius:4px}
+.mid{display:flex;gap:8px;padding:6px 10px}
+.panel{flex:1;background:#e8964f;border:3px solid #a8472b;border-radius:12px;padding:8px;font-weight:700;display:flex;align-items:center;gap:8px;color:var(--ink);min-width:0}
+.panel .av{width:38px;height:38px;border-radius:8px;background:#fff5;display:grid;place-items:center;font-size:22px;flex:none}
+#hist{background:var(--cream);justify-content:center;font-size:15px;border:3px solid #a8472b}
+.bottom{background:var(--red);padding:8px 10px 10px;color:#fff;flex:none}
+#res{display:flex;align-items:center;gap:5px;background:#9a1c1c;border-radius:30px;padding:5px 10px;overflow:hidden}
+#res span.l{font-weight:700;font-size:13px;margin-right:4px}
+#res i{font-style:normal;width:34px;height:34px;flex:none;background:#fff;border-radius:50%;display:grid;place-items:center;font-size:20px;position:relative}
+#res i.new:after{content:"NEW";position:absolute;top:-9px;left:-4px;background:var(--gold);color:var(--ink);font-size:9px;font-weight:800;padding:0 4px;border-radius:3px}
+#chips{display:flex;justify-content:space-around;margin:10px 0 6px}
+.chip{width:21%;padding:12px 0 8px;background:linear-gradient(#fff8d8,#f6dc8a);border:3px solid #fff;border-radius:50% 50% 12px 12px/32% 32% 12px 12px;color:var(--ink);font-weight:800;font-size:14px;text-align:center;cursor:pointer}
+.chip.sel{background:linear-gradient(#ff8a7a,#ff5a4a);color:#fff;transform:translateY(-6px);box-shadow:0 6px 0 #0004}
+.foot{display:flex;align-items:center;gap:8px}
+.foot .av{width:40px;height:40px;border-radius:8px;background:#fff3;display:grid;place-items:center;font-size:22px}
+.pill{background:var(--cream);color:var(--ink);border-radius:20px;padding:5px 10px;font-weight:800;flex:1;min-width:0}
+.pill small{display:block;font-size:10px;font-weight:600;opacity:.7}
+#auto{background:var(--gold);border:3px solid #fff;border-radius:10px;font-weight:800;color:var(--ink);padding:6px 10px;font-size:13px}
+#auto.on{background:#6df07a}
+#toast{position:absolute;left:50%;top:42%;transform:translate(-50%,-50%) scale(.8);background:#000b;color:#fff;padding:14px 22px;border-radius:16px;font-weight:800;font-size:20px;opacity:0;pointer-events:none;transition:.25s;z-index:9;text-align:center}
+#toast.show{opacity:1;transform:translate(-50%,-50%) scale(1)}
+#sheet{position:absolute;inset:0;background:#000a;display:none;z-index:10;align-items:flex-end}
+#sheet.show{display:flex}
+#sheet div.in{background:var(--cream);width:100%;max-height:65%;overflow:auto;border-radius:18px 18px 0 0;padding:14px}
+#sheet table{width:100%;font-size:13px;border-collapse:collapse}
+#sheet td,#sheet th{padding:6px 4px;border-bottom:1px solid #0001;text-align:left}
+.g{color:#0a8a2a;font-weight:800}.r{color:#c11}
+#game{background:radial-gradient(circle at 50% 30%,#2fe0d3,#00a89c 60%,#007c78)}
+#stage{perspective:1000px}
+#wheel{transform:rotateX(16deg);transform-style:preserve-3d;filter:drop-shadow(0 26px 14px #0005)}
+.slot{background:linear-gradient(160deg,#fffaf0,#ffdca8 70%,#f0b46a);border:3px solid #fff3dc;box-shadow:0 6px 0 #c9803f,0 14px 14px #0004,inset 0 3px 6px #fff;transform:translate(-50%,-50%) translateZ(24px)}
+.slot.on{transform:translate(-50%,-50%) translateZ(46px) scale(1.12);box-shadow:0 0 0 4px #fff,0 0 26px 8px #fff9,0 14px 16px #0005}
+.slot .e{filter:drop-shadow(0 4px 3px #0006)}
+.slot.win{animation:pop2 .5s 4}
+@keyframes pop2{50%{transform:translate(-50%,-50%) translateZ(70px) scale(1.25)}}
+#hub{background:radial-gradient(circle at 35% 30%,#e8ff9a,#7fcf3a 45%,#e9a85a 75%);box-shadow:0 8px 0 #7a3419,0 16px 18px #0006,inset 0 4px 8px #fff8;transform:translate(-50%,-50%) translateZ(34px)}
+.spoke{background:linear-gradient(90deg,#c0603a,#7a3419);box-shadow:2px 0 4px #0004}
+.chip{box-shadow:0 6px 0 #c9a24a,0 10px 10px #0004,inset 0 2px 4px #fff}
+.chip.sel{box-shadow:0 8px 0 #a3261c,0 14px 14px #0005,inset 0 2px 4px #fff7}
+.panel{box-shadow:0 4px 0 #7a3419,inset 0 2px 3px #fff6}
+#auto{box-shadow:0 4px 0 #c9a24a}
+.bottom{box-shadow:0 -6px 14px #0004}
+#hub{justify-content:center;padding-bottom:0}
+#hub .big{top:42%;left:50%;transform:translate(-50%,-50%);transition:opacity .2s;z-index:0}
+#hub.faded .big{top:50%;opacity:.2;font-size:clamp(34px,11vw,54px)}
+#hub #ht{position:relative;z-index:2}
+#hub:not(.faded) #ht{position:absolute;bottom:9%}
+#hub #tm{position:relative;z-index:3;font-size:clamp(26px,9vw,40px);line-height:1;font-weight:900;color:#fff;text-shadow:0 2px 0 var(--wood),0 0 8px #0009}
+#winners{position:absolute;left:8%;right:8%;top:46px;background:linear-gradient(#5b2bb5ee,#3a1a80ee);border:3px solid var(--gold);border-radius:16px;padding:8px 12px;color:#fff;z-index:8;display:none;box-shadow:0 8px 0 #1d0a4a,0 16px 24px #0006}
+#winners.show{display:block;animation:wi .35s}
+@keyframes wi{from{transform:translateY(-20px) scale(.9);opacity:0}}
+#winners h4{margin:0 0 6px;text-align:center;color:var(--gold);font-size:14px}
+#winners .row{display:flex;align-items:center;gap:8px;padding:4px 0;font-weight:700;font-size:14px}
+#winners .av{width:30px;height:30px;border-radius:50%;background:#fff3;display:grid;place-items:center}
+#winners .n{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+#winners .a{color:#8dff9a}
+#winners .me{margin-top:6px;padding-top:6px;border-top:1px solid #fff4;text-align:center;font-weight:800;font-size:13px}
+#winners{left:0;right:0;top:auto;bottom:0;height:48%;border:4px solid #a8472b;border-bottom:0;border-radius:24px 24px 0 0;background:var(--cream);color:var(--ink);padding:10px 14px;box-shadow:0 -8px 20px #0006;overflow:auto}
+#winners.show{display:block;animation:up .4s}
+@keyframes up{from{transform:translateY(100%)}}
+.rtop{display:flex;align-items:center;gap:10px;position:relative;padding-top:6px}
+.big3{font-size:clamp(56px,18vw,84px);line-height:1;filter:drop-shadow(0 6px 4px #0005)}
+.rinfo{flex:1;font-weight:700;font-size:14px;line-height:1.9;text-align:center}
+.cd{position:absolute;right:0;top:-4px;color:#e02020;font-weight:800;font-size:22px}
+.rkh{display:flex;align-items:center;gap:8px;margin:8px 0 6px;color:#e08a00;font-weight:900;font-size:clamp(15px,4.6vw,20px);text-shadow:0 2px 0 #fff}
+.rkh i{flex:1;border-top:4px dashed #e8a21a}
+.rk{display:flex;align-items:center;gap:8px;padding:5px 4px;font-weight:800;font-size:15px;border-bottom:1px solid #0001}
+.rk .av{width:30px;height:30px;border-radius:50%;background:#0001;display:grid;place-items:center}
+.rk .rkn{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.rk .a{color:#0a8a2a}
+.dim .slot:not(.win){filter:grayscale(.6) brightness(.6)}
+#banner{position:absolute;left:0;top:70px;height:52px;display:flex;align-items:center;gap:10px;padding:0 14px 0 14px;background:linear-gradient(#ffe27a,#e8a21a 55%,#c27a0c);border:3px solid #fff0b8;border-left:0;border-radius:0 30px 30px 0;color:#fff;font-weight:900;font-size:18px;text-shadow:0 2px 0 #8a4f00;z-index:7;transform:translateX(-110%);transition:transform .5s;box-shadow:0 6px 0 #8a4f00,0 12px 16px #0005}
+#banner.show{transform:none}
+#banner b{background:#fff3b0;color:#c27a0c;border-radius:50%;width:34px;height:34px;display:grid;place-items:center;text-shadow:none;font-size:13px;border:2px solid #fff}
+#banner{padding:0 76px 0 16px;height:56px;background:linear-gradient(#fff0a0,#f5b81c 45%,#b86e06);border:3px solid #fff6c8;border-left:0;font-size:19px}
+#banner:before{content:"";position:absolute;inset:0;border-radius:inherit;pointer-events:none;background:linear-gradient(100deg,transparent 35%,#fffb 50%,transparent 65%);background-size:250% 100%;animation:shine 1.6s linear infinite}
+@keyframes shine{from{background-position:150% 0}to{background-position:-50% 0}}
+#banner .wing{position:absolute;right:-40px;top:-16px;width:76px;height:86px;pointer-events:none;filter:drop-shadow(0 4px 3px #0005)}
+#banner .crown{position:absolute;left:30px;top:-24px;font-style:normal;font-size:28px;filter:drop-shadow(0 3px 2px #0006)}
+#winners{border-color:#c9802a;box-shadow:0 -8px 20px #0006,inset 0 0 0 3px #ffe9a8,inset 0 0 18px #ffd34d}
+#hub:after{content:"";position:absolute;inset:-9%;border-radius:50%;border:5px dotted #fff7b0;animation:spin 6s linear infinite;pointer-events:none}
+@keyframes spin{to{transform:rotate(360deg)}}
+.cf{position:absolute;top:-14px;width:8px;height:12px;z-index:11;pointer-events:none;animation:fall 2.2s ease-in forwards}
+@keyframes fall{to{transform:translateY(105vh) rotate(720deg)}}
+@media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+
+#chips{opacity:.58}
+#auto{opacity:.68}
+#game:before{content:'SERVER SYNC · FREE PREVIEW';position:absolute;right:6px;top:44px;z-index:6;background:#052c29d9;color:#efffc8;border:1px solid #9df2b0;border-radius:12px;font-size:10px;font-weight:900;padding:4px 8px;pointer-events:none}
+</style>
+</head>
+<body>
+<div id="app">
+  <div id="room"><b>🎙 ভয়েস রুম</b><div class="mics"><i></i><i></i></div></div>
+  <div id="game">
+    <div class="top"><span>আজকের রাউন্ড: <span id="rn">1917</span></span>
+      <span><button id="mode" title="রুমের ভিতর/বাইরে">⛶</button><button id="help">?</button></span></div>
+    <div id="stage"><div id="wheel"><div id="hub"><span class="big" id="big">🍽</span><span id="ht">সময় বাছাই করুন</span><big id="tm">20</big></div></div></div>
+    <div class="mid">
+      <div class="panel"><div class="av">👩</div><span>💎 <span id="jp">825,000</span></span></div>
+      <div class="panel" id="hist">আমার হিস্ট্রি ›</div>
+    </div>
+    <div class="bottom">
+      <div id="res"><span class="l">ফলাফল:</span></div>
+      <div id="chips"></div>
+      <div class="foot"><div class="av">🧑</div>
+        <div class="pill"><small>সার্ভার ওয়ালেট</small>💎 <span id="bal">1,000</span></div>
+        <div class="pill"><small>প্রিভিউ মোড</small>💎 <span id="rev">0</span></div>
+        <button id="auto">অটো প্লে</button></div>
+    </div>
+    <div id="banner"></div><div id="winners"></div><div id="toast"></div>
+    <div id="sheet"><div class="in" id="sin"></div></div>
+  </div>
+</div>
+<script>
+"use strict";
+// Original wheel HTML and CSS are preserved. This replaces all two browser
+// random/bot/wallet demo scripts with Firebase-authenticated native requests.
+// Android verifies Firebase tokens and sends only the server response back here.
+(function(){
+const $=id=>document.getElementById(id);
+const ITEMS=[
+ {k:'chicken',e:'🍗',m:45},{k:'fish',e:'🐟',m:25},
+ {k:'hotdog',e:'🌭',m:15},{k:'steak',e:'🥩',m:10},
+ {k:'grapes',e:'🍇',m:5},{k:'lettuce',e:'🥬',m:5},
+ {k:'pepper',e:'🫑',m:5},{k:'melon',e:'🍉',m:5}
+];
+const SALAD=['grapes','lettuce','pepper','melon'];
+const PIZZA=['chicken','fish','hotdog','steak'];
+const W=$('winners'),wheel=$('wheel'),slots={};
+const order=ITEMS.map(x=>x.k);
+let state=null, anchor=0, lastSuccess=0, lastResultKey=null, lastRound=0;
+let inflight=false,pendingPick=false,pending={};let seq=0,connected=false;
+const emoji=x=>x==='salad'?'🥗':x==='pizza'?'🍕':(ITEMS.find(i=>i.k===x)||{}).e||'🍽';
+const fmt=x=>Number(x||0).toLocaleString('en-US');
+function toast(message){
+ const el=$('toast');el.textContent=message;el.classList.add('show');
+ clearTimeout(toast.timer);toast.timer=setTimeout(()=>el.classList.remove('show'),2100);
+}
+function rpc(op,payload={}){
+ return new Promise((resolve,reject)=>{
+   if(!window.SoveraWheelBridge||typeof window.SoveraWheelBridge.postMessage!=='function'){
+     reject(new Error('অ্যাপ থেকে সার্ভার সংযোগ পাওয়া যায়নি'));return;
+   }
+   const id=++seq;
+   const timeout=setTimeout(()=>{delete pending[id];reject(new Error('সার্ভারে সময় বেশি লাগছে'))},12000);
+   pending[id]={resolve,reject,timeout};
+   window.SoveraWheelBridge.postMessage(JSON.stringify({id,op,payload}));
+ });
+}
+window.soveraReceive=function(reply){
+ if(!reply||typeof reply.id!=='number')return;
+ const req=pending[reply.id];if(!req)return;
+ clearTimeout(req.timeout);delete pending[reply.id];
+ if(reply.ok===true)req.resolve(reply.data);
+ else req.reject(new Error(reply.error||'সার্ভার উত্তর দেয়নি'));
+};
+window.setWheelMode=function(mode){
+ // Real voice seats are rendered by Flutter, not by the original fake mic mock.
+ $('app').classList.remove('inside');
+ $('room').style.display='none';
+ $('mode').title=mode==='inside'?'ফুল স্ক্রিন':'বন্ধ করুন';
+};
+function setHub(big,title,time){
+ $('big').textContent=big;$('ht').textContent=title;$('tm').textContent=time;
+ $('hub').classList.toggle('faded',time!=='');
+}
+ITEMS.forEach((item,i)=>{
+ const a=i*Math.PI/4-Math.PI/2,r=36;
+ const el=document.createElement('div');
+ el.className='slot';el.style.left=50+r*Math.cos(a)+'%';el.style.top=50+r*Math.sin(a)+'%';
+ el.innerHTML='<span class="e">'+item.e+'</span><span class="m">x'+item.m+'</span><div class="b">—</div>';
+ el.onclick=()=>choose(item.k);wheel.appendChild(el);slots[item.k]=el;
+ const spoke=document.createElement('div');spoke.className='spoke';
+ spoke.style.transform='rotate('+(i*45+180)+'deg)';wheel.insertBefore(spoke,wheel.firstChild);
+});
+for(const amount of [50,500,2000,10000]){
+ const button=document.createElement('div');button.className='chip';
+ button.textContent=amount>=1000?(amount/1000)+'k':String(amount);
+ button.title='কয়েন ওয়ালেট সংযুক্ত নয়';
+ button.onclick=()=>toast('এখন ফ্রি প্রিভিউ। কয়েন বেট চালু হয়নি।');
+ $('chips').appendChild(button);
+}
+$('bal').textContent='—';$('rev').textContent='—';$('jp').textContent='—';
+$('auto').textContent='অটো বন্ধ';$('auto').onclick=()=>toast('ওয়ালেট সংযুক্ত হলে অটো প্লে আসবে');
+$('mode').onclick=()=>window.SoveraWheelBridge?.postMessage(JSON.stringify({id:++seq,op:'expand',payload:{}}));
+const sheet=$('sheet');sheet.onclick=ev=>{if(ev.target===sheet)sheet.classList.remove('show')};
+function putCell(parent,tag,value,cls){
+ const el=document.createElement(tag);if(cls)el.className=cls;el.textContent=String(value);parent.appendChild(el);return el;
+}
+function historyPane(){
+ const area=$('sin');area.replaceChildren();putCell(area,'b','আমার হিস্ট্রি · সার্ভার ফলাফল');
+ const table=document.createElement('table');
+ let tr=document.createElement('tr');
+ for(const value of ['রাউন্ড','ফলাফল'])putCell(tr,'th',value);
+ table.appendChild(tr);
+ for(const h of (state?.history||[])){
+   tr=document.createElement('tr');putCell(tr,'td',h.round);putCell(tr,'td',emoji(h.result));table.appendChild(tr);
+ }
+ if(!(state?.history||[]).length)putCell(area,'p','সার্ভারে এখনো কোনো ফলাফল নেই');
+ area.appendChild(table);sheet.classList.add('show');
+}
+$('hist').onclick=historyPane;
+$('help').onclick=()=>{
+ const area=$('sin');area.replaceChildren();
+ putCell(area,'b','Food Wheel · সবাই একই রাউন্ডে');
+ putCell(area,'p','চলমান ২০ সেকেন্ডের মধ্যে একটি খাবার বেছে নিন। ৫ সেকেন্ড চাকা ঘুরবে, ৫ সেকেন্ড ফলাফল দেখাবে।');
+ putCell(area,'p','সার্ভার সবার জন্য একই খাবার ও সত্যিকারের অংশগ্রহণকারীদের নাম দেখায়।');
+ putCell(area,'p','এখন ফ্রি প্রিভিউ: কয়েন কাটবে না, ডায়মন্ড বা নগদ পুরস্কার দেওয়া হবে না।');
+ sheet.classList.add('show');
+};
+async function refresh(){
+ if(inflight)return;inflight=true;
+ try{
+   const response=await rpc('state');
+   if(!response||response.game!=='food-wheel'||!Number.isInteger(response.round)||
+      !Number.isInteger(response.serverNow)||!Number.isInteger(response.endsAt)||
+      !['bet','spin','result'].includes(response.phase))throw new Error('সার্ভারের তথ্য সঠিক নয়');
+   if(response.round<lastRound)return;
+   if(response.round>lastRound){
+     lastRound=response.round;lastResultKey=null;
+     W.classList.remove('show');wheel.classList.remove('dim');$('banner').classList.remove('show');
+     Object.values(slots).forEach(s=>s.classList.remove('on','win'));
+   }
+   state=response;anchor=performance.now();lastSuccess=performance.now();connected=true;
+   $('rn').textContent=response.round;
+   for(const i of ITEMS){
+     slots[i.k].querySelector('.b').textContent=response.myPick===i.k?'✓':'—';
+   }
+   $('jp').textContent=fmt(response.players)+' জন';
+   $('res').querySelectorAll('i').forEach(el=>el.remove());
+   for(const h of (response.history||[]).slice(0,7)){
+      putCell($('res'),'i',emoji(h.result));
+   }
+   if(response.phase==='result')showResult(response);
+ }catch(err){
+   connected=false;
+   $('ht').textContent='সার্ভার সংযোগ নেই';
+ }finally{inflight=false;}
+}
+async function choose(item){
+ if(!state||state.phase!=='bet'||!connected||performance.now()-lastSuccess>3500){
+   toast('রাউন্ড বন্ধ অথবা সার্ভার সংযোগ নেই');return;
+ }
+ if(pendingPick||state.myPick){toast('এই রাউন্ডে একটি খাবার বাছাই করা হয়েছে');return}
+ pendingPick=true;
+ try{
+  const response=await rpc('pick',{round:state.round,item});
+  if(response.round!==state.round)throw new Error('রাউন্ড পরিবর্তন হয়েছে');
+  state=response;anchor=performance.now();lastSuccess=performance.now();
+  for(const x of ITEMS)slots[x.k].querySelector('.b').textContent=response.myPick===x.k?'✓':'—';
+  toast('✅ সার্ভারে আপনার পছন্দ সেভ হয়েছে');
+ }catch(err){toast(err.message||'আবার চেষ্টা করুন')}
+ finally{pendingPick=false;refresh()}
+}
+function showResult(data){
+ const key=String(data.round)+':'+String(data.result);
+ if(lastResultKey===key)return;
+ lastResultKey=key;
+ W.replaceChildren();
+ const top=document.createElement('div');top.className='rtop';
+ putCell(top,'div',emoji(data.result),'big3');
+ const info=document.createElement('div');info.className='rinfo';
+ putCell(info,'div','রাউন্ড '+data.round+' এর ফলাফল: '+emoji(data.result));
+ putCell(info,'div','মোট অংশগ্রহণকারী: '+fmt(data.players));
+ putCell(info,'div','প্রকৃত বিজয়ী: '+fmt(data.winnerCount));
+ top.appendChild(info);W.appendChild(top);
+ const header=document.createElement('div');header.className='rkh';
+ putCell(header,'i','');putCell(header,'span','এই রাউন্ডের র‍্যাঙ্কিং :');putCell(header,'i','');
+ W.appendChild(header);
+ if(!(data.winners||[]).length)putCell(W,'div','এই রাউন্ডে কেউ সঠিক খাবার বাছেনি','rk');
+ else data.winners.slice(0,3).forEach((winner,i)=>{
+   const row=document.createElement('div');row.className='rk';
+   putCell(row,'span',['🥇','🥈','🥉'][i]);
+   putCell(row,'span','👤','av');putCell(row,'span',winner.name||'Player','rkn');
+   putCell(row,'span','সঠিক বাছাই','a');W.appendChild(row);
+ });
+ if(data.myPick)putCell(W,'div',data.myWin?'🎉 সঠিক খাবার বাছাই করেছেন':'এই রাউন্ডে আপনার বাছাই মেলেনি','me');
+ W.classList.add('show');wheel.classList.add('dim');
+ Object.values(slots).forEach(s=>s.classList.remove('on','win'));
+ const targets=data.result==='salad'?SALAD:data.result==='pizza'?PIZZA:[data.result];
+ targets.forEach(t=>slots[t]?.classList.add('win'));
+ if((data.winners||[]).length){
+   const banner=$('banner');banner.replaceChildren();
+   putCell(banner,'span','🏆');
+   putCell(banner,'span','WIN · '+fmt(data.winnerCount)+' জন');
+   putCell(banner,'b','GO');
+   banner.classList.add('show');
+ }
+}
+function tick(){
+ if(state&&connected&&performance.now()-lastSuccess<4500){
+   const age=performance.now()-anchor,remain=Math.max(0,state.endsAt-state.serverNow-age);
+   const seconds=Math.ceil(remain/1000);
+   if(state.phase==='bet')setHub('🍽','খাবার বাছুন · '+fmt(state.players)+' জন',seconds);
+   else if(state.phase==='spin'){
+     setHub('🎡','চাকা ঘুরছে','');
+     const p=Math.max(0,Math.min(1,1-remain/5000));
+     const target=Number.isInteger(state.visualIndex)?state.visualIndex:0;
+     const steps=24+target;
+     const index=Math.min(steps,Math.floor((steps+.99)*(1-Math.pow(1-p,3))));
+     Object.values(slots).forEach(s=>s.classList.remove('on'));
+     slots[order[index%8]].classList.add('on');
+   }else{
+     setHub(emoji(state.result),'ফলাফল',seconds);
+   }
+ }else if(!connected){setHub('🔌','সার্ভারের অপেক্ষা','—');}
+ requestAnimationFrame(tick);
+}
+window.setWheelMode('full');
+setHub('🎡','সার্ভারে সংযোগ হচ্ছে','—');
+refresh();setInterval(refresh,1000);requestAnimationFrame(tick);
+})();
+</script>
+</body>
+</html>
