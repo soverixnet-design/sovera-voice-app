@@ -49,6 +49,7 @@ class _FirebaseRoomsPageState extends State<FirebaseRoomsPage> {
     FilledButton.icon(onPressed:()=>Navigator.push(context,
       MaterialPageRoute<void>(builder:(_)=>FirebaseGlobalColorGame(api:widget.api))),
       icon:const Icon(Icons.emoji_events_rounded),label:const Text('Play Global Color Game · Shared winners')),
+    GlobalColorsResultStrip(api:widget.api),
     const SizedBox(height:8),
     FilledButton.icon(onPressed:busy?null:create,icon:const Icon(Icons.add_home),label:const Text('Create / open my room')),
     const Padding(padding:EdgeInsets.symmetric(vertical:12),child:Text('Public rooms, saved text chat and live audio.')),
@@ -143,7 +144,7 @@ class _FirebaseRoomChatState extends State<FirebaseRoomChat> with WidgetsBinding
   Timer? timer;bool syncing=false,sending=false,savingRoom=false,sendingEffect=false;String? error,pendingId,pendingText;
   String? pendingEffectId,pendingEffectKey;
   List<Map<String,dynamic>> roomEffects=[];
-  Map<String,dynamic>? sharedRound;
+
   late String roomName;late int seatCount;
   bool get isOwner=>widget.room['owner_uid']==widget.api.uid;
   DateTime? heartbeat;
@@ -166,11 +167,7 @@ class _FirebaseRoomChatState extends State<FirebaseRoomChat> with WidgetsBinding
         final entries=events['effects'];
         if(mounted&&entries is List)setState(()=>roomEffects=entries.whereType<Map>().map((r)=>Map<String,dynamic>.from(r)).toList());
       }catch(_){if(mounted)setState(()=>roomEffects=[]);}
-      // One global result across all rooms, never a device-side random winner.
-      try{
-        final data=await widget.api.call('GET',suffix:'/games/colors');
-        if(mounted&&data['game']=='global-colors')setState(()=>sharedRound=data);
-      }catch(_){if(mounted)setState(()=>sharedRound=null);}
+
     }catch(e){if(mounted)setState(()=>error=_error(e));}finally{syncing=false;}
   }
   Future<void> editRoom()async{
@@ -239,18 +236,7 @@ class _FirebaseRoomChatState extends State<FirebaseRoomChat> with WidgetsBinding
     if(isOwner)IconButton(tooltip:'Room settings',onPressed:savingRoom?null:editRoom,icon:const Icon(Icons.tune_rounded))]),body:SafeArea(child:Column(children:[
     if(isOwner)Padding(padding:const EdgeInsets.symmetric(vertical:3),child:Text('$seatCount seats · Owner settings',style:const TextStyle(fontSize:12,color:Colors.white70))),
     FirebaseVoicePanel(api:widget.api,roomId:widget.room['id'] as String),
-    if(sharedRound?['result'] is String)Card(
-      color:const Color(0xFF3F3220),
-      child:ListTile(
-        leading:const Icon(Icons.emoji_events_rounded,color:Colors.amber),
-        title:Text('GLOBAL WIN · ${sharedRound!['result'].toString().toUpperCase()} · Round #${sharedRound!['round']}',
-          maxLines:1,overflow:TextOverflow.ellipsis),
-        subtitle:Text('${sharedRound!['winner_count']} verified winners · Same for every room',
-          maxLines:1,overflow:TextOverflow.ellipsis),
-        onTap:()=>Navigator.push(context,
-          MaterialPageRoute<void>(builder:(_)=>FirebaseGlobalColorGame(api:widget.api))),
-      ),
-    ),
+    GlobalColorsResultStrip(api:widget.api),
     if(roomEffects.isNotEmpty)AnimatedSwitcher(
       duration:const Duration(milliseconds:300),
       child:Card(
