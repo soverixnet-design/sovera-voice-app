@@ -16,7 +16,7 @@ jobs:
       - run: pip install fastapi==0.146.0 httpx==0.28.1 PyJWT==2.15.1 livekit-api==1.2.2
       - run: python server/voice/test_seats.py
       - run: python server/voice/test_firebase_auth.py
-      - run: python -m unittest server.food.test_food server.food.test_identity server.accounts.test_accounts server.accounts.test_voice server.accounts.test_duel server.accounts.test_global_games -v
+      - run: python -m unittest server.food.test_food server.food.test_identity server.accounts.test_accounts server.accounts.test_voice server.accounts.test_duel server.accounts.test_global_games server.accounts.test_food_wheel -v
   admin:
     runs-on: ubuntu-latest
     steps:
