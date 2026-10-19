@@ -7,6 +7,36 @@ import 'package:sovera/firebase_profile.dart';
 import 'package:sovera/firebase_rooms.dart';
 import 'package:sovera/firebase_voice.dart';
 void main(){
+  test('RTC publishing permission may arrive after the old two-second limit',()async{
+    var ticks=0;
+    final granted=await waitForMicPublishPermission(
+      canPublish:()=>ticks>=26,
+      canContinue:()=>true,
+      wait:(_)async{ticks++;},
+    );
+    expect(granted,isTrue);
+    expect(ticks,26);
+  });
+  test('RTC permission wait aborts if the room closes or timeouts',()async{
+    var active=true;
+    var checks=0;
+    final aborted=await waitForMicPublishPermission(
+      canPublish:()=>false,
+      canContinue:()=>active,
+      wait:(_)async{active=false;checks++;},
+    );
+    expect(aborted,isFalse);
+    expect(checks,1);
+    final timedOut=await waitForMicPublishPermission(
+      canPublish:()=>false,
+      canContinue:()=>true,
+      checks:3,
+      wait:(_)async{checks++;},
+    );
+    expect(timedOut,isFalse);
+    expect(checks,3);
+  });
+
   testWidgets('voice requires explicit connection and shows no fake seats',(tester)async{
     var calls=0;
     final api=FirebaseProfileApi(uid:'alice',token:()async=>'token',client:MockClient((r)async{calls++;return http.Response('',503);}));
