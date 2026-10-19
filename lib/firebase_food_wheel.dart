@@ -76,7 +76,7 @@ class _FirebaseFoodWheelViewState extends State<FirebaseFoodWheelView>{
       }else if(op=='pick'){
         final body=decoded['payload'];
         if(body is! Map||body.length!=2||
-            body['round'] is! int||body['round']<1||
+            body['round'] is! int||(body['round'] as int)<1||
             body['item'] is! String||!foods.contains(body['item'])){
           throw const ProfileApiError('Invalid food selection.');
         }
