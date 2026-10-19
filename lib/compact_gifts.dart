@@ -76,7 +76,7 @@ class _CompactGiftSheetState extends State<CompactGiftSheet> {
                 child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
                   Icon(gift.icon, color: gift.color, size: 30),
                   Text(gift.name, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 10)),
-                  Text('${gift.coins} coins', style: const TextStyle(color: Colors.amber, fontSize: 11)),
+                  Text('${gift.coins} coins', maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(color: Colors.amber, fontSize: 11)),
                 ]),
               ));
             },
