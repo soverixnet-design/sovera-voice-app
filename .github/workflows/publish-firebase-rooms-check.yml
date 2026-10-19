@@ -1,0 +1,28 @@
+name: Publish Firebase rooms check
+on:
+  push:
+    branches: [admin-control-preview]
+    paths: ['.github/workflows/publish-firebase-rooms-check.yml']
+permissions:
+  actions: read
+  contents: write
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+    steps:
+      - run: gh run download 39311784161 --name sovera-firebase-login-check-not-full-app --dir apk
+      - name: Verify exact tested APK
+        run: |
+          echo '3ef9b6b4bedb481062621de6c724af13b2d57bd0682a8399d2d6c5956f6b4572  apk/build/app/outputs/flutter-apk/app-debug.apk' | sha256sum -c -
+          unzip -tq apk/build/app/outputs/flutter-apk/app-debug.apk
+          cp apk/build/app/outputs/flutter-apk/app-debug.apk apk/Sovera-Firebase-Rooms-Check.apk
+      - name: Publish test download
+        run: >-
+          gh release create v0.18.2-firebase-rooms-check-20261019
+          apk/Sovera-Firebase-Rooms-Check.apk
+          --target 7d39d176d13ee0d943ddfb005d7820e3b18c6944
+          --title 'Sovera Firebase profile, rooms and chat check'
+          --notes 'Verification build: Google/email login, server profile, public rooms and text chat. The exact APK SHA-1 and SHA-256 have been registered in the Sovera Firebase project. Voice, wallet, gifts, games and the full legacy app migration are NOT included. Device verification is still required. Do not uninstall an existing Sovera app merely to install this test if Android reports a signature conflict.'
