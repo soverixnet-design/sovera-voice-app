@@ -47,6 +47,37 @@ void main(){
     expect(find.text('Live audio · Microphone on'),findsNothing);
     await tester.pumpWidget(const SizedBox());await tester.pumpAndSettle();
   });
+  testWidgets('owner edits room capacity and name through authenticated PUT',(tester)async{
+    Map<String,dynamic>? sent;
+    final api=FirebaseProfileApi(uid:'alice',token:()async=>'token',client:MockClient((request)async{
+      if(request.method=='PUT'&&request.url.path.endsWith('/rooms/room-1')){
+        sent=Map<String,dynamic>.from(jsonDecode(request.body) as Map);
+        return http.Response(jsonEncode({'room':{'name':sent!['name'],'seats':sent!['seats']}}),200);
+      }
+      if(request.url.path.endsWith('/messages'))return http.Response('{"messages":[]}',200);
+      return http.Response('{"saved":true}',200);
+    }));
+    const room={'id':'room-1','name':'Original room','owner_uid':'alice','seats':9};
+    await tester.pumpWidget(MaterialApp(home:FirebaseRoomChat(api:api,room:room)));await tester.pumpAndSettle();
+    expect(find.text('9 seats · Owner settings'),findsOneWidget);
+    await tester.tap(find.byTooltip('Room settings'));await tester.pumpAndSettle();
+    await tester.enterText(find.byType(TextField).last,'Renamed room');
+    await tester.tap(find.text('12 seats'));await tester.pumpAndSettle();
+    await tester.tap(find.text('Save changes'));await tester.pumpAndSettle();
+    expect(sent,{'name':'Renamed room','seats':12});
+    expect(find.text('Renamed room'),findsOneWidget);
+    expect(find.text('12 seats · Owner settings'),findsOneWidget);
+    await tester.pumpWidget(const SizedBox());await tester.pumpAndSettle();
+  });
+  testWidgets('non-owner cannot open room settings',(tester)async{
+    final api=FirebaseProfileApi(uid:'bob',token:()async=>'token',client:MockClient((request)async{
+      if(request.url.path.endsWith('/messages'))return http.Response('{"messages":[]}',200);
+      return http.Response('{"saved":true}',200);
+    }));
+    await tester.pumpWidget(MaterialApp(home:FirebaseRoomChat(api:api,room:const {'id':'room-1','name':'Room','owner_uid':'alice','seats':9})));await tester.pumpAndSettle();
+    expect(find.byTooltip('Room settings'),findsNothing);
+    await tester.pumpWidget(const SizedBox());await tester.pumpAndSettle();
+  });
   testWidgets('directory uses server country and participant count',(tester)async{
     final api=FirebaseProfileApi(uid:'alice',token:()async=>'token',client:MockClient((r)async=>http.Response(jsonEncode({'rooms':[{'id':'room-1','name':'My room','owner_uid':'alice','owner_name':'Shakil','country':'BD','avatar_url':null,'occupants':2,'seats':9}]}),200)));
     await tester.pumpWidget(MaterialApp(home:FirebaseRoomsPage(api:api)));await tester.pumpAndSettle();
