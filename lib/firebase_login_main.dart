@@ -6,7 +6,7 @@ import 'package:google_sign_in/google_sign_in.dart';
 import 'package:http/http.dart' as http;
 import 'firebase_profile.dart';
 import 'firebase_rooms.dart';
-import 'firebase_global_game.dart';
+import 'firebase_food_wheel.dart';
 
 const _webClient = '486331346860-trjijmpedgurb05npsvao3d3v327b6ii.apps.googleusercontent.com';
 
@@ -217,9 +217,9 @@ class _FirebaseSignedInPageState extends State<FirebaseSignedInPage> {
       const SizedBox(height:16),
       FilledButton.icon(onPressed:()=>Navigator.of(context).push(MaterialPageRoute<void>(builder:(_)=>FirebaseRoomsPage(api:profileApi))),icon:const Icon(Icons.meeting_room),label:const Text('Open rooms')),
       const SizedBox(height:8),
-      FilledButton.icon(onPressed:()=>Navigator.of(context).push(MaterialPageRoute<void>(builder:(_)=>FirebaseGlobalColorGame(api:profileApi))),icon:const Icon(Icons.casino_rounded),label:const Text('Global Color Game · Shared Winner')),
+      FilledButton.icon(onPressed:()=>Navigator.of(context).push(MaterialPageRoute<void>(builder:(_)=>FirebaseFoodWheelPage(api:profileApi))),icon:const Icon(Icons.casino_rounded),label:const Text('Food Wheel · Same round for everyone')),
       const SizedBox(height:10),
-      const Text('Shared free games require the updated account server. Voice still needs two-device verification. Coins, paid gifts and wagering remain disabled.'),
+      const Text('Original Food Wheel design, one server result for everyone. Free preview only: no Coin or Diamond transactions until the wallet is connected.'),
       if (message != null) Padding(padding: const EdgeInsets.symmetric(vertical: 16), child: Text(message!)),
       TextButton(onPressed: busy ? null : () => action(() async {
         await FirebaseAuth.instance.signOut();
