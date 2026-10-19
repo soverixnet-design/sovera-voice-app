@@ -136,7 +136,11 @@ class _FirebaseVoicePanelState extends State<FirebaseVoicePanel> with WidgetsBin
   }
   @override void dispose(){closing=true;WidgetsBinding.instance.removeObserver(this);unawaited(closeAudio().catchError((Object _){}));unawaited(request('leave').then<void>((_){}).catchError((Object _){}));super.dispose();}
   @override Widget build(BuildContext context)=>Padding(padding:const EdgeInsets.all(8),child:Column(mainAxisSize:MainAxisSize.min,children:[
-    Row(children:[const Icon(Icons.headset),const SizedBox(width:8),Expanded(child:Text(connected?(muted?'Live audio · Listening':'Live audio · Microphone on'):'Audio disconnected')),if(!connected)TextButton(onPressed:busy||!active?null:connect,child:Text(busy?'Connecting…':'Connect')),if(connected&&seats.mine!=null)...[TextButton(onPressed:busy?null:muted?enableMic:()async{await mute();if(mounted)setState((){});},child:Text(muted?'Enable mic':'Mute')),TextButton(onPressed:busy?null:leave,child:const Text('Leave seat'))]]),
+    Row(children:[const Icon(Icons.headset),const SizedBox(width:8),Expanded(child:Text(connected?(muted?'Live audio · Listening':'Live audio · Microphone on'):'Audio disconnected')),if(!connected)TextButton(onPressed:busy||!active?null:connect,child:Text(busy?'Connecting…':'Connect')),]),
+    if(connected&&seats.mine!=null)Align(alignment:Alignment.centerRight,child:Wrap(spacing:8,runSpacing:4,children:[
+      TextButton(onPressed:busy?null:muted?enableMic:()async{await mute();if(mounted)setState((){});},child:Text(muted?'Enable mic':'Mute')),
+      TextButton(onPressed:busy?null:leave,child:const Text('Leave seat')),
+    ])),
     if(connected)Wrap(spacing:6,children:[for(var i=0;i<seats.count;i++)OutlinedButton(onPressed:busy||seats.occupants.containsKey(i)?null:()=>take(i),child:Text(seats.mine==i?'${i+1} · You':seats.occupants.containsKey(i)?'${i+1} · Busy':'Seat ${i+1}'))]),
     if(error!=null)Text(error!,style:const TextStyle(color:Colors.orange)),
   ]));
