@@ -42,6 +42,7 @@ class DuelTests(unittest.TestCase):
         state=self.client.post(uri+'/join',headers=self.people['bob']).json()
         self.assertTrue(state['ready'])
         self.assertEqual(state['turn_uid'],'alice')
+        self.assertEqual(self.client.post(uri+'/restart',headers=self.people['bob']).status_code,409)
         bad=self.client.post(uri+'/move',json={'cell':0,'revision':state['revision']},
             headers=self.people['bob'])
         self.assertEqual(bad.status_code,409)
@@ -58,7 +59,6 @@ class DuelTests(unittest.TestCase):
         self.assertEqual(state['board'][0:3],['X','X','X'])
         self.assertEqual(self.client.post(uri+'/join',headers=self.people['alice']).status_code,200)
         self.assertEqual(self.client.post(uri+'/restart',headers=self.people['eve']).status_code,409)
-        self.assertEqual(self.client.post(uri+'/restart',headers=self.people['bob']).status_code,409)
         self.heartbeat('bob')
         restarted=self.client.post(uri+'/restart',headers=self.people['bob']).json()
         self.assertIsNone(restarted['winner'])
