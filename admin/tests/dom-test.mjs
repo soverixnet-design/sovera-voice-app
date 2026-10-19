@@ -19,5 +19,25 @@ assert.equal(requests,1,'Preview never calls account or admin APIs');
 assert.equal(w.testAPI.safeURL('javascript:alert(1)'),'');assert.equal(w.testAPI.e('<img onerror="bad">'),'&lt;img onerror=&quot;bad&quot;&gt;');
 w.testAPI.state.preview=false;w.testAPI.state.identity={role:'agent',permissions:['users.read','recharge.create','history.read']};
 assert.equal(w.testAPI.can('owner'),false);assert.equal(w.testAPI.can('vip.manage'),false);assert.equal(w.testAPI.can('recharge.create'),true);
+// Late upload responses cannot overwrite another item editor.
+w.testAPI.state.identity={role:'owner',permissions:[]};w.testAPI.state.view='content';
+w.URL.createObjectURL=()=> 'blob:artwork';w.URL.revokeObjectURL=()=>{};
+let finishUpload;
+w.fetch=async(_url,options)=>{
+ const body=JSON.parse(options.body);
+ if(body.action==='asset.upload')return new Promise(resolve=>{finishUpload=()=>resolve({ok:true,json:async()=>({url:'https://example.com/old-frame.png'})});});
+ return {ok:true,json:async()=>({result:[]})};
+};
+await w.testAPI.render();
+assert.ok(w.document.querySelector('#asset-preview'),'Artwork preview exists');
+const upload=w.document.querySelector('#upload');
+Object.defineProperty(upload,'files',{value:[new w.File([new Uint8Array(20)],'frame.png',{type:'image/png'})]});
+const pendingUpload=upload.onchange();
+await new Promise(r=>setTimeout(r,30));
+assert.equal(w.document.querySelector('#content-save').disabled,true,'Cannot save during upload');
+assert.equal(typeof finishUpload,'function');
+await w.testAPI.render();
+finishUpload();await pendingUpload;
+assert.equal(w.document.querySelector('#asset-url').value,'','Late upload cannot overwrite new editor');
 console.log('DOM tests passed: login gate, 9 sections, no preview API writes, escaping, role visibility');
 await w.happyDOM.close();
