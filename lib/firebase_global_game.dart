@@ -173,3 +173,51 @@ class _FirebaseGlobalColorGameState extends State<FirebaseGlobalColorGame>
     );
   }
 }
+
+
+/// Compact cross-room live result; spectators see the exact same server draw.
+/// Polling is bounded and never computes a device-side winner.
+class GlobalColorsResultStrip extends StatefulWidget {
+  final FirebaseProfileApi api;
+  const GlobalColorsResultStrip({super.key,required this.api});
+  @override State<GlobalColorsResultStrip> createState()=>_GlobalColorsResultStripState();
+}
+class _GlobalColorsResultStripState extends State<GlobalColorsResultStrip>{
+  Timer? poller;
+  bool busy=false;
+  Map<String,dynamic>? result;
+  @override void initState(){
+    super.initState();
+    update();
+    poller=Timer.periodic(const Duration(seconds:2),(_)=>update());
+  }
+  @override void dispose(){poller?.cancel();super.dispose();}
+  Future<void> update()async{
+    if(busy)return;
+    busy=true;
+    try{
+      final round=await widget.api.call('GET',suffix:'/games/colors');
+      if(mounted)setState(()=>result=round['game']=='global-colors'?round:null);
+    }catch(_){
+      if(mounted)setState(()=>result=null);
+    }finally{busy=false;}
+  }
+  @override Widget build(BuildContext context){
+    final row=result;
+    final winning=row?['result'];
+    if(winning is! String)return const SizedBox.shrink();
+    return Card(
+      color:const Color(0xFF40331C),
+      child:ListTile(
+        leading:const Icon(Icons.emoji_events_rounded,color:Colors.amber),
+        title:Text('GLOBAL WIN · ${winning.toUpperCase()} · Round #${row!['round']}',
+          maxLines:1,overflow:TextOverflow.ellipsis),
+        subtitle:Text('${row['winner_count']} verified winners · Same in every room',
+          maxLines:1,overflow:TextOverflow.ellipsis),
+        trailing:const Icon(Icons.chevron_right_rounded),
+        onTap:()=>Navigator.push(context,MaterialPageRoute<void>(
+          builder:(_)=>FirebaseGlobalColorGame(api:widget.api))),
+      ),
+    );
+  }
+}
