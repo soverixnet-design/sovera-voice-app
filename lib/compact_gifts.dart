@@ -82,8 +82,8 @@ class _CompactGiftSheetState extends State<CompactGiftSheet> {
             },
           )),
           const SizedBox(height: 6),
-          Row(children: [
-            const Expanded(child: Text('Preview · no coins spent', style: TextStyle(fontSize: 11, color: Colors.white60))),
+          Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+            const Text('Preview · no coins spent', maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(fontSize: 11, color: Colors.white60)),
             FilledButton(onPressed: selected == null || seat == null ? null : () {
               Navigator.pop(context, GiftSeatSelection(selected!, seat!, widget.recipients[seat]!));
             }, child: const Text('Preview to seat')),
