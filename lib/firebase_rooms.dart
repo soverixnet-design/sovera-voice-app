@@ -224,8 +224,11 @@ class _FirebaseRoomChatState extends State<FirebaseRoomChat> with WidgetsBinding
     }catch(e){if(mounted)setState(()=>error=_error(e));}finally{if(mounted)setState(()=>sending=false);}
   }
   @override Widget build(BuildContext context)=>Scaffold(appBar:AppBar(title:Text(roomName),actions:[
-    IconButton(tooltip:'Global Game',onPressed:()=>Navigator.push(context,
-      MaterialPageRoute<void>(builder:(_)=>FirebaseGlobalColorGame(api:widget.api))),
+    IconButton(tooltip:'Food Wheel',onPressed:()=>showModalBottomSheet<void>(
+      context:context,isScrollControlled:true,useSafeArea:true,
+      backgroundColor:const Color(0xFF12172D),
+      builder:(sheetContext)=>SizedBox(height:MediaQuery.sizeOf(sheetContext).height*.64,
+        child:FirebaseFoodWheelView(api:widget.api,inside:true))),
       icon:const Icon(Icons.casino_rounded)),
 
     IconButton(tooltip:'Gift effects',onPressed:sendingEffect?null:chooseEffect,icon:const Icon(Icons.card_giftcard_rounded)),
