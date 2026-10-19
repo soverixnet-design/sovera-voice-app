@@ -77,6 +77,7 @@ class EffectPortrait extends StatelessWidget {
   final Widget child;
   final double size, phase;
   final bool speaking;
+  final double? portraitSize;
   const EffectPortrait({
     super.key,
     required this.pack,
@@ -84,6 +85,7 @@ class EffectPortrait extends StatelessWidget {
     this.size = 240,
     this.phase = 0,
     this.speaking = false,
+    this.portraitSize,
   });
   @override
   Widget build(BuildContext context) => SizedBox(
@@ -93,10 +95,10 @@ class EffectPortrait extends StatelessWidget {
           clipBehavior: Clip.none,
           children: [
             Positioned(
-              left: size * (.5-pack.portraitDiameter/2),
-              top: size * (pack.portraitY-pack.portraitDiameter/2),
-              width: size * pack.portraitDiameter,
-              height: size * pack.portraitDiameter,
+              left: portraitSize == null ? size * (.5-pack.portraitDiameter/2) : (size-portraitSize!)/2,
+              top: portraitSize == null ? size * (pack.portraitY-pack.portraitDiameter/2) : (size-portraitSize!)/2,
+              width: portraitSize ?? size * pack.portraitDiameter,
+              height: portraitSize ?? size * pack.portraitDiameter,
               child: ClipOval(
                 child: ColoredBox(
                   color: const Color(0xFF131522),
@@ -104,7 +106,11 @@ class EffectPortrait extends StatelessWidget {
                 ),
               ),
             ),
-            Positioned.fill(
+            Positioned(
+              left: portraitSize == null ? 0 : (size-portraitSize!/pack.portraitDiameter)/2,
+              top: portraitSize == null ? 0 : size/2-(portraitSize!/pack.portraitDiameter)*pack.portraitY,
+              width: portraitSize == null ? size : portraitSize!/pack.portraitDiameter,
+              height: portraitSize == null ? size : portraitSize!/pack.portraitDiameter,
               child: CosmeticArt(
                 asset: MediaQuery.disableAnimationsOf(context)?(pack.stillAsset??pack.asset):speaking ? (pack.voiceAsset ?? pack.asset) : pack.asset,
                 phase: phase,
@@ -128,11 +134,13 @@ class FramePreviewAdapter extends StatelessWidget {
   final Widget child;
   final double size;
   final bool enabled;
+  final double? portraitSize;
   const FramePreviewAdapter({
     super.key,
     required this.child,
     this.size = 160,
     this.enabled = true,
+    this.portraitSize,
   });
   @override
   Widget build(BuildContext context) => ValueListenableBuilder<EffectPack?>(
@@ -143,6 +151,7 @@ class FramePreviewAdapter extends StatelessWidget {
                 builder: (phase) => EffectPortrait(
                   pack: pack,
                   size: size,
+                  portraitSize: portraitSize ?? size*.64,
                   phase: phase,
                   child: child,
                 ),

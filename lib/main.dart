@@ -1,3 +1,4 @@
+import 'compact_gifts.dart';
 import 'package:livekit_client/livekit_client.dart' as rtc;
 import 'voice_connection.dart';
 import 'room_presence.dart';
@@ -234,7 +235,7 @@ class RoyalAvatar extends StatelessWidget {
  final double size; final String label; final bool active;
  const RoyalAvatar({super.key, this.size = 66, this.label = '', this.active = false});
  @override
- Widget build(BuildContext context) => FramePreviewAdapter(size:size+28,enabled:active,child:SizedBox(width: size+24, height: size+28, child: Stack(alignment: Alignment.center, children: [
+ Widget build(BuildContext context) => FramePreviewAdapter(size:size+28,portraitSize:size,enabled:active,child:SizedBox(width: size+24, height: size+28, child: Stack(alignment: Alignment.center, children: [
  Positioned(left: 0, child: Transform.rotate(angle: -.4, child: Icon(Icons.eco_rounded, color: gold, size: size*.55))),
  Positioned(right: 0, child: Transform.flip(flipX: true, child: Transform.rotate(angle: -.4, child: Icon(Icons.eco_rounded, color: gold, size: size*.55)))),
  Container(width: size, height: size, decoration: BoxDecoration(shape: BoxShape.circle, gradient: const LinearGradient(colors: [gold, Color(0xFF8F542A), Color(0xFFFFE7BA)]), boxShadow: [BoxShadow(color: gold.withValues(alpha: .25), blurRadius: 14)]), padding: const EdgeInsets.all(3), child: CircleAvatar(backgroundColor: const Color(0xFF15131B), child: active ? const BrandLogo(size: 42) : Icon(Icons.chair_alt_rounded, color: gold, size: size*.4))),
@@ -275,6 +276,8 @@ class VoiceRoom extends StatefulWidget {
 }
 class _VoiceRoomState extends State<VoiceRoom> with WidgetsBindingObserver {
  Timer? seatTimer;
+ final seatGiftAnchors=<int,GlobalKey>{};
+ final flyingGiftOverlays=<OverlayEntry>{};
  bool seatBusy=false, seatActive=true;
  Map<int,String> liveSeats={};
  Future<VoiceSeatState> seatRequest(String action,{int? seat})=>requestVoiceSeat(roomId:widget.roomId!,accessToken:soveraClient.auth.currentSession?.accessToken,action:action,seat:seat);
@@ -392,7 +395,7 @@ class _VoiceRoomState extends State<VoiceRoom> with WidgetsBindingObserver {
  bool get canEdit=>widget.roomId==null||soveraClient.auth.currentUser?.id==widget.ownerId;
  void notice(String text) => ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(text)));
  @override
- void dispose(){roomClosing=true;unawaited(closeAudio());WidgetsBinding.instance.removeObserver(this);presenceTimer?.cancel();leavePresence();input.dispose();super.dispose();}
+ void dispose(){for(final entry in flyingGiftOverlays){entry.remove();}flyingGiftOverlays.clear();roomClosing=true;unawaited(closeAudio());WidgetsBinding.instance.removeObserver(this);presenceTimer?.cancel();leavePresence();input.dispose();super.dispose();}
  @override
  Widget build(BuildContext context) => Scaffold(backgroundColor: const Color(0xFF0C0D0F),
  appBar:AppBar(backgroundColor:const Color(0xFF10182A),automaticallyImplyLeading:false,leadingWidth:44,leading:RoomTool(label:'Back',icon:Icons.arrow_back_ios_new_rounded,color:violet,onTap:()=>Navigator.maybePop(context)),titleSpacing:0,title:Row(children:[RoomPhoto(roomId:widget.roomId,canEdit:canEdit,size:32),const SizedBox(width:6),Expanded(child:Text(widget.name,maxLines:1,overflow:TextOverflow.ellipsis,style:const TextStyle(fontSize:14,fontWeight:FontWeight.bold)))]),actions:[
@@ -412,7 +415,7 @@ class _VoiceRoomState extends State<VoiceRoom> with WidgetsBindingObserver {
  final height=seatSize+62+25*(MediaQuery.textScalerOf(context).scale(1)-1);
  final linked=mySeat!=null&&partnerSeat!=null&&adjacentSeats(mySeat!,partnerSeat!,seats);
  return Stack(children:[
- GridView.builder(shrinkWrap:true,physics:const NeverScrollableScrollPhysics(),itemCount:seats,gridDelegate:SliverGridDelegateWithFixedCrossAxisCount(crossAxisCount:roomSeatColumns,mainAxisExtent:height),itemBuilder:(context,index)=>Semantics(label:'Seat ${index+1}',button:true,child:InkWell(onTap:(){if(widget.roomId!=null){chooseLiveSeat(index);return;}setState((){mySeat=mySeat==index?null:index;if(mySeat==null||mySeat==partnerSeat)partnerSeat=null;});},onLongPress:()=>profile(index),borderRadius:BorderRadius.circular(24),child:Column(children:[RoomSeatAvatar(size:seatSize,occupied:widget.roomId==null?(mySeat==index||partnerSeat==index):liveSeats.containsKey(index),muted:mySeat==index&&micMuted),Text(mySeat==index?'You':widget.roomId!=null&&liveSeats.containsKey(index)?'Member':partnerSeat==index?'Partner preview':'${index+1}',maxLines:1,overflow:TextOverflow.ellipsis,textAlign:TextAlign.center,style:const TextStyle(color:Colors.white60,fontSize:11))])))),
+ GridView.builder(shrinkWrap:true,physics:const NeverScrollableScrollPhysics(),itemCount:seats,gridDelegate:SliverGridDelegateWithFixedCrossAxisCount(crossAxisCount:roomSeatColumns,mainAxisExtent:height),itemBuilder:(context,index)=>Semantics(label:'Seat ${index+1}',button:true,child:InkWell(onTap:(){if(widget.roomId!=null){chooseLiveSeat(index);return;}setState((){mySeat=mySeat==index?null:index;if(mySeat==null||mySeat==partnerSeat)partnerSeat=null;});},onLongPress:()=>profile(index),borderRadius:BorderRadius.circular(24),child:Column(children:[RoomSeatAvatar(key:seatGiftAnchors.putIfAbsent(index,()=>GlobalKey()),size:seatSize,occupied:widget.roomId==null?(mySeat==index||partnerSeat==index):liveSeats.containsKey(index),muted:mySeat==index&&micMuted),Text(mySeat==index?'You':widget.roomId!=null&&liveSeats.containsKey(index)?'Member':partnerSeat==index?'Partner preview':'${index+1}',maxLines:1,overflow:TextOverflow.ellipsis,textAlign:TextAlign.center,style:const TextStyle(color:Colors.white60,fontSize:11))])))),
  if(linked)Positioned(left:constraints.maxWidth*((mySeat!%roomSeatColumns+partnerSeat!%roomSeatColumns+1)/(roomSeatColumns*2))-18,top:(mySeat!~/roomSeatColumns)*height+seatSize/2,child:SeatLinkMarker(bond:bond)),
  ]);
  }),
@@ -424,7 +427,7 @@ class _VoiceRoomState extends State<VoiceRoom> with WidgetsBindingObserver {
  const SizedBox(height:12),const Text('Welcome to Sovera. Take a seat and explore the room design.',style:TextStyle(color:Colors.white54,fontSize:12)),const SizedBox(height:12),
  for(final m in messages)Padding(padding:const EdgeInsets.only(bottom:8),child:Glass(tint:gold,padding:const EdgeInsets.all(12),child:Text('You: $m'))),
  ])),
- Padding(padding:const EdgeInsets.fromLTRB(10,6,10,14),child:Row(children:[IconButton(tooltip:widget.roomId==null?(micMuted?'Unmute preview':'Mute preview'):(micMuted?'Unmute microphone':'Mute microphone'),onPressed:micChanging?null:toggleMic,icon:Icon(micMuted?Icons.mic_off_rounded:Icons.mic_rounded,color:micMuted?pink:cyan)),Expanded(child:TextField(controller:input,maxLength:300,decoration:const InputDecoration(hintText:'Local message…',counterText:'',border:InputBorder.none),onSubmitted:(_)=>send())),IconButton(tooltip:'Send local message',onPressed:send,icon:const Icon(Icons.send_rounded,color:gold)),IconButton.filled(tooltip:'Preview gifts',onPressed:gifts,style:IconButton.styleFrom(backgroundColor:const Color(0xFFB6642B)),icon:const Icon(Icons.card_giftcard_rounded)),IconButton(tooltip:'Games',onPressed:()=>Navigator.push(context,MaterialPageRoute<void>(builder:(_)=>const GamesHub())),icon:const Icon(Icons.grid_view_rounded,color:gold))])),
+ Padding(padding:const EdgeInsets.fromLTRB(10,6,10,14),child:Row(children:[IconButton(tooltip:widget.roomId==null?(micMuted?'Unmute preview':'Mute preview'):(micMuted?'Unmute microphone':'Mute microphone'),onPressed:micChanging?null:toggleMic,icon:Icon(micMuted?Icons.mic_off_rounded:Icons.mic_rounded,color:micMuted?pink:cyan)),Expanded(child:TextField(controller:input,maxLength:300,decoration:const InputDecoration(hintText:'Local message…',counterText:'',border:InputBorder.none),onSubmitted:(_)=>send())),IconButton(tooltip:'Send local message',onPressed:send,icon:const Icon(Icons.send_rounded,color:gold)),IconButton.filled(tooltip:'Preview gifts',onPressed:gifts,style:IconButton.styleFrom(backgroundColor:const Color(0xFFB6642B)),icon:const Icon(Icons.card_giftcard_rounded))])),
  ])))),
  );
  Future<void> toggleMic()async{
@@ -490,15 +493,23 @@ class _VoiceRoomState extends State<VoiceRoom> with WidgetsBindingObserver {
 
  await showModalBottomSheet<void>(context:context,isScrollControlled:true,showDragHandle:true,backgroundColor:const Color(0xFF1B191C),builder:(context)=>SafeArea(child:SingleChildScrollView(padding:const EdgeInsets.all(24),child:Column(mainAxisSize:MainAxisSize.min,children:[RoyalAvatar(size:96,active:mySeat==index),Text(mySeat==index?'You':'Empty seat ${index+1}',style:const TextStyle(fontSize:24,fontWeight:FontWeight.bold)),const SizedBox(height:12),Text(mySeat==index?'Your seat preview · audio is not connected':'This seat is empty. Tap it to preview sitting here.',style:const TextStyle(color:Colors.white54)),const SizedBox(height:22),const SizedBox.shrink(),const SizedBox(height:20),if(mySeat==index)FilledButton(onPressed:(){Navigator.pop(context);gifts();},child:const Text('Open gift collection'))]))));
  }
- void previewGift(BuildContext sheet){
- if(selectedGift==null)return;
- showDialog<void>(context:sheet,builder:(_)=>GiftAnimationCard(name:selectedGift!));
+ Future<void> gifts()async{
+ final recipients=widget.roomId==null?<int,String>{if(mySeat!=null)mySeat!:'preview-self',if(partnerSeat!=null)partnerSeat!:'preview-partner'}:Map<int,String>.from(liveSeats);
+ final selected=await showModalBottomSheet<GiftSeatSelection>(context:context,isScrollControlled:true,showDragHandle:true,backgroundColor:const Color(0xFF111113),builder:(_)=>CompactGiftSheet(recipients:recipients));
+ if(!mounted||selected==null)return;
+ await WidgetsBinding.instance.endOfFrame;
+ if(!mounted)return;
+ if(widget.roomId!=null&&liveSeats[selected.seat]!=selected.userId){notice('That user left the seat. Choose a recipient again.');return;}
+ final anchor=seatGiftAnchors[selected.seat]?.currentContext?.findRenderObject();
+ final overlay=Overlay.of(context,rootOverlay:true);
+ final overlayBox=overlay.context.findRenderObject();
+ if(anchor is! RenderBox||overlayBox is! RenderBox||!anchor.attached||!overlayBox.attached){notice('Scroll to the selected seat and try again.');return;}
+ final target=anchor.localToGlobal(anchor.size.center(Offset.zero),ancestor:overlayBox);
+ if(target.dy<0||target.dy>overlayBox.size.height){notice('Scroll to the selected seat and try again.');return;}
+ late OverlayEntry entry;
+ entry=OverlayEntry(builder:(_)=>FlyingSeatGift(gift:selected.gift,start:Offset(overlayBox.size.width*.82,overlayBox.size.height-60),end:target,onDone:(){if(flyingGiftOverlays.remove(entry))entry.remove();}));
+ flyingGiftOverlays.add(entry);overlay.insert(entry);
  }
- void gifts()=>showModalBottomSheet<void>(context:context,isScrollControlled:true,showDragHandle:true,backgroundColor:const Color(0xFF111113),builder:(context)=>StatefulBuilder(builder:(context,update)=>SafeArea(child:SizedBox(height:MediaQuery.sizeOf(context).height*.72,child:Padding(padding:const EdgeInsets.all(18),child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
- Container(padding:const EdgeInsets.all(14),decoration:BoxDecoration(gradient:const LinearGradient(colors:[Color(0xFFFFA323),Color(0xFFED541F)]),borderRadius:BorderRadius.circular(18)),child:const Row(children:[Icon(Icons.card_giftcard_rounded),SizedBox(width:10),Expanded(child:Text('Sovera Gift Collection',maxLines:2,overflow:TextOverflow.ellipsis,style:TextStyle(fontWeight:FontWeight.bold))),SizedBox(width:8),BrandLogo(size:32)])),
- const SizedBox(height:14),const Text('Preview only · no coins will be spent',style:TextStyle(color:Colors.white54,fontSize:12)),const SizedBox(height:14),
- const SizedBox(height:16),Expanded(child:GridView.count(crossAxisCount:MediaQuery.sizeOf(context).width<360||MediaQuery.textScalerOf(context).scale(1)>1.3?2:3,mainAxisSpacing:10,crossAxisSpacing:10,childAspectRatio:MediaQuery.textScalerOf(context).scale(1)>1.3 ? 0.65 : 0.85,children:[for(final item in [(Icons.favorite_rounded,'Heart',pink),(Icons.diamond_rounded,'Diamond',cyan),(Icons.castle_rounded,'Castle',gold),(Icons.local_florist_rounded,'Rose',pink),(Icons.directions_car_rounded,'Royal car',gold),(Icons.auto_awesome_rounded,'Starlight',violet),(Icons.handshake_rounded,'Holding hands',cyan),(Icons.favorite_rounded,'CP Heart',pink)])InkWell(onTap:()=>update(()=>selectedGift=item.$2),child:Container(decoration:BoxDecoration(color:selectedGift==item.$2?gold.withValues(alpha:.18):Colors.white.withValues(alpha:.03),border:Border.all(color:selectedGift==item.$2?gold:Colors.white12),borderRadius:BorderRadius.circular(16)),child:Column(mainAxisAlignment:MainAxisAlignment.center,children:[Jewel(item.$1,color:item.$3,size:48),const SizedBox(height:10),Text(item.$2,style:const TextStyle(fontSize:11)),const Text('Preview',style:TextStyle(fontSize:10,color:gold))])))])),
- const SizedBox(height:12),Wrap(spacing:12,runSpacing:8,alignment:WrapAlignment.spaceBetween,crossAxisAlignment:WrapCrossAlignment.center,children:[const Text('Coins · —',style:TextStyle(color:gold)),FilledButton(onPressed:selectedGift==null?null:()=>previewGift(context),style:FilledButton.styleFrom(backgroundColor:const Color(0xFFF07D2A)),child:const Text('View selection'))]),
- ]))))));
+
 }
 
