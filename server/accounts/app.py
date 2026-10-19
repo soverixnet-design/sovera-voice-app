@@ -6,6 +6,7 @@ import time
 from pathlib import Path
 from fastapi import FastAPI, Header, HTTPException, Query
 from .rooms import Rooms, RoomInput, MessageInput, RoomEffectInput
+from .duel import RoomDuel, MoveInput
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 class ProfileInput(BaseModel):
@@ -91,6 +92,7 @@ def create_app(profiles, verify, *, voice=False):
         uid = await actor(authorization)
         return {'profile':await asyncio.to_thread(profiles.save, uid, data)}
     rooms = Rooms(profiles.path)
+    duel = RoomDuel(profiles.path)
 
     @app.get('/sovera/account/rooms')
     async def directory(authorization: str | None = Header(default=None)):
@@ -140,6 +142,26 @@ def create_app(profiles, verify, *, voice=False):
     async def send_effect(room:str,data:RoomEffectInput,authorization: str | None = Header(default=None)):
         uid=await actor(authorization)
         return await asyncio.to_thread(rooms.send_effect,uid,room,data)
+
+    @app.get('/sovera/account/rooms/{room}/duel')
+    async def duel_state(room:str,authorization: str | None = Header(default=None)):
+        await actor(authorization)
+        return await asyncio.to_thread(duel.state,room)
+
+    @app.post('/sovera/account/rooms/{room}/duel/join')
+    async def duel_join(room:str,authorization: str | None = Header(default=None)):
+        uid=await actor(authorization)
+        return await asyncio.to_thread(duel.join,uid,room)
+
+    @app.post('/sovera/account/rooms/{room}/duel/move')
+    async def duel_move(room:str,data:MoveInput,authorization: str | None = Header(default=None)):
+        uid=await actor(authorization)
+        return await asyncio.to_thread(duel.move,uid,room,data)
+
+    @app.post('/sovera/account/rooms/{room}/duel/restart')
+    async def duel_restart(room:str,authorization: str | None = Header(default=None)):
+        uid=await actor(authorization)
+        return await asyncio.to_thread(duel.restart,uid,room)
 
     if voice:
         from .voice import attach_voice
