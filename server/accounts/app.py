@@ -5,7 +5,7 @@ import sqlite3
 import time
 from pathlib import Path
 from fastapi import FastAPI, Header, HTTPException, Query
-from .rooms import Rooms, RoomInput, MessageInput
+from .rooms import Rooms, RoomInput, MessageInput, RoomEffectInput
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 class ProfileInput(BaseModel):
@@ -126,6 +126,21 @@ def create_app(profiles, verify, *, voice=False):
     async def send(room:str,data:MessageInput,authorization: str | None = Header(default=None)):
         uid=await actor(authorization)
         return await asyncio.to_thread(rooms.send,uid,room,data)
+    @app.get('/sovera/account/rooms/{room}/people')
+    async def active_people(room:str,authorization: str | None = Header(default=None)):
+        await actor(authorization)
+        return {'people':await asyncio.to_thread(rooms.people,room)}
+
+    @app.get('/sovera/account/rooms/{room}/effects')
+    async def recent_effects(room:str,authorization: str | None = Header(default=None)):
+        await actor(authorization)
+        return await asyncio.to_thread(rooms.effects,room)
+
+    @app.post('/sovera/account/rooms/{room}/effects')
+    async def send_effect(room:str,data:RoomEffectInput,authorization: str | None = Header(default=None)):
+        uid=await actor(authorization)
+        return await asyncio.to_thread(rooms.send_effect,uid,room,data)
+
     if voice:
         from .voice import attach_voice
         attach_voice(app, rooms, actor)
