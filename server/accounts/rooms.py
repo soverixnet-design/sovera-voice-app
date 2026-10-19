@@ -5,6 +5,7 @@ import time
 import uuid
 from fastapi import HTTPException
 from pydantic import BaseModel, ConfigDict, Field
+from typing import Literal
 
 class RoomInput(BaseModel):
     model_config=ConfigDict(extra='forbid',str_strip_whitespace=True)
@@ -14,6 +15,13 @@ class RoomInput(BaseModel):
 class MessageInput(BaseModel):
     model_config=ConfigDict(extra='forbid',str_strip_whitespace=True)
     text:str=Field(min_length=1,max_length=500)
+    request_id:uuid.UUID
+
+class RoomEffectInput(BaseModel):
+    """Cosmetic only. This API never debits Coins or awards Diamonds."""
+    model_config=ConfigDict(extra='forbid')
+    recipient_uid:str=Field(min_length=1,max_length=128)
+    kind:Literal['rose','heart','sparkle','crown']
     request_id:uuid.UUID
 
 class Rooms:
@@ -33,6 +41,14 @@ class Rooms:
               UNIQUE(sender_uid,request_id));
             CREATE INDEX IF NOT EXISTS account_message_room ON account_messages(room_id,id);
             CREATE INDEX IF NOT EXISTS account_presence_room ON account_presence(room_id,seen_at);
+            CREATE TABLE IF NOT EXISTS account_room_effects(
+              id INTEGER PRIMARY KEY AUTOINCREMENT,room_id TEXT NOT NULL,
+              sender_uid TEXT NOT NULL,recipient_uid TEXT NOT NULL,
+              request_id TEXT NOT NULL,kind TEXT NOT NULL,
+              sender_name TEXT NOT NULL,recipient_name TEXT NOT NULL,
+              created_at REAL NOT NULL,UNIQUE(sender_uid,request_id));
+            CREATE INDEX IF NOT EXISTS account_effect_room_time
+              ON account_room_effects(room_id,created_at DESC,id DESC);
             ''')
     @contextmanager
     def db(self):
@@ -89,6 +105,58 @@ class Rooms:
             else:
                 rows=list(reversed(db.execute('SELECT id,text,name,country,created_at FROM account_messages WHERE room_id=? ORDER BY id DESC LIMIT 50',(room,)).fetchall()))
             return [dict(r) for r in rows]
+    def people(self,room):
+        """Only heartbeat-confirmed participants, with server-owned names/UIDs."""
+        with self.db() as db:
+            self.exists(db,room)
+            return [dict(r) for r in db.execute('''SELECT p.firebase_uid AS uid,
+                p.display_name AS name,p.country FROM account_presence a
+                JOIN account_profiles p ON p.firebase_uid=a.uid
+                WHERE a.room_id=? AND a.seen_at>? ORDER BY p.display_name,p.firebase_uid
+                LIMIT 100''',(room,self.clock()-90)).fetchall()]
+
+    def effects(self,room):
+        """Short-lived public room animation history; always use server time."""
+        with self.db() as db:
+            self.exists(db,room)
+            now=self.clock()
+            rows=db.execute('''SELECT id,kind,sender_uid,recipient_uid,sender_name,
+                recipient_name,created_at FROM account_room_effects
+                WHERE room_id=? AND created_at>? ORDER BY id DESC LIMIT 20''',
+                (room,now-15)).fetchall()
+            return {'effects':[dict(r) for r in reversed(rows)],'server_now':now}
+
+    def send_effect(self,uid,room,data):
+        """Idempotent, rate-limited and authenticated. No wallet writes whatsoever."""
+        with self.db() as db:
+            db.execute('BEGIN IMMEDIATE')
+            self.exists(db,room)
+            sender=self.profile(db,uid)
+            key=str(data.request_id)
+            prior=db.execute('''SELECT * FROM account_room_effects
+                WHERE sender_uid=? AND request_id=?''',(uid,key)).fetchone()
+            if prior:
+                if (prior['room_id'],prior['recipient_uid'],prior['kind']) != (room,data.recipient_uid,data.kind):
+                    raise HTTPException(409,'Effect request was already used')
+                return {'id':prior['id'],'saved':True,'visual_only':True}
+            now=self.clock()
+            for participant in (uid,data.recipient_uid):
+                active=db.execute('''SELECT 1 FROM account_presence
+                    WHERE uid=? AND room_id=? AND seen_at>?''',(participant,room,now-90)).fetchone()
+                if active is None:
+                    raise HTTPException(409,'Both members must be in this room')
+            recipient=self.profile(db,data.recipient_uid)
+            last=db.execute('''SELECT max(created_at) FROM account_room_effects
+                WHERE sender_uid=?''',(uid,)).fetchone()[0]
+            if last is not None and now-last<3:
+                raise HTTPException(429,'Wait before sending another effect')
+            cur=db.execute('''INSERT INTO account_room_effects
+                (room_id,sender_uid,recipient_uid,request_id,kind,
+                sender_name,recipient_name,created_at) VALUES (?,?,?,?,?,?,?,?)''',
+                (room,uid,data.recipient_uid,key,data.kind,
+                 sender['display_name'],recipient['display_name'],now))
+            return {'id':cur.lastrowid,'saved':True,'visual_only':True}
+
     def send(self,uid,room,data):
         with self.db() as db:
             db.execute('BEGIN IMMEDIATE')
