@@ -52,6 +52,36 @@ class _FirebaseRoomsPageState extends State<FirebaseRoomsPage> {
   ]));
 }
 
+/// Owner-only editor. The server verifies ownership again on PUT.
+class FirebaseRoomSettingsDialog extends StatefulWidget {
+  final String name;
+  final int seats;
+  const FirebaseRoomSettingsDialog({super.key,required this.name,required this.seats});
+  @override State<FirebaseRoomSettingsDialog> createState()=>_FirebaseRoomSettingsDialogState();
+}
+class _FirebaseRoomSettingsDialogState extends State<FirebaseRoomSettingsDialog>{
+  late final TextEditingController name=TextEditingController(text:widget.name);
+  late int seats=widget.seats;
+  @override void dispose(){name.dispose();super.dispose();}
+  @override Widget build(BuildContext context)=>AlertDialog(
+    title:const Text('Room settings'),
+    content:SingleChildScrollView(child:Column(mainAxisSize:MainAxisSize.min,crossAxisAlignment:CrossAxisAlignment.start,children:[
+      TextField(controller:name,maxLength:40,decoration:const InputDecoration(labelText:'Room name')),
+      const SizedBox(height:8),
+      const Text('Seats',style:TextStyle(fontWeight:FontWeight.bold)),
+      const SizedBox(height:8),
+      Wrap(spacing:8,runSpacing:6,children:[
+        for(final count in const [5,6,9,12])
+          ChoiceChip(label:Text('$count seats'),selected:seats==count,onSelected:(_)=>setState(()=>seats=count)),
+      ]),
+    ])),
+    actions:[
+      TextButton(onPressed:()=>Navigator.pop(context),child:const Text('Cancel')),
+      FilledButton(onPressed:name.text.trim().isEmpty?null:()=>Navigator.pop(context,{'name':name.text.trim(),'seats':seats}),child:const Text('Save changes')),
+    ],
+  );
+}
+
 class FirebaseRoomChat extends StatefulWidget {
   final FirebaseProfileApi api;final Map<String,dynamic> room;
   const FirebaseRoomChat({super.key,required this.api,required this.room});
@@ -59,10 +89,12 @@ class FirebaseRoomChat extends StatefulWidget {
 }
 class _FirebaseRoomChatState extends State<FirebaseRoomChat> with WidgetsBindingObserver {
   final input=TextEditingController();final messages=<Map<String,dynamic>>[];
-  Timer? timer;bool syncing=false,sending=false;String? error,pendingId,pendingText;
+  Timer? timer;bool syncing=false,sending=false,savingRoom=false;String? error,pendingId,pendingText;
+  late String roomName;late int seatCount;
+  bool get isOwner=>widget.room['owner_uid']==widget.api.uid;
   DateTime? heartbeat;
   String get path=>'/rooms/${Uri.encodeComponent(widget.room['id'] as String)}';
-  @override void initState(){super.initState();WidgetsBinding.instance.addObserver(this);start();}
+  @override void initState(){super.initState();roomName=widget.room['name'] as String;seatCount=widget.room['seats'] as int? ?? 9;WidgetsBinding.instance.addObserver(this);start();}
   void start(){timer?.cancel();sync();timer=Timer.periodic(const Duration(seconds:5),(_)=>sync());}
   @override void didChangeAppLifecycleState(AppLifecycleState state){if(state==AppLifecycleState.resumed){heartbeat=null;start();}else{timer?.cancel();}}
   @override void dispose(){WidgetsBinding.instance.removeObserver(this);timer?.cancel();input.dispose();unawaited(widget.api.call('DELETE',suffix:'$path/presence').then<void>((_){}).catchError((Object _){}));super.dispose();}
@@ -76,6 +108,20 @@ class _FirebaseRoomChatState extends State<FirebaseRoomChat> with WidgetsBinding
       if(mounted)setState((){messages..clear()..addAll((data['messages'] as List).map((r)=>Map<String,dynamic>.from(r as Map)));error=null;});
     }catch(e){if(mounted)setState(()=>error=_error(e));}finally{syncing=false;}
   }
+  Future<void> editRoom()async{
+    if(!isOwner||savingRoom)return;
+    final selected=await showDialog<Map<String,dynamic>>(context:context,builder:(_)=>
+      FirebaseRoomSettingsDialog(name:roomName,seats:seatCount));
+    if(!mounted||selected==null)return;
+    setState(()=>savingRoom=true);
+    try{
+      final response=await widget.api.call('PUT',suffix:path,fields:selected);
+      final saved=response['room'];
+      if(saved is! Map||saved['name'] is! String||saved['seats'] is! int)throw const ProfileApiError('Invalid room response.');
+      if(mounted)setState((){roomName=saved['name'] as String;seatCount=saved['seats'] as int;error=null;});
+    }catch(e){if(mounted)setState(()=>error=_error(e));}
+    finally{if(mounted)setState(()=>savingRoom=false);}
+  }
   Future<void> send()async{
     final text=input.text.trim();if(sending||text.isEmpty)return;
     if(pendingText!=null&&pendingText!=text){setState(()=>error='Retry the pending message before changing its text.');return;}
@@ -86,7 +132,8 @@ class _FirebaseRoomChatState extends State<FirebaseRoomChat> with WidgetsBinding
       input.clear();pendingId=null;pendingText=null;await sync();
     }catch(e){if(mounted)setState(()=>error=_error(e));}finally{if(mounted)setState(()=>sending=false);}
   }
-  @override Widget build(BuildContext context)=>Scaffold(appBar:AppBar(title:Text(widget.room['name'] as String)),body:SafeArea(child:Column(children:[
+  @override Widget build(BuildContext context)=>Scaffold(appBar:AppBar(title:Text(roomName),actions:[if(isOwner)IconButton(tooltip:'Room settings',onPressed:savingRoom?null:editRoom,icon:const Icon(Icons.tune_rounded))]),body:SafeArea(child:Column(children:[
+    if(isOwner)Padding(padding:const EdgeInsets.symmetric(vertical:3),child:Text('$seatCount seats · Owner settings',style:const TextStyle(fontSize:12,color:Colors.white70))),
     FirebaseVoicePanel(api:widget.api,roomId:widget.room['id'] as String),
     if(error!=null)Padding(padding:const EdgeInsets.all(8),child:Text(error!)),
     Expanded(child:ListView(padding:const EdgeInsets.all(12),children:[for(final message in messages)Card(child:ListTile(title:Text('${message['name']} ${_flag(message['country'].toString())}'),subtitle:Text(message['text'] as String)))])),
