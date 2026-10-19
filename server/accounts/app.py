@@ -147,13 +147,18 @@ def create_app(profiles, verify, *, voice=False):
 
     @app.get('/sovera/account/rooms/{room}/duel')
     async def duel_state(room:str,authorization: str | None = Header(default=None)):
-        await actor(authorization)
-        return await asyncio.to_thread(duel.state,room)
+        uid=await actor(authorization)
+        return await asyncio.to_thread(duel.state,room,uid)
 
     @app.post('/sovera/account/rooms/{room}/duel/join')
     async def duel_join(room:str,authorization: str | None = Header(default=None)):
         uid=await actor(authorization)
         return await asyncio.to_thread(duel.join,uid,room)
+
+    @app.post('/sovera/account/rooms/{room}/duel/cancel')
+    async def duel_cancel_wait(room:str,authorization: str | None = Header(default=None)):
+        uid=await actor(authorization)
+        return await asyncio.to_thread(duel.cancel_wait,uid,room)
 
     @app.post('/sovera/account/rooms/{room}/duel/move')
     async def duel_move(room:str,data:MoveInput,authorization: str | None = Header(default=None)):
