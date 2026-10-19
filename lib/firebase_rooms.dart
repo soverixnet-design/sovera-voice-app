@@ -3,6 +3,7 @@ import 'dart:math';
 import 'package:flutter/material.dart';
 import 'firebase_profile.dart';
 import 'firebase_voice.dart';
+import 'firebase_duel.dart';
 import 'country_picker.dart' show soveraCountries;
 
 String _flag(String code) => RegExp(r'^[A-Z]{2}$').hasMatch(code)
@@ -213,6 +214,9 @@ class _FirebaseRoomChatState extends State<FirebaseRoomChat> with WidgetsBinding
     }catch(e){if(mounted)setState(()=>error=_error(e));}finally{if(mounted)setState(()=>sending=false);}
   }
   @override Widget build(BuildContext context)=>Scaffold(appBar:AppBar(title:Text(roomName),actions:[
+    IconButton(tooltip:'XO Duel game',onPressed:()=>Navigator.push(context,
+      MaterialPageRoute<void>(builder:(_)=>FirebaseDuelPage(api:widget.api,roomId:widget.room['id'] as String))),
+      icon:const Icon(Icons.sports_esports_rounded)),
     IconButton(tooltip:'Gift effects',onPressed:sendingEffect?null:chooseEffect,icon:const Icon(Icons.card_giftcard_rounded)),
     if(isOwner)IconButton(tooltip:'Room settings',onPressed:savingRoom?null:editRoom,icon:const Icon(Icons.tune_rounded))]),body:SafeArea(child:Column(children:[
     if(isOwner)Padding(padding:const EdgeInsets.symmetric(vertical:3),child:Text('$seatCount seats · Owner settings',style:const TextStyle(fontSize:12,color:Colors.white70))),
