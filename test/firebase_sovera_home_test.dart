@@ -25,6 +25,9 @@ void main(){
           {'id':'room-7','owner_uid':'bob','owner_name':'Friend',
            'name':'Sunset Lounge','seats':9,'country':'BD','occupants':2,
            'avatar_url':null,'created_at':1000},
+          {'id':'room-8','owner_uid':'carol','owner_name':'Omani',
+           'name':'Muscat Lounge','seats':6,'country':'OM','occupants':3,
+           'avatar_url':null,'created_at':1001},
         ]}),200);
       }
       if(request.url.path.endsWith('/account')){
@@ -47,7 +50,10 @@ void main(){
     expect(find.text('Moments'),findsOneWidget);
     expect(find.text('Messages'),findsOneWidget);
     expect(find.text('Me'),findsOneWidget);
-    expect(find.textContaining('Sunset Lounge'),findsOneWidget);
+    expect(find.text('🇧🇩 Sunset Lounge'),findsOneWidget);
+    expect(find.text('🇴🇲 Muscat Lounge'),findsOneWidget);
+    expect(find.text('2'),findsOneWidget);
+    expect(find.text('3'),findsOneWidget);
     expect(find.text('Explore room'),findsOneWidget);
     expect(find.text('Games'),findsOneWidget);
     expect(paths.any((p)=>p.endsWith('/rooms')),isTrue);
@@ -59,6 +65,17 @@ void main(){
     expect(find.text('Official support'),findsOneWidget);
     await tester.tap(find.text('Me'));await tester.pumpAndSettle();
     expect(find.text('My profile'),findsOneWidget);
+    expect(find.text('Edit Profile'),findsOneWidget);
+    expect(find.text('Your profile'),findsNothing);
+    expect(find.text('Country'),findsNothing);
+    expect(find.text('Save profile'),findsNothing);
+    await tester.tap(find.text('Edit Profile'));await tester.pumpAndSettle();
+    expect(find.text('Your profile'),findsOneWidget);
+    expect(find.text('Country'),findsOneWidget);
+    expect(find.text('Save profile'),findsOneWidget);
+    await tester.pageBack();await tester.pumpAndSettle();
+    expect(find.text('Your profile'),findsNothing);
+    expect(find.text('Edit Profile'),findsOneWidget);
     expect(find.text('Frames & effects'),findsOneWidget);
     await tester.pumpWidget(const SizedBox());
     client.close();
