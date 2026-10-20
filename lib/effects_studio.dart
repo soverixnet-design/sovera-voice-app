@@ -92,7 +92,10 @@ class EffectPortrait extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final artSize = portraitSize == null ? size : portraitSize! / pack.portraitDiameter;
-    final canvasSize = math.max(size, artSize);
+    // Off-center portrait openings shift the artwork. Reserve that shift on
+    // both sides so the wings/nameplate remain inside the painted viewport.
+    final horizontalBleed = artSize * (.5 - pack.portraitX).abs();
+    final canvasSize = math.max(size, artSize + horizontalBleed * 2);
     final inset = (canvasSize - artSize) / 2;
     final width = artSize * pack.portraitDiameter;
     final height = artSize * (pack.portraitHeight ?? pack.portraitDiameter);

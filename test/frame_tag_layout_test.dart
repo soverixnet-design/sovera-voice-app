@@ -5,6 +5,7 @@ import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:sovera/effects_studio.dart';
+import 'package:sovera/cosmetic_art.dart';
 import 'package:sovera/account_cards.dart';
 import 'package:sovera/main.dart';
 
@@ -28,6 +29,23 @@ void main() {
    expect(art.right,lessThanOrEqualTo(frame.right+.01));
    expect(art.bottom,lessThanOrEqualTo(frame.bottom+.01));
    expect(label.top,greaterThanOrEqualTo(frame.bottom));
+   expect(tester.takeException(),isNull);
+  }
+ });
+
+ testWidgets('Off-center frame artwork remains completely inside its viewport',(tester)async {
+  for(final name in ['Sunrise Crown','Rose Crown','Solar Crown']){
+   final pack=effectPacks.firstWhere((p)=>p.name==name);
+   await tester.pumpWidget(screen(Center(child:SizedBox(width:180,height:180,
+     child:EffectPortrait(pack:pack,size:240,child:const Text('Avatar'))))));
+   await tester.pumpAndSettle();
+   final viewport=find.byKey(const ValueKey('frame-art-viewport'));
+   final frame=tester.getRect(viewport);
+   final picture=tester.getRect(find.descendant(of:viewport,matching:find.byType(CosmeticArt)));
+   expect(picture.left,greaterThanOrEqualTo(frame.left-.01));
+   expect(picture.right,lessThanOrEqualTo(frame.right+.01));
+   expect(picture.top,greaterThanOrEqualTo(frame.top-.01));
+   expect(picture.bottom,lessThanOrEqualTo(frame.bottom+.01));
    expect(tester.takeException(),isNull);
   }
  });

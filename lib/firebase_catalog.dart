@@ -24,7 +24,7 @@ class CatalogPortraitGeometry {
       final n=value is num?value.toDouble():fallback;
       return (n.isFinite?n:fallback).clamp(low,high).toDouble();
     }
-    final scale=number(asset?['avatar_scale'],asset==null?.72:.46,.05,1);
+    final scale=number(asset?['avatar_scale'],asset == null ? 0.72 : 0.46,.05,1);
     final radius=scale/2;
     final x=number(asset?['avatar_x'],.5,radius,1-radius);
     final y=number(asset?['avatar_y'],.5,radius,1-radius);
