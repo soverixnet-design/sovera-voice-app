@@ -54,7 +54,7 @@ void main(){
     expect(find.text('🇴🇲 Muscat Lounge'),findsOneWidget);
     expect(find.text('2'),findsOneWidget);
     expect(find.text('3'),findsOneWidget);
-    expect(find.text('Explore room'),findsOneWidget);
+    expect(find.text('Explore room'),findsNWidgets(2));
     expect(find.text('Games'),findsOneWidget);
     expect(paths.any((p)=>p.endsWith('/rooms')),isTrue);
     expect(paths.any((p)=>p.endsWith('/account')),isTrue);
