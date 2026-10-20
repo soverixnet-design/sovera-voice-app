@@ -11,6 +11,7 @@ import 'effects_studio.dart' show EffectsStudio;
 import 'firebase_server_wallet.dart';
 import 'country_picker.dart' show soveraCountries;
 import 'firebase_rooms.dart';
+import 'room_card_art.dart';
 import 'firebase_greedy_wheel.dart';
 import 'sovera_visuals.dart' show BrandLogo, Glass, Jewel, violet, gold, pink, cyan;
 
@@ -160,10 +161,10 @@ class _FirebaseSoveraHomeState extends State<FirebaseSoveraHome>{
           borderRadius:BorderRadius.circular(24)),
           child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
             Expanded(child:Stack(fit:StackFit.expand,children:[
-              if(avatar.startsWith('https://'))
-                Image.network(avatar,fit:BoxFit.cover,errorBuilder:(_,__,___)=>
-                  const Center(child:BrandLogo(size:80)))
-              else const Center(child:BrandLogo(size:80)),
+              RoomCardArt(frame:(room['room_frame']??'none') as String,portrait:
+                avatar.startsWith('https://')
+                  ?Image.network(avatar,fit:BoxFit.cover,errorBuilder:(_,__,___)=>const Center(child:BrandLogo(size:80)))
+                  :const Center(child:BrandLogo(size:80))),
               Positioned(left:10,top:10,child:Container(
                 padding:const EdgeInsets.symmetric(horizontal:9,vertical:6),
                 decoration:BoxDecoration(color:Colors.black54,borderRadius:BorderRadius.circular(15)),

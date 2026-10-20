@@ -151,3 +151,22 @@ class RoomTests(unittest.TestCase):
         self.assertEqual(rooms.directory()[0]['occupants'],0)
 
 if __name__=='__main__': unittest.main()
+
+class RoomFrameTests(unittest.TestCase):
+    setUp=AccountTests.setUp
+    make_room=RoomTests.make_room
+
+    def test_frame_persists_owner_only_and_old_edits_preserve_it(self):
+        room=self.make_room()
+        path='/sovera/account/rooms/'+room
+        payload={'name':'Gold room','seats':9,'room_frame':'official'}
+        owner={'Authorization':'Bearer alice'}
+        self.client.put('/sovera/account',json=self.data,headers={'Authorization':'Bearer bob'})
+        self.assertEqual(self.client.put(path,json=payload,headers={'Authorization':'Bearer bob'}).status_code,403)
+        self.assertEqual(self.client.put(path,json=payload,headers=owner).json()['room']['room_frame'],'official')
+        response=self.client.put(path,json={'name':'Renamed','seats':5},headers=owner)
+        self.assertEqual(response.json()['room']['room_frame'],'official')
+        from server.accounts.rooms import Rooms
+        self.assertEqual(Rooms(self.path).directory()[0]['room_frame'],'official')
+        bad=self.client.put(path,json={**payload,'room_frame':'https://untrusted.invalid/frame'},headers=owner)
+        self.assertEqual(bad.status_code,422)

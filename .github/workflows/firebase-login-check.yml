@@ -7,6 +7,8 @@ on:
       - lib/firebase_login_main.dart
       - test/firebase_login_test.dart
       - lib/firebase_profile.dart
+      - lib/room_card_art.dart
+      - assets/room-frames/**
       - lib/firebase_voice.dart
       - server/accounts/**
       - server/voice/**

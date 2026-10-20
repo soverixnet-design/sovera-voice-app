@@ -3,6 +3,7 @@ import 'dart:math';
 import 'package:flutter/material.dart';
 import 'firebase_profile.dart';
 import 'firebase_voice.dart';
+import 'room_card_art.dart';
 import 'firebase_greedy_wheel.dart';
 import 'country_picker.dart' show soveraCountries;
 
@@ -54,7 +55,7 @@ class _FirebaseRoomsPageState extends State<FirebaseRoomsPage> {
     if(busy)const LinearProgressIndicator(),if(error!=null)Text(error!),
     if(!busy&&rows.isEmpty&&error==null)const Text('No rooms yet. Create the first room.'),
     for(final room in rows)Card(child:ListTile(
-      leading:CircleAvatar(backgroundImage:room['avatar_url'] is String?NetworkImage(room['avatar_url'] as String):null,child:room['avatar_url']==null?const Icon(Icons.meeting_room):null),
+      leading:SizedBox(width:62,height:64,child:RoomCardArt(frame:(room['room_frame']??'none') as String,portrait:CircleAvatar(backgroundImage:room['avatar_url'] is String?NetworkImage(room['avatar_url'] as String):null,child:room['avatar_url']==null?const Icon(Icons.meeting_room):null))),
       title:Text('${room['name']} ${_flag((room['country']??'').toString())}'),
       subtitle:Text('${room['owner_name']} · ${soveraCountries[room['country']]??room['country']}\n${room['occupants']} members with a recent room heartbeat'),
       isThreeLine:true,trailing:const Icon(Icons.chevron_right),onTap:()=>open(room))),
@@ -65,18 +66,24 @@ class _FirebaseRoomsPageState extends State<FirebaseRoomsPage> {
 class FirebaseRoomSettingsDialog extends StatefulWidget {
   final String name;
   final int seats;
-  const FirebaseRoomSettingsDialog({super.key,required this.name,required this.seats});
+  final String frame;
+  const FirebaseRoomSettingsDialog({super.key,required this.name,required this.seats,this.frame='none'});
   @override State<FirebaseRoomSettingsDialog> createState()=>_FirebaseRoomSettingsDialogState();
 }
 class _FirebaseRoomSettingsDialogState extends State<FirebaseRoomSettingsDialog>{
   late final TextEditingController name;
   late int seats;
-  @override void initState(){super.initState();name=TextEditingController(text:widget.name);seats=widget.seats;}
+  late String frame;
+  @override void initState(){super.initState();name=TextEditingController(text:widget.name);seats=widget.seats;frame=widget.frame;}
   @override void dispose(){name.dispose();super.dispose();}
   @override Widget build(BuildContext context)=>AlertDialog(
     title:const Text('Room settings'),
     content:SingleChildScrollView(child:Column(mainAxisSize:MainAxisSize.min,crossAxisAlignment:CrossAxisAlignment.start,children:[
       TextField(controller:name,maxLength:40,onChanged:(_)=>setState((){}),decoration:const InputDecoration(labelText:'Room name')),
+      const SizedBox(height:8),
+      const Text('Room card frame'),
+      Wrap(spacing:8,children:[for(final option in const ['none','coins_seller','official'])
+        ChoiceChip(label:Text(option=='none'?'None':option=='official'?'Official artwork':'Coin seller artwork'),selected:frame==option,onSelected:(_)=>setState(()=>frame=option))]),
       const SizedBox(height:8),
       const Text('Seats',style:TextStyle(fontWeight:FontWeight.bold)),
       const SizedBox(height:8),
@@ -87,7 +94,7 @@ class _FirebaseRoomSettingsDialogState extends State<FirebaseRoomSettingsDialog>
     ])),
     actions:[
       TextButton(onPressed:()=>Navigator.pop(context),child:const Text('Cancel')),
-      FilledButton(onPressed:name.text.trim().isEmpty?null:()=>Navigator.pop(context,{'name':name.text.trim(),'seats':seats}),child:const Text('Save changes')),
+      FilledButton(onPressed:name.text.trim().isEmpty?null:()=>Navigator.pop(context,{'name':name.text.trim(),'seats':seats,if(frame!=widget.frame)'room_frame':frame}),child:const Text('Save changes')),
     ],
   );
 }
@@ -143,11 +150,11 @@ class _FirebaseRoomChatState extends State<FirebaseRoomChat> with WidgetsBinding
   String? pendingEffectId,pendingEffectKey;
   List<Map<String,dynamic>> roomEffects=[];
 
-  late String roomName;late int seatCount;
+  late String roomName;late int seatCount;late String roomFrame;
   bool get isOwner=>widget.room['owner_uid']==widget.api.uid;
   DateTime? heartbeat;
   String get path=>'/rooms/${Uri.encodeComponent(widget.room['id'] as String)}';
-  @override void initState(){super.initState();roomName=widget.room['name'] as String;seatCount=widget.room['seats'] as int? ?? 9;WidgetsBinding.instance.addObserver(this);start();}
+  @override void initState(){super.initState();roomName=widget.room['name'] as String;roomFrame=(widget.room['room_frame']??'none') as String;seatCount=widget.room['seats'] as int? ?? 9;WidgetsBinding.instance.addObserver(this);start();}
   void start(){timer?.cancel();sync();timer=Timer.periodic(const Duration(seconds:5),(_)=>sync());}
   @override void didChangeAppLifecycleState(AppLifecycleState state){if(state==AppLifecycleState.resumed){heartbeat=null;start();}else{timer?.cancel();}}
   @override void dispose(){WidgetsBinding.instance.removeObserver(this);timer?.cancel();input.dispose();unawaited(widget.api.call('DELETE',suffix:'$path/presence').then<void>((_){}).catchError((Object _){}));super.dispose();}
@@ -171,14 +178,14 @@ class _FirebaseRoomChatState extends State<FirebaseRoomChat> with WidgetsBinding
   Future<void> editRoom()async{
     if(!isOwner||savingRoom)return;
     final selected=await showDialog<Map<String,dynamic>>(context:context,builder:(_)=>
-      FirebaseRoomSettingsDialog(name:roomName,seats:seatCount));
+      FirebaseRoomSettingsDialog(name:roomName,seats:seatCount,frame:roomFrame));
     if(!mounted||selected==null)return;
     setState(()=>savingRoom=true);
     try{
       final response=await widget.api.call('PUT',suffix:path,fields:selected);
       final saved=response['room'];
       if(saved is! Map||saved['name'] is! String||saved['seats'] is! int)throw const ProfileApiError('Invalid room response.');
-      if(mounted)setState((){roomName=saved['name'] as String;seatCount=saved['seats'] as int;error=null;});
+      if(mounted)setState((){roomName=saved['name'] as String;seatCount=saved['seats'] as int;roomFrame=(saved['room_frame']??roomFrame) as String;error=null;});
     }catch(e){if(mounted)setState(()=>error=_error(e));}
     finally{if(mounted)setState(()=>savingRoom=false);}
   }
@@ -212,6 +219,12 @@ class _FirebaseRoomChatState extends State<FirebaseRoomChat> with WidgetsBinding
       if(mounted)ScaffoldMessenger.of(context).showSnackBar(SnackBar(content:Text(_error(e))));
     }finally{if(mounted)setState(()=>sendingEffect=false);}
   }
+
+  void openGame()=>showModalBottomSheet<void>(
+    context:context,isScrollControlled:true,useSafeArea:true,
+    backgroundColor:const Color(0xFF12172D),
+    builder:(sheetContext)=>SizedBox(height:MediaQuery.sizeOf(sheetContext).height*.64,
+      child:FirebaseGreedyWheelPage(api:widget.api,inRoom:true)));
 
   Future<void> send()async{
     final text=input.text.trim();if(sending||text.isEmpty)return;
@@ -261,13 +274,6 @@ class _FirebaseRoomChatState extends State<FirebaseRoomChat> with WidgetsBinding
 
     if(isOwner)Padding(padding:const EdgeInsets.symmetric(vertical:3),child:Text('$seatCount seats · Owner settings',style:const TextStyle(fontSize:12,color:Colors.white70))),
     FirebaseVoicePanel(api:widget.api,roomId:widget.room['id'] as String,seatCount:seatCount),
-    OutlinedButton.icon(onPressed:()=>showModalBottomSheet<void>(
-      context:context,isScrollControlled:true,useSafeArea:true,
-      backgroundColor:const Color(0xFF12172D),
-      builder:(sheetContext)=>SizedBox(height:MediaQuery.sizeOf(sheetContext).height*.64,
-        child:FirebaseGreedyWheelPage(api:widget.api,inRoom:true))),
-      icon:const Icon(Icons.casino_rounded),
-      label:const Text('Greedy Wheel · Live shared game')),
     if(roomEffects.isNotEmpty)AnimatedSwitcher(
       duration:const Duration(milliseconds:300),
       child:Card(
@@ -289,6 +295,11 @@ class _FirebaseRoomChatState extends State<FirebaseRoomChat> with WidgetsBinding
           title:Text('${message['name']} ${_flag(message['country'].toString())}'),
           subtitle:Text(message['text'] as String)))),
     ]))),
+    Padding(padding:const EdgeInsets.fromLTRB(12,6,12,4),child:Row(mainAxisAlignment:MainAxisAlignment.end,children:[
+      RoomActionButton(icon:Icons.sports_esports_rounded,label:'Room games',color:const Color(0xFF7550DA),onPressed:openGame),
+      const SizedBox(width:12),
+      RoomActionButton(icon:Icons.card_giftcard_rounded,label:'Gift box',color:const Color(0xFFD64693),onPressed:sendingEffect?null:chooseEffect),
+    ])),
     Padding(padding:const EdgeInsets.all(12),child:Row(children:[Expanded(child:TextField(controller:input,enabled:!sending,readOnly:pendingId!=null,maxLength:500,decoration:const InputDecoration(labelText:'Message'))),IconButton(onPressed:sending?null:send,icon:const Icon(Icons.send))])),
   ]))));
 }

@@ -31,6 +31,7 @@ flutter:
     - assets/sounds/
     - assets/effects/
     - assets/medals/
+    - assets/room-frames/
 
 flutter_launcher_icons:
   android: true

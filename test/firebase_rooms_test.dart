@@ -7,6 +7,16 @@ import 'package:sovera/firebase_profile.dart';
 import 'package:sovera/firebase_rooms.dart';
 import 'package:sovera/firebase_voice.dart';
 void main(){
+  testWidgets('room frame artwork can be selected without changing account roles',(tester)async{
+    Map<String,dynamic>? selected;
+    await tester.pumpWidget(MaterialApp(home:Builder(builder:(context)=>Scaffold(body:TextButton(onPressed:()async{
+      selected=await showDialog<Map<String,dynamic>>(context:context,builder:(_)=>const FirebaseRoomSettingsDialog(name:'Gold room',seats:9));
+    },child:const Text('Settings'))))));
+    await tester.tap(find.text('Settings'));await tester.pumpAndSettle();
+    await tester.tap(find.text('Official artwork'));await tester.tap(find.text('Save changes'));await tester.pumpAndSettle();
+    expect(selected,{'name':'Gold room','seats':9,'room_frame':'official'});
+    await tester.pumpWidget(const SizedBox());
+  });
   test('microphone sheet preserves RTC but actual background always disconnects',(){
     expect(shouldDisconnectVoice(AppLifecycleState.inactive,requestingMicrophone:true),isFalse);
     expect(shouldDisconnectVoice(AppLifecycleState.inactive,requestingMicrophone:false),isTrue);

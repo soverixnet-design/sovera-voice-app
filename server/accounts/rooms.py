@@ -11,6 +11,7 @@ class RoomInput(BaseModel):
     model_config=ConfigDict(extra='forbid',str_strip_whitespace=True)
     name:str=Field(min_length=1,max_length=40)
     seats:int=Field(default=9,strict=True)
+    room_frame:Literal["none","coins_seller","official"]|None=None
 
 class MessageInput(BaseModel):
     model_config=ConfigDict(extra='forbid',str_strip_whitespace=True)
@@ -50,6 +51,9 @@ class Rooms:
             CREATE INDEX IF NOT EXISTS account_effect_room_time
               ON account_room_effects(room_id,created_at DESC,id DESC);
             ''')
+            columns={r['name'] for r in db.execute('PRAGMA table_info(account_rooms)')}
+            if 'room_frame' not in columns:
+                db.execute("ALTER TABLE account_rooms ADD COLUMN room_frame TEXT NOT NULL DEFAULT 'none'")
     @contextmanager
     def db(self):
         db=sqlite3.connect(self.path,timeout=10)
@@ -82,12 +86,12 @@ class Rooms:
             if room:
                 self.exists(db,room)
                 if not existing or existing['id']!=room: raise HTTPException(403,'Only the room owner can edit it')
-                db.execute('UPDATE account_rooms SET name=?,seats=? WHERE id=?',(data.name,data.seats,room))
+                db.execute('UPDATE account_rooms SET name=?,seats=?,room_frame=? WHERE id=?',(data.name,data.seats,data.room_frame if data.room_frame is not None else existing['room_frame'],room))
             elif existing:
                 return dict(existing)
             else:
                 room=str(uuid.uuid4())
-                db.execute('INSERT INTO account_rooms VALUES(?,?,?,?,?)',(room,uid,data.name,data.seats,self.clock()))
+                db.execute('INSERT INTO account_rooms(id,owner_uid,name,seats,created_at,room_frame) VALUES(?,?,?,?,?,?)',(room,uid,data.name,data.seats,self.clock(),data.room_frame or 'none'))
             return dict(db.execute('SELECT * FROM account_rooms WHERE id=?',(room,)).fetchone())
     def presence(self,uid,room,leave=False):
         with self.db() as db:
