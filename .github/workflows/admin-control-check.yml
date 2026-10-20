@@ -52,7 +52,9 @@ jobs:
         with:
           name: frame-tag-layout-review
           path: build/design-review/frame-tag-fit.png
-      - run: flutter build apk --release --split-per-abi
+      # Release the Firebase-authenticated Sovera SERVER app, not legacy
+      # lib/main.dart (which starts the former Supabase runtime).
+      - run: flutter build apk --release --split-per-abi --target lib/firebase_login_main.dart
       - uses: actions/upload-artifact@v4
         with:
           name: sovera-arm64-release-preview-not-production
