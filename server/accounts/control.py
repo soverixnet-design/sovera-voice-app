@@ -177,6 +177,8 @@ class Control:
 
 def attach_control(app,profiles,actor):
     service=Control(profiles.path)
+    from .control_password import Passwords,PasswordInput
+    passwords=Passwords(service)
     async def staff_actor(request):return await asyncio.to_thread(service.actor,request.cookies.get(COOKIE))
 
     @app.middleware('http')
@@ -195,6 +197,13 @@ def attach_control(app,profiles,actor):
     @app.post('/sovera/control/login')
     async def login(data:CodeInput):
         token=await asyncio.to_thread(service.login,data.code)
+        response=JSONResponse({'signed_in':True})
+        response.set_cookie(COOKIE,token,max_age=1800,secure=True,httponly=True,samesite='strict',path='/')
+        return response
+
+    @app.post('/sovera/control/password-login')
+    async def password_login(data:PasswordInput):
+        token=await asyncio.to_thread(passwords.login,data.username,data.password)
         response=JSONResponse({'signed_in':True})
         response.set_cookie(COOKIE,token,max_age=1800,secure=True,httponly=True,samesite='strict',path='/')
         return response

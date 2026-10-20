@@ -10,14 +10,16 @@ w.fetch=async(url,options)=>{
  let data;
  if(name==='session')data={role,name:'Shakil',uid:'owner',users:2,rooms:1,open_tickets:0,quota_remaining:null};
  else if(name==='users')data={items:[{uid:'alice',name:'<img id="attack" src=x>',country:'BD',wallet_status:'active',coins:50,diamonds:5}]};
- else if(name==='recharge'){
+ else if(name==='password-login'){
+  assert.deepEqual(JSON.parse(options.body),{username:'soverix',password:'test-password-only'});data={signed_in:true};
+ }else if(name==='recharge'){
   attempts.push(JSON.parse(options.body));
   if(attempts.length===1)return {ok:false,status:503,json:async()=>({detail:'Retry connection'})};
   data={request_id:attempts.at(-1).request_id,amount:70,balance:120};
  }else data={items:[]};
  return {ok:true,status:200,json:async()=>data};
 };
-w.eval('(function(){'+readFileSync(new URL('../selfhost/app.js',import.meta.url),'utf8')+'\nwindow.controlTest={start,render,setView(value){view=value;},getPending(){return rechargeRequest;}};})();');
+w.eval('(function(){'+readFileSync(new URL('../selfhost/app.js',import.meta.url),'utf8')+'\nwindow.controlTest={start,render,login,setView(value){view=value;},getPending(){return rechargeRequest;}};})();');
 await new Promise(r=>setTimeout(r,25));
 assert.equal(w.document.querySelectorAll('[data-view]').length,7);
 w.controlTest.setView('users');await w.controlTest.render();
@@ -38,5 +40,13 @@ role='support';await w.controlTest.start();
 assert.equal(w.document.querySelector('[data-view="recharge"]'),null);
 assert.equal(w.document.querySelector('[data-view="staff"]'),null);
 assert.ok(w.document.querySelector('[data-view="support"]'));
+w.controlTest.login();
+assert.equal(w.document.querySelector('#password').type,'password');
+assert.equal(w.document.querySelector('#password').autocomplete,'current-password');
+w.document.querySelector('#username').value='soverix';
+w.document.querySelector('#password').value='test-password-only';
+await w.document.querySelector('#login').onsubmit({preventDefault(){}});
+assert.ok(w.document.querySelector('#logout'));
+assert.ok(!w.sessionStorage.getItem('password'));
 await w.happyDOM.close();
 console.log('Self-hosted admin DOM passed: role navigation, escaping, recharge receipt and stable retry ID.');

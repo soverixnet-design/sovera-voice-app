@@ -19,6 +19,7 @@ jobs:
       - run: python -m unittest server.accounts.test_greedy_wallet -v
       - run: python -m unittest server.accounts.test_community -v
       - run: python -m unittest server.accounts.test_control -v
+      - run: python -m unittest server.accounts.test_control_password server.accounts.test_control_installer -v
       - run: node --check admin/selfhost/app.js
       - run: python -m unittest server.food.test_food server.food.test_identity server.accounts.test_accounts server.accounts.test_voice server.accounts.test_duel server.accounts.test_global_games server.accounts.test_food_wheel server.accounts.test_greedy_access server.accounts.test_wallet -v
   admin:
