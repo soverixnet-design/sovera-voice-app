@@ -223,7 +223,11 @@ class _FirebaseRoomChatState extends State<FirebaseRoomChat> with WidgetsBinding
       input.clear();pendingId=null;pendingText=null;await sync();
     }catch(e){if(mounted)setState(()=>error=_error(e));}finally{if(mounted)setState(()=>sending=false);}
   }
-  @override Widget build(BuildContext context)=>Scaffold(appBar:AppBar(title:Text(roomName),actions:[
+  @override Widget build(BuildContext context)=>Scaffold(
+    backgroundColor:const Color(0xFF0C0D0F),
+    appBar:AppBar(backgroundColor:const Color(0xFF28183D),title:Text(
+      '${_flag((widget.room['country']??'').toString())} $roomName'.trim(),
+      maxLines:1,overflow:TextOverflow.ellipsis),actions:[
     IconButton(tooltip:'Food Wheel',onPressed:()=>showModalBottomSheet<void>(
       context:context,isScrollControlled:true,useSafeArea:true,
       backgroundColor:const Color(0xFF12172D),
@@ -232,7 +236,26 @@ class _FirebaseRoomChatState extends State<FirebaseRoomChat> with WidgetsBinding
       icon:const Icon(Icons.casino_rounded)),
 
     IconButton(tooltip:'Gift effects',onPressed:sendingEffect?null:chooseEffect,icon:const Icon(Icons.card_giftcard_rounded)),
-    if(isOwner)IconButton(tooltip:'Room settings',onPressed:savingRoom?null:editRoom,icon:const Icon(Icons.tune_rounded))]),body:SafeArea(child:Column(children:[
+    if(isOwner)IconButton(tooltip:'Room settings',onPressed:savingRoom?null:editRoom,icon:const Icon(Icons.tune_rounded))]),
+    body:Container(
+      decoration:const BoxDecoration(gradient:LinearGradient(
+        begin:Alignment.topLeft,end:Alignment.bottomRight,
+        colors:[Color(0xFF33205D),Color(0xFF17284C),Color(0xFF0C0D0F)])),
+      child:SafeArea(child:Column(children:[
+    Padding(padding:const EdgeInsets.fromLTRB(14,9,14,6),
+      child:Row(children:[
+        const CircleAvatar(radius:20,backgroundColor:Color(0xFF7D55D6),
+          child:Icon(Icons.mic_rounded,color:Colors.white)),
+        const SizedBox(width:10),
+        Expanded(child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
+          Text(roomName,maxLines:1,overflow:TextOverflow.ellipsis,
+            style:const TextStyle(fontSize:16,fontWeight:FontWeight.w800)),
+          Text('${widget.room['owner_name']??'Room host'} · $seatCount mic seats',
+            style:const TextStyle(fontSize:11,color:Colors.white60)),
+        ])),
+        const Icon(Icons.graphic_eq_rounded,color:Color(0xFF71E5E6)),
+      ])),
+
     if(isOwner)Padding(padding:const EdgeInsets.symmetric(vertical:3),child:Text('$seatCount seats · Owner settings',style:const TextStyle(fontSize:12,color:Colors.white70))),
     FirebaseVoicePanel(api:widget.api,roomId:widget.room['id'] as String),
     OutlinedButton.icon(onPressed:()=>showModalBottomSheet<void>(
@@ -259,5 +282,5 @@ class _FirebaseRoomChatState extends State<FirebaseRoomChat> with WidgetsBinding
     if(error!=null)Padding(padding:const EdgeInsets.all(8),child:Text(error!)),
     Expanded(child:ListView(padding:const EdgeInsets.all(12),children:[for(final message in messages)Card(child:ListTile(title:Text('${message['name']} ${_flag(message['country'].toString())}'),subtitle:Text(message['text'] as String)))])),
     Padding(padding:const EdgeInsets.all(12),child:Row(children:[Expanded(child:TextField(controller:input,enabled:!sending,readOnly:pendingId!=null,maxLength:500,decoration:const InputDecoration(labelText:'Message'))),IconButton(onPressed:sending?null:send,icon:const Icon(Icons.send))])),
-  ])));
+  ]))));
 }
