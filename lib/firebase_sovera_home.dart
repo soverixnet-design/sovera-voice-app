@@ -8,7 +8,6 @@ import 'firebase_catalog.dart';
 import 'firebase_original_profile_card.dart';
 import 'firebase_original_social.dart';
 import 'firebase_original_coin_sellers.dart';
-import 'effects_studio.dart' show EffectsStudio;
 import 'firebase_server_wallet.dart';
 import 'firebase_community.dart';
 import 'country_picker.dart' show soveraCountries;
@@ -40,6 +39,7 @@ class _FirebaseSoveraHomeState extends State<FirebaseSoveraHome>{
   Timer? refreshTimer;
   List<Map<String,dynamic>> rooms=[];
   List<Map<String,dynamic>> publishedBanners=[];
+  bool catalogLoaded=false;
   Map<String,dynamic>? profile;
   String? error;
   int tab=0,banner=0;
@@ -78,7 +78,7 @@ class _FirebaseSoveraHomeState extends State<FirebaseSoveraHome>{
       List<Map<String,dynamic>>? banners;
       try{final catalog=await api.call('GET',suffix:'/catalog');banners=(catalog['items'] as List).whereType<Map>().map((r)=>Map<String,dynamic>.from(r)).where((r)=>r['kind']=='banner').toList();}catch(_){/* Keep existing artwork when rollout is unavailable. */}
       if(mounted)setState((){
-        if(banners!=null)publishedBanners=banners;
+        if(banners!=null){publishedBanners=banners;catalogLoaded=true;}
         rooms=(data['rooms'] as List).map((e)=>Map<String,dynamic>.from(e as Map)).toList();
         profile=p;error=null;staffRole=role;
         if(savedFollows!=null){followed..clear()..addAll(savedFollows);}
@@ -259,23 +259,25 @@ class _FirebaseSoveraHomeState extends State<FirebaseSoveraHome>{
         border:OutlineInputBorder(borderRadius:BorderRadius.circular(20),
           borderSide:BorderSide.none))),
     const SizedBox(height:16),
-    SizedBox(height:195,child:PageView.builder(itemCount:publishedBanners.isEmpty?slides.length:publishedBanners.length,
+    if(!catalogLoaded||publishedBanners.isNotEmpty)SizedBox(height:195,child:PageView.builder(itemCount:catalogLoaded?publishedBanners.length:slides.length,
       onPageChanged:(i)=>setState(()=>banner=i),
       itemBuilder:(context,index){
-        if(publishedBanners.isNotEmpty)return Padding(padding:const EdgeInsets.only(right:4),child:ClipRRect(borderRadius:BorderRadius.circular(22),child:CatalogImage(asset:publishedBanners[index],fit:BoxFit.cover)));
-        final slide=slides[index];
+        final published=publishedBanners.isEmpty?null:publishedBanners[index];
+        final builtIn=published?['builtin_slide'];
+        if(published!=null&&builtIn is! int)return Padding(padding:const EdgeInsets.only(right:4),child:ClipRRect(borderRadius:BorderRadius.circular(22),child:CatalogImage(asset:publishedBanners[index],fit:BoxFit.cover)));
+        final slide=slides[builtIn is int?builtIn.clamp(0,slides.length-1).toInt():index];
         return Padding(padding:const EdgeInsets.only(right:4),
-          child:InkWell(onTap:index==0?createRoom:index==1?rankings:events,
+          child:InkWell(onTap:(builtIn??index)==0?createRoom:(builtIn??index)==1?rankings:events,
             child:Glass(tint:slide.$4,child:Row(children:[
               Expanded(child:Column(mainAxisAlignment:MainAxisAlignment.center,
                 crossAxisAlignment:CrossAxisAlignment.start,children:[
                   const Text('SOVERA COMMUNITY',
                     style:TextStyle(fontSize:10,letterSpacing:1.7,color:Colors.white60)),
                   const SizedBox(height:10),
-                  Text(slide.$1,style:const TextStyle(fontSize:22,
+                  Text((published?['title']??slide.$1).toString(),style:const TextStyle(fontSize:22,
                     fontWeight:FontWeight.w800,height:1.15)),
                   const SizedBox(height:10),
-                  Text(slide.$2,style:const TextStyle(fontSize:11,color:Colors.white70)),
+                  Text((published?['subtitle']??slide.$2).toString(),style:const TextStyle(fontSize:11,color:Colors.white70)),
                 ])),
               const SizedBox(width:9),
               Column(mainAxisAlignment:MainAxisAlignment.center,children:[
@@ -287,7 +289,7 @@ class _FirebaseSoveraHomeState extends State<FirebaseSoveraHome>{
       })),
     const SizedBox(height:10),
     Row(mainAxisAlignment:MainAxisAlignment.center,children:[
-      for(var i=0;i<(publishedBanners.isEmpty?slides.length:publishedBanners.length);i++)Container(
+      for(var i=0;i<(catalogLoaded?publishedBanners.length:slides.length);i++)Container(
         margin:const EdgeInsets.symmetric(horizontal:3),height:6,width:i==banner?20:6,
         decoration:BoxDecoration(color:i==banner?pink:Colors.white38,
           borderRadius:BorderRadius.circular(4))),
@@ -352,7 +354,7 @@ class _FirebaseSoveraHomeState extends State<FirebaseSoveraHome>{
       (Icons.auto_awesome_rounded,'My frames & entries',
         ()=>go(FirebaseCatalogPage(api:api))),
       (Icons.workspace_premium_rounded,'Frames & effects',
-        ()=>go(const EffectsStudio())),
+        ()=>go(FirebaseCatalogPage(api:api))),
       (Icons.add_home_rounded,'My room',createRoom),
       if(staffRole!=null)(Icons.admin_panel_settings_outlined,'Community admin',
         ()=>go(FirebaseStaffPage(api:api,role:staffRole!))),

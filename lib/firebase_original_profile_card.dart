@@ -17,14 +17,7 @@ class FirebaseOriginalProfileCard extends StatelessWidget {
     final avatar=profile?['avatar_url'];
     final frame=catalogAsset(profile?['equipped'],'frame');
     if(frame!=null)return CatalogPortrait(asset:frame,avatarUrl:avatar as String?,size:242);
-    return SizedBox(height:242,width:242,child:FittedBox(fit:BoxFit.contain,child:SizedBox(height:242,width:242,child:Stack(alignment:Alignment.center,children:[
-      Positioned.fill(child:Image.asset('assets/effects/ice-dragon-still.webp',
-        fit:BoxFit.contain,errorBuilder:(_,__,___)=>const SizedBox.shrink())),
-      ClipOval(child:SizedBox(width:105,height:105,child:avatar is String&&avatar.startsWith('https://')
-        ?Image.network(avatar,fit:BoxFit.cover,
-          errorBuilder:(_,__,___)=>const BrandLogo(size:105))
-        :const BrandLogo(size:105))),
-    ]))));
+    return CatalogPortrait(avatarUrl:avatar as String?,size:242);
   }
 
   Widget rank(String label,IconData icon,Color color)=>Container(

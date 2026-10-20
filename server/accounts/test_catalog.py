@@ -82,4 +82,48 @@ class CatalogTests(unittest.TestCase):
         self.assertEqual(len(self.catalog.events('alice',room)['items']),1)
         details=self.catalog.details('owner','alice');self.assertTrue(details['online']);self.assertEqual(details['presence']['room_id'],room)
 
+    def test_bundled_import_preserves_admin_edits_grants_and_paid_lock(self):
+        import json
+        import tempfile
+        from pathlib import Path
+        from .seed_bundled_catalog import seed,item_id
+        self.setup_catalog()
+        rows=json.loads(Path(__file__).with_name('bundled_catalog.json').read_text())
+        with tempfile.TemporaryDirectory() as folder:
+            for item in rows:
+                path=Path(folder)/item['path'];path.parent.mkdir(parents=True,exist_ok=True)
+                image=io.BytesIO();Image.new('RGBA',(32,32),(255,0,0,0)).save(image,format='PNG')
+                path.write_bytes(image.getvalue())
+            result=seed(self.path,folder)
+            self.assertEqual(result['added'],len(rows))
+            key=item_id(rows[0])
+            with self.catalog.control.db() as db:
+                db.execute("UPDATE account_catalog SET title='Owner edited',price=99,active=0 WHERE id=?",(key,))
+            entry=next(item_id(r) for r in rows if r['kind']=='entry')
+            with self.assertRaises(HTTPException):
+                self.catalog.select('alice',SelectInput(kind='entry',item_id=entry))
+            self.catalog.grant('owner',GrantInput(target_uid='alice',item_id=entry))
+            self.assertEqual(seed(self.path,folder)['added'],0)
+            saved=next(r for r in self.catalog.listing('owner',True)['items'] if r['id']==key)
+            self.assertEqual((saved['title'],saved['price'],saved['active']),('Owner edited',99,False))
+            self.assertIn(entry,self.catalog.listing('alice')['owned'])
+            banner=next(r for r in self.catalog.listing('owner',True)['items'] if r['kind']=='banner')
+            self.assertIn('builtin_slide',banner)
+            other=io.BytesIO();Image.new('RGB',(32,32),'blue').save(other,format='PNG')
+            replacement=self.catalog.upload('owner',other.getvalue())
+            with self.catalog.control.db() as db:
+                db.execute('UPDATE account_catalog SET media_id=? WHERE id=?',(replacement['id'],banner['id']))
+            edited=next(r for r in self.catalog.listing('owner',True)['items'] if r['id']==banner['id'])
+            self.assertNotIn('builtin_slide',edited)
+
+    def test_actual_bundled_media_meets_upload_limits(self):
+        import json
+        from pathlib import Path
+        rows=json.loads(Path(__file__).with_name('bundled_catalog.json').read_text())
+        if not Path('assets/effects').is_dir():self.skipTest('Bundled artwork is checked in repository CI')
+        self.setup_catalog()
+        for item in rows:
+            with self.subTest(path=item['path']):
+                self.catalog.upload('owner',Path(item['path']).read_bytes())
+
 if __name__=='__main__':unittest.main()

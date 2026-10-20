@@ -55,6 +55,7 @@ class Catalog:
         self.control=Control(path)
         with self.control.db() as db:
             db.executescript('''
+            CREATE TABLE IF NOT EXISTS account_builtin_catalog(id TEXT PRIMARY KEY,media_id TEXT NOT NULL,slide INTEGER NOT NULL,subtitle TEXT NOT NULL);
             CREATE TABLE IF NOT EXISTS account_media(id TEXT PRIMARY KEY,mime TEXT NOT NULL,data BLOB NOT NULL,width INTEGER NOT NULL,height INTEGER NOT NULL,frames INTEGER NOT NULL,created_at INTEGER NOT NULL);
             CREATE TABLE IF NOT EXISTS account_catalog(id TEXT PRIMARY KEY,kind TEXT NOT NULL,title TEXT NOT NULL,media_id TEXT NOT NULL,price INTEGER NOT NULL,active INTEGER NOT NULL,position INTEGER NOT NULL,avatar_scale REAL NOT NULL,avatar_x REAL NOT NULL,avatar_y REAL NOT NULL,updated_at INTEGER NOT NULL);
             CREATE TABLE IF NOT EXISTS account_asset_ownership(uid TEXT NOT NULL,item_id TEXT NOT NULL,created_at INTEGER NOT NULL,PRIMARY KEY(uid,item_id));
@@ -69,7 +70,12 @@ class Catalog:
         if not row:raise HTTPException(404,'Catalog item not available')
         return row
     def public(self,row):
-        data=dict(row);data['url']=PUBLIC+data['media_id'];data['active']=bool(data['active']);return data
+        data=dict(row);data['url']=PUBLIC+data['media_id'];data['active']=bool(data['active'])
+        if data['kind']=='banner':
+            with self.control.db() as db:
+                original=db.execute('SELECT slide,subtitle FROM account_builtin_catalog WHERE id=? AND media_id=?',(data['id'],data['media_id'])).fetchone()
+                if original:data.update({'builtin_slide':original['slide'],'subtitle':original['subtitle']})
+        return data
     def upload(self,uid,data):
         with self.control.db() as db:self.manage(db,uid)
         if not data or len(data)>MAX_UPLOAD:raise HTTPException(413,'Image must be no larger than 8 MB')
