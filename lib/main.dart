@@ -562,7 +562,7 @@ class _VoiceRoomState extends State<VoiceRoom> {
    DropdownMenuItem(value:'MY',child:Text('🇲🇾 Malaysia')),
    DropdownMenuItem(value:'US',child:Text('🇺🇸 United States')),
    DropdownMenuItem(value:'GB',child:Text('🇬🇧 United Kingdom')),
-  ],onChanged:(value){if(value!=null)update(()=>selected=value);}),actions:[TextButton(onPressed:()=>Navigator.pop(dialogContext),child:const Text('Cancel')),FilledButton(onPressed:()=>Navigator.pop(dialogContext,selected),child:const Text('Save'))]))));
+  ],onChanged:(value){if(value!=null)update(()=>selected=value);}),actions:[TextButton(onPressed:()=>Navigator.pop(dialogContext),child:const Text('Cancel')),FilledButton(onPressed:()=>Navigator.pop(dialogContext,selected),child:const Text('Save'))])));
   if(code==null||!mounted)return;
   try{await soveraClient.from('sovera_rooms').update({'country':code}).eq('id',widget.roomId!).eq('owner_id',widget.ownerId!).select('id').single();if(mounted)notice('Room country saved.');}catch(_){if(mounted)notice('Could not save room country.');}
  }
