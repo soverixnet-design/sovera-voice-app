@@ -84,11 +84,12 @@ async function main(){
  let hello;
  for(let i=0;i<60;i++){hello=messages.find(m=>m.t==='hello');if(hello)break;await sleep(100);}
  assert(hello,'Original JWT authentication did not produce hello');
+ if(large)assert(hello.config.chips.includes(opening),'Player balance chip missing');
  // Read the public original round state; no client chooses a winner.
  const initial=hello.state;
  const round=initial.round??initial.id;
  assert(round!==undefined,'Unsupported public round state: '+JSON.stringify(initial));
- for(let i=0;i<(large?2:1);i++)socket.send(JSON.stringify({t:'bet',round,itemId:'shrimp',amount:large?1000000:1000,reqId:'integration-bet-'+i}));
+ for(let i=0;i<(large?2:1);i++)socket.send(JSON.stringify({t:'bet',round,itemId:'shrimp',amount:large?(i===0?1234567:765433):1000,reqId:'integration-bet-'+i}));
  let ack,result;
  for(let i=0;i<200;i++){
   ack=messages.find(m=>m.t==='bet_ok');

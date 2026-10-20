@@ -72,7 +72,7 @@ def main():
         # Keep the previous local/mock game and database intact.
         shutil.copytree(ORIGINAL/'src',stage/'src')
         os.symlink(ORIGINAL/'node_modules',stage/'node_modules',target_is_directory=True)
-        for name in ['wallet.js','start.js','selftest.js']:
+        for name in ['wallet.js','start.js','limits.js','selftest.js']:
             (stage/'src'/name).write_bytes(fetch(args.source+'/server/greedy/'+name))
         server=stage/'src/server.js'
         text=server.read_text()
