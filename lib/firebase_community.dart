@@ -1,5 +1,7 @@
 import 'dart:math';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:url_launcher/url_launcher.dart';
 import 'firebase_profile.dart';
 import 'sovera_visuals.dart' show Glass, cyan, gold, violet;
 
@@ -93,7 +95,7 @@ class _FirebaseStaffPageState extends State<FirebaseStaffPage>{
   List<Map<String,dynamic>> tickets=[];
   String section='notices';String? error,requestId;
   bool busy=false;
-  @override void initState(){super.initState();load();}
+  @override void initState(){super.initState();if(widget.role!='agent')load();}
   @override void dispose(){title.dispose();text.dispose();super.dispose();}
   Future<void> load()async{
     try{final data=await widget.api.call('GET',suffix:'/staff/support');if(mounted)setState(()=>tickets=(data['items'] as List).map((r)=>Map<String,dynamic>.from(r as Map)).toList());}
@@ -118,6 +120,8 @@ class _FirebaseStaffPageState extends State<FirebaseStaffPage>{
     catch(e){if(mounted)setState(()=>error=e is ProfileApiError?e.message:'Reply was not sent.');}
   }
   @override Widget build(BuildContext context)=>Scaffold(appBar:AppBar(title:const Text('Community admin')),body:ListView(padding:const EdgeInsets.all(18),children:[
+    FirebaseControlAccess(api:widget.api),
+    const SizedBox(height:18),
     if(error!=null)Text(error!,style:TextStyle(color:Colors.orange.shade200)),
     if(widget.role=='owner'||widget.role=='admin')Glass(tint:violet,child:Column(crossAxisAlignment:CrossAxisAlignment.stretch,children:[
       const Text('Publish an update',style:TextStyle(fontSize:21,fontWeight:FontWeight.bold)),
@@ -126,7 +130,42 @@ class _FirebaseStaffPageState extends State<FirebaseStaffPage>{
       TextField(controller:text,readOnly:requestId!=null,maxLength:1000,maxLines:4,decoration:const InputDecoration(labelText:'Details')),
       FilledButton(onPressed:busy?null:publish,child:Text(busy?'Publishing…':requestId!=null?'Retry publication':'Publish')),
     ])),
+    if(widget.role!='agent')...[
     const SizedBox(height:22),Row(children:[const Expanded(child:Text('Support inbox',style:TextStyle(fontSize:21,fontWeight:FontWeight.bold))),IconButton(onPressed:load,icon:const Icon(Icons.refresh))]),
     for(final ticket in tickets)Padding(padding:const EdgeInsets.only(bottom:12),child:Glass(tint:cyan,child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[Text(ticket['name'].toString(),style:const TextStyle(fontWeight:FontWeight.bold)),const SizedBox(height:10),Text(ticket['text'].toString()),if((ticket['reply']??'').toString().isNotEmpty)Text('Reply: ${ticket['reply']}',style:const TextStyle(color:gold)),TextButton.icon(onPressed:()=>reply(ticket),icon:const Icon(Icons.reply),label:const Text('Reply'))]))),
+    ],
+  ]));
+}
+
+class FirebaseControlAccess extends StatefulWidget{
+  final FirebaseProfileApi api;
+  const FirebaseControlAccess({super.key,required this.api});
+  @override State<FirebaseControlAccess> createState()=>_FirebaseControlAccessState();
+}
+class _FirebaseControlAccessState extends State<FirebaseControlAccess>{
+  bool busy=false;String? code,error;
+  Future<void> generate()async{
+    setState((){busy=true;error=null;code=null;});
+    try{
+      final result=await widget.api.call('POST',suffix:'/staff/access-code');
+      final value=result['code'];
+      if(value is! String||!RegExp(r'^[a-f0-9]{64}$').hasMatch(value))throw const ProfileApiError('Invalid admin code response.');
+      if(mounted)setState(()=>code=value);
+    }catch(e){if(mounted)setState(()=>error=e is ProfileApiError?e.message:'Could not generate admin access.');}
+    finally{if(mounted)setState(()=>busy=false);}
+  }
+  @override Widget build(BuildContext context)=>Glass(tint:gold,child:Column(crossAxisAlignment:CrossAxisAlignment.stretch,children:[
+    const Text('Sovera Control',style:TextStyle(fontSize:23,fontWeight:FontWeight.bold)),
+    const SizedBox(height:10),const Text('Generate a code, open admin.soverixnet.com and paste it to sign in. Each code expires after five minutes and works once.'),
+    const SizedBox(height:12),FilledButton.icon(onPressed:busy?null:generate,icon:const Icon(Icons.key_rounded),label:Text(busy?'Generating…':'Generate admin sign-in code')),
+    if(error!=null)Text(error!,style:TextStyle(color:Colors.orange.shade200)),
+    if(code!=null)...[
+      const SizedBox(height:12),SelectableText(code!,style:const TextStyle(fontFamily:'monospace',fontSize:12)),
+      TextButton.icon(onPressed:()async{await Clipboard.setData(ClipboardData(text:code!));if(context.mounted)ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content:Text('Code copied. Keep it private.')));},icon:const Icon(Icons.copy),label:const Text('Copy code')),
+    ],
+    OutlinedButton.icon(onPressed:()async{
+      final opened=await launchUrl(Uri.parse('https://admin.soverixnet.com'),mode:LaunchMode.externalApplication);
+      if(!opened&&context.mounted)ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content:Text('Could not open admin panel.')));
+    },icon:const Icon(Icons.open_in_browser),label:const Text('Open admin panel')),
   ]));
 }

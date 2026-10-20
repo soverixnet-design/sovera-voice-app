@@ -51,7 +51,10 @@ class Community:
     def role(self, uid):
         with self.db() as db:
             row = db.execute('SELECT role FROM account_staff WHERE uid=?', (uid,)).fetchone()
-            return row['role'] if row else None
+            if row:return row['role']
+            if db.execute("SELECT 1 FROM sqlite_master WHERE type='table' AND name='account_control_agents'").fetchone():
+                if db.execute('SELECT 1 FROM account_control_agents WHERE uid=?',(uid,)).fetchone():return 'agent'
+            return None
 
     def require_staff(self, uid, publish=False):
         role = self.role(uid)

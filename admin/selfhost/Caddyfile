@@ -1,0 +1,18 @@
+admin.soverixnet.com {
+    encode zstd gzip
+    header {
+        Content-Security-Policy "default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src 'self'; frame-ancestors 'none'; base-uri 'none'; form-action 'self'"
+        X-Content-Type-Options nosniff
+        Referrer-Policy no-referrer
+        Cache-Control no-store
+        -Server
+    }
+    @control path /sovera/control/*
+    handle @control {
+        reverse_proxy 127.0.0.1:8092
+    }
+    handle {
+        root * /var/www/sovera-control
+        file_server
+    }
+}
