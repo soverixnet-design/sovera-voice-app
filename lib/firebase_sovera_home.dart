@@ -13,13 +13,16 @@ import 'main.dart' show BrandLogo, Glass, Jewel, violet, gold, pink, cyan;
 /// never from the separate Supabase account or fake room fixtures.
 class FirebaseSoveraHome extends StatefulWidget {
   final User user;
-  const FirebaseSoveraHome({super.key,required this.user});
+  // The test harness can supply a mocked server client. Production always
+  // uses the signed-in Firebase user token from the normal constructor.
+  final FirebaseProfileApi? apiOverride;
+  const FirebaseSoveraHome({super.key,required this.user,this.apiOverride});
   @override State<FirebaseSoveraHome> createState()=>_FirebaseSoveraHomeState();
 }
 
 class _FirebaseSoveraHomeState extends State<FirebaseSoveraHome>{
   final http.Client client=http.Client();
-  late final FirebaseProfileApi api=FirebaseProfileApi(
+  late final FirebaseProfileApi api=widget.apiOverride??FirebaseProfileApi(
     uid:widget.user.uid,client:client,
     token:()async=>FirebaseAuth.instance.currentUser?.uid==widget.user.uid
       ? widget.user.getIdToken():null,
