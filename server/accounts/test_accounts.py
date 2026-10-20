@@ -59,6 +59,28 @@ class RoomTests(unittest.TestCase):
         from server.accounts.rooms import Rooms
         self.assertEqual(Rooms(self.path).directory()[0]['name'],'Updated')
 
+    def test_room_flag_follows_owners_saved_country_not_visitors(self):
+        room=self.make_room()
+        headers_alice={'Authorization':'Bearer alice'}
+        headers_bob={'Authorization':'Bearer bob'}
+        self.client.put('/sovera/account',json={
+            **self.data,'display_name':'Visitor','country':'OM'},headers=headers_bob)
+        first=self.client.get('/sovera/account/rooms',headers=headers_bob).json()['rooms']
+        owner=next(r for r in first if r['id']==room)
+        self.assertEqual(owner['country'],'BD')
+        self.assertEqual(owner['owner_name'],'Shakil')
+        # Editing the original owner's location updates the same room's flag
+        # without changing room ID or creating a duplicate room.
+        updated=self.client.put('/sovera/account',
+            json={**self.data,'display_name':'Shakil Updated','country':'SA'},
+            headers=headers_alice)
+        self.assertEqual(updated.status_code,200)
+        after=self.client.get('/sovera/account/rooms',headers=headers_bob).json()['rooms']
+        self.assertEqual(len(after),1)
+        self.assertEqual(after[0]['id'],room)
+        self.assertEqual(after[0]['country'],'SA')
+        self.assertEqual(after[0]['owner_name'],'Shakil Updated')
+
     def test_chat_replay_and_authoritative_identity(self):
         import uuid
         room=self.make_room(); path='/sovera/account/rooms/'+room+'/messages'
