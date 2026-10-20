@@ -8,7 +8,7 @@ import 'firebase_profile.dart';
 import 'firebase_rooms.dart';
 import 'firebase_greedy_wheel.dart';
 import 'firebase_sovera_home.dart';
-import 'main.dart' show BrandLogo;
+import 'sovera_visuals.dart' show BrandLogo;
 
 const _webClient = '486331346860-trjijmpedgurb05npsvao3d3v327b6ii.apps.googleusercontent.com';
 
