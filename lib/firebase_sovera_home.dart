@@ -61,7 +61,7 @@ class _FirebaseSoveraHomeState extends State<FirebaseSoveraHome>{
     }catch(e){if(mounted&&!silent)setState(()=>error=e is ProfileApiError?e.message:'Could not load rooms. Check connection.');}
     finally{if(mounted)setState(()=>loading=false);}
   }
-  String get displayName=profile?['display_name'] as String? ??
+  String get displayName => profile?['display_name'] as String? ??
       widget.user.displayName??'Sovera user';
   bool get hasProfile=>profile!=null;
   static String flag(String country){
@@ -364,7 +364,7 @@ class _FirebaseSoveraHomeState extends State<FirebaseSoveraHome>{
           if(tab==1)moments(),
           if(tab==2)messages(),
           if(tab==3)profileTab(),
-        ])))),
+        ]))))),
     bottomNavigationBar:NavigationBar(
       backgroundColor:const Color(0xFF1B2448),
       selectedIndex:tab,onDestinationSelected:(v)=>setState(()=>tab=v),
