@@ -65,7 +65,8 @@ void main(){
     await tester.tap(find.text('12 seats'));await tester.pumpAndSettle();
     await tester.tap(find.text('Save changes'));await tester.pumpAndSettle();
     expect(sent,{'name':'Renamed room','seats':12});
-    expect(find.text('Renamed room'),findsOneWidget);
+    // The restored room header shows the name in both the title and room card.
+    expect(find.text('Renamed room'),findsNWidgets(2));
     expect(find.text('12 seats · Owner settings'),findsOneWidget);
     await tester.pumpWidget(const SizedBox());await tester.pumpAndSettle();
   });
