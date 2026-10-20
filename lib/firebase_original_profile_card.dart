@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'firebase_catalog.dart';
-import 'sovera_visuals.dart' show Glass,BrandLogo,cyan,gold,violet;
+import 'sovera_visuals.dart' show Glass,cyan,gold,violet;
 import 'country_picker.dart' show countryFlag;
 
 /// Original Sovera profile-card arrangement; profile comes only from the
