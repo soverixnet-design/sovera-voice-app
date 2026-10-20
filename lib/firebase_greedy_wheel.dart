@@ -17,6 +17,34 @@ class _FirebaseGreedyWheelPageState extends State<FirebaseGreedyWheelPage>{
   WebViewController? controller;
   bool loading=true;
   String? error;
+  bool refreshingGameAccess=false;
+
+  /// Short-lived game JWTs are refreshed through the authenticated Firebase
+  /// account API, never with a game-host password or a coin balance from JS.
+  Future<void> refreshGameAccess()async{
+    if(refreshingGameAccess||!mounted||controller==null)return;
+    refreshingGameAccess=true;
+    try{
+      final reply=await widget.api.call('POST',suffix:'/greedy/access');
+      final token=reply['token'],endpoint=reply['game_url'];
+      if(token is! String||token.isEmpty||endpoint is! String){
+        throw const ProfileApiError('Invalid game credentials');
+      }
+      final url=Uri.tryParse(endpoint);
+      if(url==null||url.scheme!='https'||url.host!='voice.soverixnet.com'||
+          url.path!='/greedy/'||url.hasQuery||url.hasFragment){
+        throw const ProfileApiError('Unverified game server');
+      }
+      final payload=jsonEncode({
+        'server':'https://voice.soverixnet.com/greedy','token':token,
+      });
+      if(mounted)await controller!.runJavaScript(
+        'if(window.GreedyGame){window.GreedyGame.connect($payload);}');
+    }catch(_){
+      if(mounted)setState(()=>error=
+        'Game session expired and could not refresh. Your Coins are unchanged.');
+    }finally{refreshingGameAccess=false;}
+  }
   @override void initState(){super.initState();open();}
   Future<void> open()async{
     setState((){loading=true;error=null;});
@@ -65,6 +93,9 @@ class _FirebaseGreedyWheelPageState extends State<FirebaseGreedyWheelPage>{
             final message=jsonDecode(event.message);
             if(message is Map&&message['type']=='close'&&mounted){
               Navigator.of(context).maybePop();
+            }
+            if(message is Map&&message['type']=='auth_failed'&&mounted){
+              refreshGameAccess();
             }
             if(message is Map&&message['type']=='topup'&&mounted){
               ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
