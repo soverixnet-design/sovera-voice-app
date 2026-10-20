@@ -60,6 +60,9 @@ void main(){
     const room={'id':'room-1','name':'Original room','owner_uid':'alice','seats':9};
     await tester.pumpWidget(MaterialApp(home:FirebaseRoomChat(api:api,room:room)));await tester.pumpAndSettle();
     expect(find.text('9 seats · Owner settings'),findsOneWidget);
+    // Greedy is available from the SAME room; it is no longer the old wheel/XO.
+    expect(find.text('Greedy Wheel · Live shared game'),findsOneWidget);
+    expect(find.byTooltip('Greedy Wheel'),findsOneWidget);
     await tester.tap(find.byTooltip('Room settings'));await tester.pumpAndSettle();
     await tester.enterText(find.byType(TextField).last,'Renamed room');
     await tester.tap(find.text('12 seats'));await tester.pumpAndSettle();
@@ -120,6 +123,8 @@ void main(){
     final api=FirebaseProfileApi(uid:'alice',token:()async=>'token',client:MockClient((r)async=>http.Response(jsonEncode({'rooms':[{'id':'room-1','name':'My room','owner_uid':'alice','owner_name':'Shakil','country':'BD','avatar_url':null,'occupants':2,'seats':9}]}),200)));
     await tester.pumpWidget(MaterialApp(home:FirebaseRoomsPage(api:api)));await tester.pumpAndSettle();
     expect(find.textContaining('My room'),findsOneWidget);expect(find.textContaining('2 members'),findsOneWidget);expect(find.textContaining('Bangladesh'),findsOneWidget);
+    expect(find.text('Greedy Wheel · One server round'),findsOneWidget);
+    expect(find.byTooltip('Greedy Wheel'),findsOneWidget);
     await tester.pumpWidget(const SizedBox());
   });
   testWidgets('failed chat send retains input and never fabricates a delivered message',(tester)async{
