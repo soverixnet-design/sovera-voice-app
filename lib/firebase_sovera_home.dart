@@ -7,7 +7,7 @@ import 'firebase_profile.dart';
 import 'country_picker.dart' show soveraCountries;
 import 'firebase_rooms.dart';
 import 'firebase_greedy_wheel.dart';
-import 'main.dart' show BrandLogo, Glass, Jewel, violet, gold, pink, cyan;
+import 'sovera_visuals.dart' show BrandLogo, Glass, Jewel, violet, gold, pink, cyan;
 
 /// Restores the ORIGINAL Sovera Home/Moments/Messages/Me visual hierarchy.
 /// Data for rooms and users is from Firebase-authenticated account APIs,
