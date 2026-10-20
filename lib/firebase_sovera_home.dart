@@ -6,6 +6,7 @@ import 'package:http/http.dart' as http;
 import 'firebase_profile.dart';
 import 'firebase_original_profile_card.dart';
 import 'firebase_original_social.dart';
+import 'firebase_original_coin_sellers.dart';
 import 'effects_studio.dart' show EffectsStudio;
 import 'firebase_server_wallet.dart';
 import 'country_picker.dart' show soveraCountries;
@@ -338,8 +339,8 @@ class _FirebaseSoveraHomeState extends State<FirebaseSoveraHome>{
     const SizedBox(height:18),
     for(final item in <(IconData,String,VoidCallback)>[
       (Icons.account_balance_wallet_rounded,'Wallet',wallet),
-      (Icons.storefront_rounded,'Coin seller list',()=>
-        feature('Coin seller list','Only verified, server-approved sellers will appear after the seller directory has been migrated. No test sellers are shown.')),
+      (Icons.storefront_rounded,'Coin seller list',
+        ()=>go(const FirebaseOriginalCoinSellers())),
       (Icons.card_giftcard_rounded,'Invite & referrals',
         ()=>feature('Referrals','The referral award server API is not connected yet.')),
       (Icons.people_outline_rounded,'People & following',
