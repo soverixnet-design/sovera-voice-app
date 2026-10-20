@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'firebase_catalog.dart';
 import 'sovera_visuals.dart' show Glass,BrandLogo,cyan,gold,violet;
 import 'country_picker.dart' show countryFlag;
 
@@ -14,6 +15,8 @@ class FirebaseOriginalProfileCard extends StatelessWidget {
 
   Widget portrait(){
     final avatar=profile?['avatar_url'];
+    final frame=catalogAsset(profile?['equipped'],'frame');
+    if(frame!=null)return CatalogPortrait(asset:frame,avatarUrl:avatar as String?,size:242);
     return SizedBox(height:242,width:242,child:Stack(alignment:Alignment.center,children:[
       Positioned.fill(child:Image.asset('assets/effects/ice-dragon-still.webp',
         fit:BoxFit.contain,errorBuilder:(_,__,___)=>const SizedBox.shrink())),
@@ -49,6 +52,7 @@ class FirebaseOriginalProfileCard extends StatelessWidget {
         textAlign:TextAlign.center,
         style:const TextStyle(fontSize:24,fontWeight:FontWeight.w800)),
       const SizedBox(height:9),
+      for(final kind in const ['medal','tag'])if(catalogAsset(profile?['equipped'],kind)!=null)SizedBox(height:72,child:CatalogImage(asset:catalogAsset(profile?['equipped'],kind)!)),
       Text(hasId?'ID · $id':'ID · Waiting for verified server ID',
         textAlign:TextAlign.center,
         style:const TextStyle(fontSize:13,color:cyan,fontWeight:FontWeight.w600)),

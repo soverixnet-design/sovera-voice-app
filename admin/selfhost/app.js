@@ -20,20 +20,22 @@ function login(message=''){
  root.innerHTML=`<main class="login"><div class="brand"><img class="brand-logo" src="/sovera-logo.png" alt="Sovera" width="72" height="72"><strong>Sovera Control</strong></div><h1>Your community workspace.</h1><p>Sign in with your assigned admin username and password.</p><form id="login"><label>Username<input id="username" autocomplete="username" minlength="3" maxlength="64" autocapitalize="none" spellcheck="false" required></label><label>Password<input id="password" type="password" autocomplete="current-password" maxlength="128" required></label><button id="submit" class="full">Sign in</button><p id="error" role="alert" class="error">${esc(message)}</p></form><p class="help">Only assigned staff can sign in. Contact the owner if you need to reset your password.</p></main>`;
  $('login').onsubmit=async event=>{event.preventDefault();$('submit').disabled=true;try{await api('password-login','POST',{username:$('username').value.trim(),password:$('password').value});await start();}catch(e){if($('error'))$('error').textContent=e.message;if($('submit'))$('submit').disabled=false;}};
 }
-const titles={dashboard:'Overview',users:'Members',recharge:'Recharge coins',staff:'Staff access',publications:'Notices & events',support:'Support inbox',history:'Recharge history'};
+const titles={dashboard:'Overview',users:'Members',recharge:'Recharge coins',staff:'Staff access',publications:'Notices & events',support:'Support inbox',history:'Recharge history',banners:'Home banners',frames:'Profile frames',entries:'Entry animations',gifts:'Animated gifts',medals:'Medals',tags:'Profile tags',roomframes:'Room frames'};
 function available(){
  const role=identity.role;
- return ['dashboard',...(role!=='support'?['users']:[]),...(role==='owner'||role==='agent'?['recharge','history']:[]),...(role==='owner'?['staff']:[]),...(role==='owner'||role==='admin'?['publications']:[]),...(role!=='agent'?['support']:[])];
+ return ['dashboard',...(role!=='support'?['users']:[]),...(role==='owner'||role==='agent'?['recharge','history']:[]),...(role==='owner'?['staff']:[]),...(role==='owner'||role==='admin'?['banners','frames','entries','gifts','medals','tags','roomframes','publications']:[]),...(role!=='agent'?['support']:[])];
 }
 function shell(){
- root.innerHTML=`<div class="shell"><aside class="sidebar"><div class="brand"><img class="brand-logo" src="/sovera-logo.png" alt="Sovera" width="52" height="52"><strong>Sovera Control</strong></div><nav class="nav" aria-label="Admin sections">${available().map(name=>`<button data-view="${name}" class="${view===name?'active':''}">${titles[name]}</button>`).join('')}</nav><div class="foot"><p>${esc(identity.name)} · ${esc(identity.role)}</p></div></aside><main class="main"><header class="topbar"><div><small class="eyebrow">SOVERA / CONTROL</small><h1>${titles[view]}</h1></div><button id="logout" class="secondary">Sign out</button></header><p id="error" role="alert" class="error"></p><div id="panel">Loading…</div></main></div>`;
+ root.innerHTML=`<div class="shell"><aside class="sidebar"><div class="brand"><img class="brand-logo" src="/sovera-logo.png" alt="Sovera" width="52" height="52"><strong>Sovera Control</strong><button id="menu-close" class="secondary mobile-menu" aria-label="Close navigation">×</button></div><nav class="nav" aria-label="Admin sections">${available().map(name=>`<button data-view="${name}" class="${view===name?'active':''}">${titles[name]}</button>`).join('')}</nav><div class="foot"><p>${esc(identity.name)} · ${esc(identity.role)}</p></div></aside><main class="main"><header class="topbar"><button id="menu-toggle" class="secondary mobile-menu" aria-label="Open navigation" aria-expanded="false">☰ Menu</button><div><small class="eyebrow">SOVERA / CONTROL</small><h1>${titles[view]}</h1></div><button id="logout" class="secondary">Sign out</button></header><p id="error" role="alert" class="error"></p><div id="panel">Loading…</div></main></div>`;
  root.querySelectorAll('[data-view]').forEach(button=>button.onclick=()=>{view=button.dataset.view;render();});
+ $('menu-close').onclick=()=>root.querySelector('.shell').classList.remove('menu-open');
+ $('menu-toggle').onclick=()=>{const opened=root.querySelector('.shell').classList.toggle('menu-open');$('menu-toggle').setAttribute('aria-expanded',String(opened));};
  $('logout').onclick=async()=>{try{await api('logout','POST',{});identity=null;login();}catch(e){$('error').textContent=e.message;}};
 }
 function table(headers,rows){return `<div class="table-wrap"><table><thead><tr>${headers.map(h=>`<th>${esc(h)}</th>`).join('')}</tr></thead><tbody>${rows.join('')}</tbody></table>${rows.length?'':'<p class="empty">No records yet.</p>'}</div>`;}
 async function render(){
  shell();
- try{await ({dashboard,members,recharge,staff,publications,support,history}[view==='users'?'members':view])();}
+ try{if(assetKinds[view])await assets();else await ({dashboard,members,recharge,staff,publications,support,history}[view==='users'?'members':view])();}
  catch(e){if($('error'))$('error').textContent=e.message;if($('panel')&&$('panel').textContent==='Loading…')$('panel').textContent='This section could not be loaded. Choose it again to retry.';}
 }
 function dashboard(){
@@ -45,7 +47,8 @@ async function members(){
  const draw=()=>{
   const q=$('search').value.trim().toLowerCase();
   const rows=users.filter(u=>[u.uid,u.name,u.source_ref].some(v=>String(v??'').toLowerCase().includes(q)));
-  $('results').innerHTML=table(['Member','Account ID','Country','Coins','Diamonds','Wallet'],rows.map(u=>`<tr><td>${esc(u.name)}</td><td class="details">${esc(u.uid)}</td><td>${esc(u.country)}</td><td>${u.wallet_status?num(u.coins):'Not verified'}</td><td>${u.wallet_status?num(u.diamonds):'—'}</td><td>${esc(u.wallet_status||'Awaiting migration')}</td></tr>`));
+  $('results').innerHTML=table(['Member','Account ID','Country','Status / room','Role','Coins','Diamonds','Wallet','Details'],rows.map(u=>`<tr><td>${esc(u.name)}</td><td class="details">${esc(u.uid)}</td><td>${esc(u.country)}</td><td>${u.last_seen>Date.now()/1000-90?'Online':'Offline'}<br>${esc(u.current_room||'—')}</td><td>${esc(u.role||'Member')}</td><td>${u.wallet_status?num(u.coins):'Not verified'}</td><td>${u.wallet_status?num(u.diamonds):'—'}</td><td>${esc(u.wallet_status||'Awaiting migration')}</td><td><button data-user-details="${esc(u.uid)}">View / assign assets</button></td></tr>`));
+  root.querySelectorAll('[data-user-details]').forEach(b=>b.onclick=()=>userDetails(b.dataset.userDetails).catch(e=>{$('error').textContent=e.message;}));
  };$('search').oninput=draw;draw();
 }
 async function recharge(){
@@ -91,4 +94,50 @@ async function history(){
  $('panel').innerHTML=`<section class="card">${table(['Receipt','Account','Coins','Balance after','Note'],rows.map(r=>`<tr><td class="details">${esc(r.request_id)}</td><td class="details">${esc(r.target)}</td><td>${num(r.amount)}</td><td>${num(r.balance)}</td><td>${esc(r.note)}</td></tr>`))}</section>`;
 }
 async function start(){try{identity=await api('session');try{rechargeRequest=JSON.parse(sessionStorage.getItem(pendingKey())||'null');}catch{rechargeRequest=null;}if(!available().includes(view))view='dashboard';await render();}catch(e){login(e.message==='Sign in required'?'':e.message);}}
+const assetKinds={banners:'banner',frames:'frame',entries:'entry',gifts:'gift',medals:'medal',tags:'tag',roomframes:'room_frame'};
+let catalogRows=[],editingAsset=null,uploadedMedia=null;
+const mediaPreview=key=>'/sovera/control/media/'+encodeURIComponent(key);
+async function assets(){
+ const kind=assetKinds[view];catalogRows=(await api('catalog')).items;editingAsset=null;uploadedMedia=null;
+ const rows=catalogRows.filter(r=>r.kind===kind);
+ $('panel').innerHTML=`<section class="card"><h2>${esc(titles[view])}</h2><p>Upload PNG, JPG, animated GIF or WebP from your gallery. Maximum 8 MB, 4096 px and 300 animation frames. Use a transparent image for frames.</p><button id="new-asset">Add new</button><div class="content-grid space">${rows.map(r=>`<article class="content-item"><img src="${mediaPreview(r.media_id)}" alt="${esc(r.title)}"><h3>${esc(r.title)}</h3><p>${num(r.price)} Coins · ${r.active?'Active':'Hidden'} · Order ${r.position}</p><button data-edit="${esc(r.id)}">Edit / preview</button><button class="secondary" data-toggle="${esc(r.id)}">${r.active?'Hide':'Publish'}</button></article>`).join('')}</div><p>${rows.length?'':'No items in this category yet.'}</p></section><div id="asset-editor"></div>`;
+ $('new-asset').onclick=()=>assetEditor(kind);
+ root.querySelectorAll('[data-edit]').forEach(b=>b.onclick=()=>assetEditor(kind,catalogRows.find(r=>r.id===b.dataset.edit)));
+ root.querySelectorAll('[data-toggle]').forEach(b=>b.onclick=async()=>{b.disabled=true;try{const row=catalogRows.find(r=>r.id===b.dataset.toggle);await api('catalog','POST',itemPayload(row,{active:!row.active}));await assets();}catch(e){$('error').textContent=e.message;b.disabled=false;}});
+}
+function itemPayload(row,changes={}){const {id,kind,title,media_id,price,active,position,avatar_scale,avatar_x,avatar_y}=row;return {id,kind,title,media_id,price,active,position,avatar_scale,avatar_x,avatar_y,...changes};}
+function assetEditor(kind,row){
+ editingAsset=row??{id:id(),kind,title:'',media_id:'',price:0,active:true,position:0,avatar_scale:.46,avatar_x:.5,avatar_y:.5};uploadedMedia=null;
+ $('asset-editor').innerHTML=`<section class="card"><h2>${row?'Edit':'New'} ${esc(kind.replaceAll('_',' '))}</h2><form id="asset-form"><label>Name<input id="asset-title" maxlength="80" value="${esc(editingAsset.title)}" required></label><label>Gallery image / animation<input id="asset-file" type="file" accept="image/png,image/jpeg,image/gif,image/webp"></label><div class="asset-preview fit-preview"><div id="fit-avatar" class="fit-avatar">USER</div><img id="fit-image" alt="Asset preview" ${editingAsset.media_id?`src="${mediaPreview(editingAsset.media_id)}"`:''}></div><p id="upload-info" class="help" aria-live="polite">${editingAsset.media_id?'Saved image loaded.':'Choose an image.'}</p><div class="cols"><label>Price in Coins (0 = free)<input id="asset-price" type="number" min="0" max="1000000000" value="${editingAsset.price}" required></label><label>Display order<input id="asset-order" type="number" min="0" max="10000" value="${editingAsset.position}" required></label></div>${kind==='gift'?'<p class="help">For paid gifts: each recipient receives Diamonds equal to the per-recipient Coin price. All wallets must be verified. Free gifts do not award Diamonds.</p>':''}<fieldset ${['frame','entry','room_frame'].includes(kind)?'':'hidden'}><legend>Avatar fit</legend><label>Avatar size<input id="fit-scale" type="range" min=".25" max=".8" step=".01" value="${editingAsset.avatar_scale}"></label><label>Horizontal center<input id="fit-x" type="range" min=".2" max=".8" step=".01" value="${editingAsset.avatar_x}"></label><label>Vertical center<input id="fit-y" type="range" min=".2" max=".8" step=".01" value="${editingAsset.avatar_y}"></label></fieldset><label class="check"><input id="asset-active" type="checkbox" ${editingAsset.active?'checked':''}>Show in app</label><button id="save-asset" class="space">Save and publish to app</button><p id="asset-message" role="status"></p></form></section>`;
+ const fit=()=>{const avatar=$('fit-avatar');avatar.style.width=avatar.style.height=Number($('fit-scale').value)*100+'%';avatar.style.left=Number($('fit-x').value)*100+'%';avatar.style.top=Number($('fit-y').value)*100+'%';avatar.hidden=!['frame','entry','room_frame'].includes(kind);};
+ for(const field of ['fit-scale','fit-x','fit-y'])$(field).oninput=fit;fit();
+ $('asset-file').onchange=async()=>{
+  const file=$('asset-file').files?.[0];if(!file)return;
+  if(file.size>8*1024*1024){$('upload-info').textContent='Choose an image smaller than 8 MB.';return;}
+  $('save-asset').disabled=true;$('upload-info').textContent='Uploading image…';uploadedMedia=null;
+  try{
+   const result=await fetch('/sovera/control/media',{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/octet-stream'},body:file});
+   const data=await result.json();if(!result.ok)throw Error(typeof data.detail==='string'?data.detail:'Upload failed');
+   uploadedMedia=data.id;$('fit-image').src=mediaPreview(data.id);$('upload-info').textContent=`Uploaded ${data.width} × ${data.height} · ${data.frames} frame(s). Review fit, then save.`;
+  }catch(e){$('upload-info').textContent=e.message;}finally{$('save-asset').disabled=false;}
+ };
+ $('asset-form').onsubmit=async event=>{
+  event.preventDefault();const media=uploadedMedia||editingAsset.media_id;if(!media){$('asset-message').textContent='Upload an image first.';return;}
+  $('save-asset').disabled=true;
+  try{await api('catalog','POST',itemPayload(editingAsset,{title:$('asset-title').value,media_id:media,price:Number($('asset-price').value),position:Number($('asset-order').value),active:$('asset-active').checked,avatar_scale:Number($('fit-scale').value),avatar_x:Number($('fit-x').value),avatar_y:Number($('fit-y').value)}));await assets();$('error').textContent='Saved. The app loads published changes on refresh.';}
+  catch(e){$('asset-message').textContent=e.message;$('save-asset').disabled=false;}
+ };
+ $('asset-editor').scrollIntoView({behavior:'smooth',block:'start'});
+}
+async function userDetails(uid){
+ const data=await api('users/'+encodeURIComponent(uid)),p=data.profile;
+ $('panel').innerHTML=`<section class="card"><button id="back-members" class="secondary">← Members</button><h2 class="space">${esc(p.display_name)}</h2><p class="details">Firebase ID: ${esc(p.firebase_uid)}</p><p>Country: ${esc(p.country)} · ${data.online?'Online':'Offline'}</p><p>Current room: ${esc(data.online?data.presence?.room_name||'—':'—')}</p><p>Bio: ${esc(p.bio||'—')}</p><p>Profile updated: ${new Date(p.updated_at*1000).toLocaleString()}</p><p>Wallet: ${esc(data.wallet?.status||'Awaiting verification')} · Legacy reference: ${esc(data.wallet?.source_ref||'—')}</p><p>Owned rooms: ${data.rooms.map(r=>esc(r.name)).join(', ')||'—'}</p><h3>Equipped assets</h3>${Object.entries(data.equipped).map(([k,r])=>`<span class="badge">${esc(k)}: ${esc(r.title)}</span>`).join(' ')||'<p>No assets equipped.</p>'}<div id="grant-editor"></div></section>`;
+ $('back-members').onclick=members;
+ if(identity.role==='owner'){
+  const wear=(await api('catalog')).items.filter(r=>!['banner','gift'].includes(r.kind));
+  $('grant-editor').innerHTML=`<h3 class="space">Assign frames, entries, medals and tags</h3><form id="asset-grant"><label>Asset<select id="grant-item" required>${wear.map(r=>`<option value="${esc(r.id)}">${esc(r.kind)} · ${esc(r.title)}${data.owned.includes(r.id)?' (owned)':''}</option>`).join('')}</select></label><label class="check"><input id="grant-equip" type="checkbox" checked>Equip immediately</label><label class="check"><input id="grant-revoke" type="checkbox">Revoke this asset</label><button id="grant-submit" class="space" ${wear.length?'':'disabled'}>Save assignment</button></form>`;
+  $('asset-grant').onsubmit=async event=>{event.preventDefault();$('grant-submit').disabled=true;try{await api('catalog/grant','POST',{target_uid:uid,item_id:$('grant-item').value,equip:$('grant-equip').checked,revoke:$('grant-revoke').checked});await userDetails(uid);}catch(e){$('error').textContent=e.message;$('grant-submit').disabled=false;}};
+ }
+}
+
 start();

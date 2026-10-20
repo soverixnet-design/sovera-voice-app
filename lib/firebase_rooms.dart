@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:math';
 import 'package:flutter/material.dart';
 import 'firebase_profile.dart';
+import 'firebase_catalog.dart';
 import 'firebase_voice.dart';
 import 'room_card_art.dart';
 import 'firebase_greedy_wheel.dart';
@@ -148,7 +149,9 @@ class _FirebaseRoomChatState extends State<FirebaseRoomChat> with WidgetsBinding
   final input=TextEditingController();final messages=<Map<String,dynamic>>[];
   Timer? timer;bool syncing=false,sending=false,savingRoom=false,sendingEffect=false;String? error,pendingId,pendingText;
   String? pendingEffectId,pendingEffectKey;
-  List<Map<String,dynamic>> roomEffects=[];
+  List<Map<String,dynamic>> roomEffects=[],catalogEvents=[],roomPeople=[];
+  int catalogServerNow=0;
+  Map<String,dynamic>? pendingGift;
 
   late String roomName;late int seatCount;late String roomFrame;
   bool get isOwner=>widget.room['owner_uid']==widget.api.uid;
@@ -166,6 +169,11 @@ class _FirebaseRoomChatState extends State<FirebaseRoomChat> with WidgetsBinding
       }
       final data=await widget.api.call('GET',suffix:'$path/messages');
       if(mounted)setState((){messages..clear()..addAll((data['messages'] as List).map((r)=>Map<String,dynamic>.from(r as Map)));error=null;});
+      try{
+        final events=await widget.api.call('GET',suffix:'$path/catalog-events');
+        final people=await widget.api.call('GET',suffix:'$path/people');
+        if(mounted)setState((){catalogEvents=(events['items'] as List).whereType<Map>().map((r)=>Map<String,dynamic>.from(r)).toList();catalogServerNow=(events['server_now'] as num).toInt();roomPeople=(people['people'] as List).whereType<Map>().map((r)=>Map<String,dynamic>.from(r)).toList();});
+      }catch(_){/* Existing room chat stays available during server rollout. */}
       // Older server versions may not support cosmetic effects yet.
       try{
         final events=await widget.api.call('GET',suffix:'$path/effects');
@@ -193,6 +201,8 @@ class _FirebaseRoomChatState extends State<FirebaseRoomChat> with WidgetsBinding
     if(sendingEffect)return;
     setState(()=>sendingEffect=true);
     try{
+      List<Map<String,dynamic>> gifts=[];
+      try{final catalog=await widget.api.call('GET',suffix:'/catalog');gifts=(catalog['items'] as List).whereType<Map>().map((r)=>Map<String,dynamic>.from(r)).where((r)=>r['kind']=='gift').toList();}catch(_){/* Original free effects remain available. */}
       final found=await widget.api.call('GET',suffix:'$path/people');
       if(!mounted)return;
       final raw=found['people'];
@@ -201,6 +211,19 @@ class _FirebaseRoomChatState extends State<FirebaseRoomChat> with WidgetsBinding
       if(people.isEmpty){
         if(mounted)ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content:Text('No online members yet.')));
         return;
+      }
+      if(gifts.isNotEmpty||pendingGift!=null){
+        if(pendingGift==null){
+          setState(()=>sendingEffect=false);
+          final chosen=await showDialog<Map<String,dynamic>>(context:context,builder:(_)=>FirebaseCatalogGiftPicker(people:people,gifts:gifts));
+          if(!mounted||chosen==null)return;
+          pendingGift={...chosen,'request_id':_requestId()};
+        }
+        setState(()=>sendingEffect=true);
+        final receipt=await widget.api.call('POST',suffix:'$path/gifts',fields:pendingGift);
+        pendingGift=null;
+        if(mounted)ScaffoldMessenger.of(context).showSnackBar(SnackBar(content:Text('Gift sent · ${receipt['coins_spent']} Coins charged.')));
+        await sync();return;
       }
       setState(()=>sendingEffect=false);
       final selected=await showDialog<Map<String,String>>(context:context,builder:(_)=>FirebaseRoomEffectPicker(people:people));
@@ -216,6 +239,7 @@ class _FirebaseRoomChatState extends State<FirebaseRoomChat> with WidgetsBinding
       if(mounted)ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content:Text('Room effect shared · no Coins spent.')));
       await sync();
     }catch(e){
+      if(e is ProfileApiError&&e.status==409)pendingGift=null;
       if(mounted)ScaffoldMessenger.of(context).showSnackBar(SnackBar(content:Text(_error(e))));
     }finally{if(mounted)setState(()=>sendingEffect=false);}
   }
@@ -273,7 +297,8 @@ class _FirebaseRoomChatState extends State<FirebaseRoomChat> with WidgetsBinding
       ])),
 
     if(isOwner)Padding(padding:const EdgeInsets.symmetric(vertical:3),child:Text('$seatCount seats · Owner settings',style:const TextStyle(fontSize:12,color:Colors.white70))),
-    FirebaseVoicePanel(api:widget.api,roomId:widget.room['id'] as String,seatCount:seatCount),
+    FirebaseVoicePanel(api:widget.api,roomId:widget.room['id'] as String,seatCount:seatCount,people:roomPeople),
+    if(catalogEvents.isNotEmpty)CatalogRoomAnimation(key:ValueKey(catalogEvents.first['event_id']),event:catalogEvents.first,serverNow:catalogServerNow),
     if(roomEffects.isNotEmpty)AnimatedSwitcher(
       duration:const Duration(milliseconds:300),
       child:Card(

@@ -5,7 +5,8 @@ import 'country_picker.dart';
 
 class ProfileApiError implements Exception {
   final String message;
-  const ProfileApiError(this.message);
+  final int? status;
+  const ProfileApiError(this.message,{this.status});
 }
 
 class FirebaseProfileApi {
@@ -26,6 +27,7 @@ class FirebaseProfileApi {
     if (response.statusCode == 401) throw const ProfileApiError('Your session expired. Sign out and sign in again.');
     if(response.statusCode==429) throw const ProfileApiError('Please wait a moment before sending again.');
     if(response.statusCode==409 && response.body.contains('Save your profile first')) throw const ProfileApiError('Save your profile before opening a room.');
+    if(response.statusCode==409){String detail='Request could not be completed.';try{final body=jsonDecode(response.body);if(body is Map&&body['detail'] is String)detail=body['detail'] as String;}catch(_){}throw ProfileApiError(detail,status:409);}
     if (response.statusCode != 200) throw const ProfileApiError('Profile could not be saved or loaded. Please retry.');
     final data = jsonDecode(response.body);
     if(data is! Map) throw const ProfileApiError('Invalid server response. Please retry.');

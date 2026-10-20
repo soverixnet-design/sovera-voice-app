@@ -72,7 +72,8 @@ class Rooms:
             raise HTTPException(404,'Room not found')
     def directory(self):
         with self.db() as db:
-            return [dict(r) for r in db.execute('''SELECT r.*,p.display_name AS owner_name,
+            from .catalog import equipped_assets
+            return [dict(r)|{'equipped':equipped_assets(db,r['owner_uid'])} for r in db.execute('''SELECT r.*,p.display_name AS owner_name,
                 p.country,p.avatar_url,(SELECT count(*) FROM account_presence a
                 WHERE a.room_id=r.id AND a.seen_at>?) AS occupants
                 FROM account_rooms r JOIN account_profiles p ON p.firebase_uid=r.owner_uid
@@ -99,7 +100,12 @@ class Rooms:
             if leave: db.execute('DELETE FROM account_presence WHERE uid=? AND room_id=?',(uid,room))
             else:
                 self.profile(db,uid)
+                before=db.execute('SELECT room_id,seen_at FROM account_presence WHERE uid=?',(uid,)).fetchone()
                 db.execute('INSERT INTO account_presence VALUES(?,?,?) ON CONFLICT(uid) DO UPDATE SET room_id=excluded.room_id,seen_at=excluded.seen_at',(uid,room,self.clock()))
+                if not before or before['room_id']!=room or before['seen_at']<=self.clock()-90:
+                    from .catalog import equipped_assets
+                    entry=equipped_assets(db,uid).get('entry')
+                    if entry:db.execute('INSERT INTO account_catalog_events(room_id,sender_uid,recipient_uid,item_id,created_at) VALUES(?,?,?,?,?)',(room,uid,uid,entry['id'],int(self.clock())))
             return {'saved':True}
     def messages(self,room,after=0):
         with self.db() as db:
@@ -113,8 +119,9 @@ class Rooms:
         """Only heartbeat-confirmed participants, with server-owned names/UIDs."""
         with self.db() as db:
             self.exists(db,room)
-            return [dict(r) for r in db.execute('''SELECT p.firebase_uid AS uid,
-                p.display_name AS name,p.country FROM account_presence a
+            from .catalog import equipped_assets
+            return [dict(r)|{'equipped':equipped_assets(db,r['uid'])} for r in db.execute('''SELECT p.firebase_uid AS uid,
+                p.display_name AS name,p.country,p.avatar_url FROM account_presence a
                 JOIN account_profiles p ON p.firebase_uid=a.uid
                 WHERE a.room_id=? AND a.seen_at>? ORDER BY p.display_name,p.firebase_uid
                 LIMIT 100''',(room,self.clock()-90)).fetchall()]

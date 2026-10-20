@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:http/http.dart' as http;
 import 'firebase_profile.dart';
+import 'firebase_catalog.dart';
 import 'firebase_original_profile_card.dart';
 import 'firebase_original_social.dart';
 import 'firebase_original_coin_sellers.dart';
@@ -38,6 +39,7 @@ class _FirebaseSoveraHomeState extends State<FirebaseSoveraHome>{
   final search=TextEditingController();
   Timer? refreshTimer;
   List<Map<String,dynamic>> rooms=[];
+  List<Map<String,dynamic>> publishedBanners=[];
   Map<String,dynamic>? profile;
   String? error;
   int tab=0,banner=0;
@@ -73,7 +75,10 @@ class _FirebaseSoveraHomeState extends State<FirebaseSoveraHome>{
         savedFollows=(following['items'] as List).map((r)=>(r as Map)['room'].toString()).toSet();
         role=(await api.call('GET',suffix:'/staff'))['role'] as String?;
       }catch(_){/* Room access remains available during server rollout. */}
+      List<Map<String,dynamic>>? banners;
+      try{final catalog=await api.call('GET',suffix:'/catalog');banners=(catalog['items'] as List).whereType<Map>().map((r)=>Map<String,dynamic>.from(r)).where((r)=>r['kind']=='banner').toList();}catch(_){/* Keep existing artwork when rollout is unavailable. */}
       if(mounted)setState((){
+        if(banners!=null)publishedBanners=banners;
         rooms=(data['rooms'] as List).map((e)=>Map<String,dynamic>.from(e as Map)).toList();
         profile=p;error=null;staffRole=role;
         if(savedFollows!=null){followed..clear()..addAll(savedFollows);}
@@ -180,7 +185,7 @@ class _FirebaseSoveraHomeState extends State<FirebaseSoveraHome>{
           borderRadius:BorderRadius.circular(24)),
           child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
             Expanded(child:Stack(fit:StackFit.expand,children:[
-              RoomCardArt(frame:(room['room_frame']??'none') as String,portrait:
+              if(catalogAsset(room['equipped'],'room_frame')!=null)Center(child:LayoutBuilder(builder:(context,c)=>CatalogPortrait(asset:catalogAsset(room['equipped'],'room_frame'),avatarUrl:avatar,size:c.maxHeight)))else RoomCardArt(frame:(room['room_frame']??'none') as String,portrait:
                 avatar.startsWith('https://')
                   ?Image.network(avatar,fit:BoxFit.cover,errorBuilder:(_,__,___)=>const Center(child:BrandLogo(size:80)))
                   :const Center(child:BrandLogo(size:80))),
@@ -254,9 +259,10 @@ class _FirebaseSoveraHomeState extends State<FirebaseSoveraHome>{
         border:OutlineInputBorder(borderRadius:BorderRadius.circular(20),
           borderSide:BorderSide.none))),
     const SizedBox(height:16),
-    SizedBox(height:195,child:PageView.builder(itemCount:slides.length,
+    SizedBox(height:195,child:PageView.builder(itemCount:publishedBanners.isEmpty?slides.length:publishedBanners.length,
       onPageChanged:(i)=>setState(()=>banner=i),
       itemBuilder:(context,index){
+        if(publishedBanners.isNotEmpty)return Padding(padding:const EdgeInsets.only(right:4),child:ClipRRect(borderRadius:BorderRadius.circular(22),child:CatalogImage(asset:publishedBanners[index],fit:BoxFit.cover)));
         final slide=slides[index];
         return Padding(padding:const EdgeInsets.only(right:4),
           child:InkWell(onTap:index==0?createRoom:index==1?rankings:events,
@@ -281,7 +287,7 @@ class _FirebaseSoveraHomeState extends State<FirebaseSoveraHome>{
       })),
     const SizedBox(height:10),
     Row(mainAxisAlignment:MainAxisAlignment.center,children:[
-      for(var i=0;i<slides.length;i++)Container(
+      for(var i=0;i<(publishedBanners.isEmpty?slides.length:publishedBanners.length);i++)Container(
         margin:const EdgeInsets.symmetric(horizontal:3),height:6,width:i==banner?20:6,
         decoration:BoxDecoration(color:i==banner?pink:Colors.white38,
           borderRadius:BorderRadius.circular(4))),
@@ -343,6 +349,8 @@ class _FirebaseSoveraHomeState extends State<FirebaseSoveraHome>{
         ()=>feature('Referrals','The referral award server API is not connected yet.')),
       (Icons.people_outline_rounded,'People & following',
         ()=>community('members','Members')),
+      (Icons.auto_awesome_rounded,'My frames & entries',
+        ()=>go(FirebaseCatalogPage(api:api))),
       (Icons.workspace_premium_rounded,'Frames & effects',
         ()=>go(const EffectsStudio())),
       (Icons.add_home_rounded,'My room',createRoom),

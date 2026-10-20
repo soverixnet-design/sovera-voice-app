@@ -3,13 +3,15 @@ import {readFileSync} from 'node:fs';
 import assert from 'node:assert/strict';
 const w=new Window({url:'https://admin.soverixnet.com',width:390,height:844});
 w.document.body.innerHTML='<div id="app"></div>';
-let role='owner',attempts=[];
+let role='owner',attempts=[],catalogSaves=[];
+const frame={id:'11111111-1111-4111-8111-111111111111',kind:'frame',title:'Violet frame',media_id:'a'.repeat(64),price:20,active:true,position:0,avatar_scale:.46,avatar_x:.5,avatar_y:.5};
 w.confirm=()=>true;
 w.fetch=async(url,options)=>{
  const name=url.replace('/sovera/control/','');
  let data;
  if(name==='session')data={role,name:'Shakil',uid:'owner',users:2,rooms:1,open_tickets:0,quota_remaining:null};
  else if(name==='users')data={items:[{uid:'alice',name:'<img id="attack" src=x>',country:'BD',wallet_status:'active',coins:50,diamonds:5}]};
+ else if(name==='catalog'){if(options.method==='POST'){catalogSaves.push(JSON.parse(options.body));data=frame;}else data={items:[frame]};}
  else if(name==='password-login'){
   assert.deepEqual(JSON.parse(options.body),{username:'soverix',password:'test-password-only'});data={signed_in:true};
  }else if(name==='recharge'){
@@ -19,9 +21,9 @@ w.fetch=async(url,options)=>{
  }else data={items:[]};
  return {ok:true,status:200,json:async()=>data};
 };
-w.eval('(function(){'+readFileSync(new URL('../selfhost/app.js',import.meta.url),'utf8')+'\nwindow.controlTest={start,render,login,setView(value){view=value;},getPending(){return rechargeRequest;}};})();');
+w.eval('(function(){'+readFileSync(new URL('../selfhost/app.js',import.meta.url),'utf8')+'\nwindow.controlTest={start,render,login,assets,setView(value){view=value;},getPending(){return rechargeRequest;}};})();');
 await new Promise(r=>setTimeout(r,25));
-assert.equal(w.document.querySelectorAll('[data-view]').length,7);
+assert.equal(w.document.querySelectorAll('[data-view]').length,14);
 w.controlTest.setView('users');await w.controlTest.render();
 assert.equal(w.document.querySelector('#attack'),null,'Names are rendered as text');
 assert.match(w.document.querySelector('#results').textContent,/<img id=/);
@@ -36,6 +38,14 @@ assert.equal(attempts.length,2);
 assert.equal(attempts[0].request_id,attempts[1].request_id);
 assert.match(w.document.querySelector('#receipt').textContent,/Recharge successful/);
 assert.equal(w.controlTest.getPending(),null);
+w.controlTest.setView('frames');await w.controlTest.render();
+assert.match(w.document.querySelector('[data-edit]').textContent,/preview/);
+w.document.querySelector('[data-edit]').click();
+assert.match(w.document.querySelector('#asset-file').accept,/image\/gif/);
+assert.equal(w.document.querySelector('#fit-avatar').style.width,'46%');
+w.document.querySelector('#asset-price').value='25';
+await w.document.querySelector('#asset-form').onsubmit({preventDefault(){}});
+assert.equal(catalogSaves.length,1);assert.equal(catalogSaves[0].price,25);assert.equal(catalogSaves[0].id,frame.id);
 role='support';await w.controlTest.start();
 assert.equal(w.document.querySelector('[data-view="recharge"]'),null);
 assert.equal(w.document.querySelector('[data-view="staff"]'),null);

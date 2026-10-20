@@ -14,6 +14,7 @@ from .wallet import WalletStore
 from .greedy_wallet import attach_greedy_wallet
 from .community import attach_community
 from .control import attach_control
+from .catalog import attach_catalog
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 class ProfileInput(BaseModel):
@@ -46,7 +47,9 @@ class Profiles:
         with sqlite3.connect(self.path, timeout=10) as db:
             db.row_factory = sqlite3.Row
             row = db.execute('SELECT * FROM account_profiles WHERE firebase_uid=?', (uid,)).fetchone()
-            return dict(row) if row else None
+            if not row:return None
+            from .catalog import equipped_assets
+            return dict(row)|{'equipped':equipped_assets(db,uid)}
 
     def save(self, uid, data):
         with sqlite3.connect(self.path, timeout=10) as db:
@@ -64,7 +67,7 @@ def create_app(profiles, verify, *, voice=False):
     async def private_responses(request, call_next):
         if request.method in ('PUT', 'POST'):
             length = request.headers.get('content-length')
-            if length is None or not length.isdecimal() or int(length)>8192:
+            if length is None or not length.isdecimal() or int(length)>(8*1024*1024 if request.url.path=='/sovera/control/media' else 8192):
                 from fastapi.responses import JSONResponse
                 return JSONResponse({'detail':'Invalid request size'}, status_code=413)
         response = await call_next(request)
@@ -106,6 +109,7 @@ def create_app(profiles, verify, *, voice=False):
     food_wheel = FoodWheel(profiles.path)
     attach_community(app, profiles, actor)
     attach_control(app, profiles, actor)
+    attach_catalog(app, profiles, actor)
 
     @app.get('/sovera/account/wallet')
     async def wallet_state(authorization: str | None = Header(default=None)):

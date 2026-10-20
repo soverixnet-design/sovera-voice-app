@@ -2,7 +2,8 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:livekit_client/livekit_client.dart' as rtc;
 import 'firebase_profile.dart';
-import 'sovera_visuals.dart' show BrandLogo,gold,cyan,pink;
+import 'firebase_catalog.dart';
+import 'sovera_visuals.dart' show gold,cyan,pink;
 import 'startup_access.dart' show requestMicrophoneAccess;
 import 'voice_connection.dart' show VoiceSeatState, voiceServerUrl;
 
@@ -37,8 +38,9 @@ class FirebaseVoicePanel extends StatefulWidget {
   final FirebaseProfileApi api;
   final String roomId;
   final int seatCount;
+  final List<Map<String,dynamic>> people;
   const FirebaseVoicePanel({
-    super.key,required this.api,required this.roomId,this.seatCount=9,
+    super.key,required this.api,required this.roomId,this.seatCount=9,this.people=const [],
   });
   @override State<FirebaseVoicePanel> createState()=>_FirebaseVoicePanelState();
 }
@@ -53,6 +55,8 @@ class _FirebaseVoicePanelState extends State<FirebaseVoicePanel> with WidgetsBin
   bool get connected=>room?.connectionState==rtc.ConnectionState.connected;
   Future<Map<String,dynamic>> request(String action,{int? seat})=>widget.api.call('POST',suffix:'/voice',fields:{'room_id':widget.roomId,'action':action,if(seat!=null)'seat':seat});
   @override void initState(){super.initState();WidgetsBinding.instance.addObserver(this);}
+  Map<String,dynamic>? seatPerson(int index){for(final person in widget.people){if(person['uid']==seats.occupants[index])return person;}return null;}
+  Widget seatPortrait(int index){final person=seatPerson(index);return person==null?const Icon(Icons.person_rounded,color:gold,size:29):CatalogPortrait(asset:catalogAsset(person['equipped'],'frame'),avatarUrl:person['avatar_url'] as String?,size:56);}
   void changed(){if(mounted&&!closing){if(!connected||room?.localParticipant?.permissions.canPublish!=true)muted=true;setState((){});}}
   Future<void> mute()async{try{await room?.localParticipant?.setMicrophoneEnabled(false);}catch(_){} muted=true;}
   Future<void> connect()async{
@@ -192,11 +196,7 @@ class _FirebaseVoicePanelState extends State<FirebaseVoicePanel> with WidgetsBin
                   decoration:BoxDecoration(shape:BoxShape.circle,
                     color:const Color(0xFF19263B),
                     border:Border.all(color:cyan.withValues(alpha:.4),width:2)),
-                  child:Center(child:seats.mine==i
-                    ?const BrandLogo(size:47)
-                    :Icon(seats.occupants.containsKey(i)
-                      ?Icons.person_rounded:Icons.weekend_rounded,
-                      color:gold,size:29)),
+                  child:Center(child:seats.occupants.containsKey(i)?seatPortrait(i):const Icon(Icons.weekend_rounded,color:gold,size:29)),
                 )),
               const SizedBox(height:6),
               Text(seats.mine==i?'You':seats.occupants.containsKey(i)

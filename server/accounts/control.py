@@ -113,7 +113,10 @@ class Control:
     def users(self,uid):
         with self.db() as db:
             if self.role(db,uid)=='support':raise HTTPException(403,'User lookup permission required')
-            return [dict(r) for r in db.execute('''SELECT p.firebase_uid AS uid,p.display_name AS name,p.country,
+            return [dict(r) for r in db.execute('''SELECT p.firebase_uid AS uid,p.display_name AS name,p.country,p.bio,p.avatar_url,p.updated_at,
+              (SELECT seen_at FROM account_presence WHERE uid=p.firebase_uid) AS last_seen,
+              (SELECT r.name FROM account_presence a JOIN account_rooms r ON r.id=a.room_id WHERE a.uid=p.firebase_uid AND a.seen_at>strftime('%s','now')-90) AS current_room,
+              (SELECT role FROM account_staff WHERE uid=p.firebase_uid) AS role,
               l.status AS wallet_status,l.source_ref,
               (SELECT COALESCE(SUM(coin_delta),0) FROM account_wallet_ledger e WHERE e.firebase_uid=p.firebase_uid) AS coins,
               (SELECT COALESCE(SUM(diamond_delta),0) FROM account_wallet_ledger e WHERE e.firebase_uid=p.firebase_uid) AS diamonds
