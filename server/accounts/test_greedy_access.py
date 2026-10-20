@@ -42,8 +42,12 @@ class GreedyAccessTests(unittest.TestCase):
              'SOVERA_GREEDY_JWT_SECRET':'q'*42,
              'SOVERA_GREEDY_PUBLIC_URL':'https://voice.soverixnet.com/greedy/'}
         with patch.dict(os.environ,env,clear=True):
-            body=self.client.post('/sovera/account/greedy/access',
-                headers=self.headers).json()
+            # Client cannot bypass the as-yet-unmigrated authoritative wallet.
+            response=self.client.post('/sovera/account/greedy/access',
+                headers=self.headers)
+            self.assertEqual(response.status_code,503)
+            # Independently verify the game-only signed token encoder.
+            body=greedy_access('alice',self.identity)
         self.assertEqual(body['game_url'],env['SOVERA_GREEDY_PUBLIC_URL'])
         parts=body['token'].split('.')
         self.assertEqual(len(parts),3)
