@@ -8,7 +8,7 @@ PYTHON=/opt/sovera-food-staging/.venv/bin/python
 TARGET=/opt/sovera-account
 WEB=/opt/livekit/caddy_data/sovera-control
 DATABASE=/var/lib/sovera-account/profiles.sqlite3
-SOURCE=https://raw.githubusercontent.com/soverixnet-design/sovera-voice-app/1d651fae195fc7fddd1a55ab2adb8cb568e58afd
+SOURCE=https://raw.githubusercontent.com/soverixnet-design/sovera-voice-app/37c5d4ad944c27c810d5f80009ffcefa77d6a24f
 [ -x "$PYTHON" ] && [ -f "$TARGET/server/accounts/control.py" ] && [ -f "$WEB/app.js" ] && [ -s "$DATABASE" ] || { echo 'Install the existing self-hosted admin first'; exit 1; }
 systemctl is-active --quiet sovera-account
 STAGE=$(mktemp -d /opt/sovera-wallet-stage.XXXXXX)
