@@ -4,6 +4,9 @@ import 'package:flutter/material.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:http/http.dart' as http;
 import 'firebase_profile.dart';
+import 'firebase_original_profile_card.dart';
+import 'firebase_original_social.dart';
+import 'effects_studio.dart' show EffectsStudio;
 import 'firebase_server_wallet.dart';
 import 'country_picker.dart' show soveraCountries;
 import 'firebase_rooms.dart';
@@ -323,40 +326,29 @@ class _FirebaseSoveraHomeState extends State<FirebaseSoveraHome>{
     const Text('Private direct messages are not connected to Firebase yet.',
       style:TextStyle(color:Colors.white60,fontSize:12)),
   ]);
-  Widget profileTab()=>Column(crossAxisAlignment:CrossAxisAlignment.stretch,children:[
+  Widget profileTab()=>Column(
+    crossAxisAlignment:CrossAxisAlignment.stretch,children:[
     title('My profile'),
-    Glass(tint:gold,child:Row(children:[
-      const Jewel(Icons.person_rounded,color:gold,size:52),
-      const SizedBox(width:12),
-      Expanded(child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
-        Text(displayName,style:const TextStyle(fontSize:18,fontWeight:FontWeight.bold)),
-        Text(widget.user.email??'Account',
-          style:const TextStyle(fontSize:12,color:Colors.white60)),
-      ])),
-    ])),
-    const SizedBox(height:12),
-    FilledButton.icon(
-      onPressed:editProfile,
-      icon:const Icon(Icons.edit_rounded),
-      label:Text(hasProfile?'Edit Profile':'Complete Profile'),
-    ),
+    FirebaseOriginalProfileCard(profile:profile,name:displayName,onEdit:editProfile),
     if(!hasProfile)Padding(padding:const EdgeInsets.only(top:10),
       child:Text('Complete your name and country before creating a live room.',
         style:TextStyle(color:Colors.orange.shade200))),
-    const SizedBox(height:14),
-    const SizedBox(height:16),
+    const SizedBox(height:18),
+    const SocialProfileCards(connected:false),
+    const SizedBox(height:18),
     for(final item in <(IconData,String,VoidCallback)>[
       (Icons.account_balance_wallet_rounded,'Wallet',wallet),
-      (Icons.storefront_rounded,'Coin seller list',wallet),
+      (Icons.storefront_rounded,'Coin seller list',()=>
+        feature('Coin seller list','Only verified, server-approved sellers will appear after the seller directory has been migrated. No test sellers are shown.')),
       (Icons.card_giftcard_rounded,'Invite & referrals',
-        ()=>feature('Referrals','Firebase referral awards are not connected yet.')),
+        ()=>feature('Referrals','The referral award server API is not connected yet.')),
       (Icons.people_outline_rounded,'People & following',
-        ()=>feature('Members','Firebase member directory is not connected yet.')),
+        ()=>feature('Members','The account server member directory is not connected yet.')),
       (Icons.workspace_premium_rounded,'Frames & effects',
-        ()=>go(const _SoveraFrameGallery())),
+        ()=>go(const EffectsStudio())),
       (Icons.add_home_rounded,'My room',createRoom),
       (Icons.settings_outlined,'Settings',
-        ()=>feature('Settings','Original design saved. Additional settings are being connected to Firebase.')),
+        ()=>feature('Settings','The original UI designs are preserved. Additional settings still need server APIs.')),
     ])ListTile(leading:Icon(item.$1,color:gold),title:Text(item.$2),
       trailing:const Icon(Icons.chevron_right_rounded),onTap:item.$3),
     const SizedBox(height:12),
@@ -399,25 +391,3 @@ class _FirebaseSoveraHomeState extends State<FirebaseSoveraHome>{
   );
 }
 
-class _SoveraFrameGallery extends StatelessWidget{
-  const _SoveraFrameGallery();
-  static const samples=[
-    'assets/effects/royal-horses.webp',
-    'assets/effects/phoenix-queen-entry.webp',
-    'assets/effects/ice-king-entry.webp',
-    'assets/effects/violet-phoenix-still.webp',
-    'assets/effects/vip7.webp',
-    'assets/effects/top-host-medal.webp',
-  ];
-  @override Widget build(BuildContext context)=>Scaffold(
-    appBar:AppBar(title:const Text('Original frames & entry animations')),
-    body:GridView.builder(padding:const EdgeInsets.all(16),
-      itemCount:samples.length,
-      gridDelegate:const SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount:2,crossAxisSpacing:12,mainAxisSpacing:12),
-      itemBuilder:(_,i)=>Glass(child:Column(children:[
-        Expanded(child:Image.asset(samples[i],fit:BoxFit.contain,
-          errorBuilder:(_,__,___)=>const Icon(Icons.workspace_premium_rounded,size:46))),
-        const Text('Preview · no purchase',style:TextStyle(fontSize:10)),
-      ]))));
-}
