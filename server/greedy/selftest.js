@@ -86,7 +86,7 @@ async function main(){
  const initial=hello.state;
  const round=initial.round??initial.id;
  assert(round!==undefined,'Unsupported public round state: '+JSON.stringify(initial));
- socket.send(JSON.stringify({t:'bet',round,itemId:0,amount:1000,reqId:'integration-bet'}));
+ socket.send(JSON.stringify({t:'bet',round,itemId:'shrimp',amount:1000,reqId:'integration-bet'}));
  let ack,result;
  for(let i=0;i<200;i++){
   ack=messages.find(m=>m.t==='bet_ok');
