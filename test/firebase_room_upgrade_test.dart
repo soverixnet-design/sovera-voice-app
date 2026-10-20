@@ -30,7 +30,7 @@ void main(){
     Map<String,dynamic>? sent;
     final client=MockClient((request)async{
       if(request.url.path.endsWith('/exchange')){
-        sent=Map<String,dynamic>.from(jsonDecode(request.body));
+        sent=Map<String,dynamic>.from(jsonDecode(request.body) as Map);
         return http.Response('{"saved":true,"coins_received":"210"}',200);
       }
       if(request.url.path.endsWith('/history'))return http.Response('{"entries":[]}',200);
@@ -52,3 +52,4 @@ void main(){
     await tester.pumpWidget(const SizedBox());client.close();
   });
 }
+
