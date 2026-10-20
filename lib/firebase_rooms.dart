@@ -382,4 +382,3 @@ class _FirebaseRoomChatState extends State<FirebaseRoomChat> with WidgetsBinding
     ])),
   ]))));
 }
-

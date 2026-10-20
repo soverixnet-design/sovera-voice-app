@@ -83,11 +83,15 @@ void main(){
     }));
     const room={'id':'room-1','name':'Original room','owner_uid':'alice','seats':9};
     await tester.pumpWidget(MaterialApp(home:FirebaseRoomChat(api:api,room:room)));await tester.pumpAndSettle();
-    expect(find.text('9 seats · Owner settings'),findsOneWidget);
+    expect(find.text('9 seats · Owner settings'),findsNothing);
+    expect(find.text('Mic 9'),findsOneWidget);
     // Greedy is available from the SAME room; it is no longer the old wheel/XO.
     expect(find.byTooltip('Room games'),findsOneWidget);
     expect(find.byTooltip('Gift box'),findsOneWidget);
-    expect(find.byTooltip('Greedy Wheel'),findsOneWidget);
+    expect(find.byTooltip('Greedy Wheel'),findsNothing);
+    await tester.tap(find.byTooltip('Room games'));await tester.pumpAndSettle();
+    expect(find.text('Greedy Wheel'),findsOneWidget);
+    Navigator.of(tester.element(find.text('Greedy Wheel'))).pop();await tester.pumpAndSettle();
     await tester.tap(find.byTooltip('Room options'));await tester.pumpAndSettle();
     await tester.tap(find.text('Room settings'));await tester.pumpAndSettle();
     await tester.enterText(find.byType(TextField).last,'Renamed room');
@@ -96,7 +100,8 @@ void main(){
     expect(sent,{'name':'Renamed room','seats':12});
     // The restored room header shows the name in both the title and room card.
     expect(find.text('Renamed room'),findsNWidgets(2));
-    expect(find.text('12 seats · Owner settings'),findsOneWidget);
+    expect(find.text('12 seats · Owner settings'),findsNothing);
+    expect(find.text('Mic 12'),findsOneWidget);
     await tester.pumpWidget(const SizedBox());await tester.pumpAndSettle();
   });
   testWidgets('non-owner cannot open room settings',(tester)async{
