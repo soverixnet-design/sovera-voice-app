@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:http/http.dart' as http;
 import 'firebase_profile.dart';
+import 'country_picker.dart' show soveraCountries;
 import 'firebase_rooms.dart';
 import 'firebase_food_wheel.dart';
 import 'main.dart' show BrandLogo, Glass, Jewel, violet, gold, pink, cyan;
@@ -71,9 +72,23 @@ class _FirebaseSoveraHomeState extends State<FirebaseSoveraHome>{
     if(!RegExp(r'^[A-Z]{2}$').hasMatch(country))return '';
     return String.fromCharCodes(country.codeUnits.map((c)=>c+127397));
   }
+  Future<void> editProfile()async{
+    await Navigator.of(context).push<void>(MaterialPageRoute(
+      builder:(_)=>Scaffold(
+        appBar:AppBar(title:const Text('Edit Profile')),
+        body:SafeArea(child:SingleChildScrollView(
+          padding:const EdgeInsets.all(18),
+          child:FirebaseProfileEditor(
+            api:api,initialName:displayName,
+          ),
+        )),
+      ),
+    ));
+    if(mounted)await refresh();
+  }
   Future<void> createRoom()async{
     if(creating)return;
-    if(!hasProfile){setState(()=>tab=3);say('Save your profile to open a room.');return;}
+    if(!hasProfile){setState(()=>tab=3);say('Complete your profile before creating a room.');return;}
     final mine=rooms.where((r)=>r['owner_uid']==widget.user.uid).toList();
     if(mine.isNotEmpty){openRoom(mine.first);return;}
     String draft='';
@@ -122,7 +137,10 @@ class _FirebaseSoveraHomeState extends State<FirebaseSoveraHome>{
   Widget roomCard(Map<String,dynamic> room,int index){
     const tones=[violet,cyan,gold,pink];
     final color=tones[index%tones.length];
-    final country=(room['country']??'').toString();
+    // Country belongs to the ROOM OWNER's saved profile, not the viewer's
+    // phone location. No GPS, device locale, or fabricated flag is used.
+    final country=(room['country']??'').toString().toUpperCase();
+    final countryFlag=soveraCountries.containsKey(country)?flag(country):'';
     final id=(room['id']??'').toString();
     final roomName=(room['name']??'Voice room').toString();
     final avatar=(room['avatar_url']??'').toString();
@@ -161,7 +179,7 @@ class _FirebaseSoveraHomeState extends State<FirebaseSoveraHome>{
             ])),
             Container(width:double.infinity,padding:const EdgeInsets.all(12),
               color:Colors.black12,child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
-                Text('${flag(country)} $roomName'.trim(),
+                Text('${countryFlag.isEmpty?'': '$countryFlag '}$roomName',
                   maxLines:1,overflow:TextOverflow.ellipsis,
                   style:const TextStyle(fontSize:14,fontWeight:FontWeight.w700)),
                 const SizedBox(height:6),
@@ -313,18 +331,18 @@ class _FirebaseSoveraHomeState extends State<FirebaseSoveraHome>{
         Text(displayName,style:const TextStyle(fontSize:18,fontWeight:FontWeight.bold)),
         Text(widget.user.email??'Account',
           style:const TextStyle(fontSize:12,color:Colors.white60)),
-        Text(flag((profile?['country']??'').toString())),
       ])),
     ])),
-    if(!hasProfile)Padding(padding:const EdgeInsets.symmetric(vertical:10),
-      child:Text('Save your profile before entering live rooms.',
+    const SizedBox(height:12),
+    FilledButton.icon(
+      onPressed:editProfile,
+      icon:const Icon(Icons.edit_rounded),
+      label:Text(hasProfile?'Edit Profile':'Complete Profile'),
+    ),
+    if(!hasProfile)Padding(padding:const EdgeInsets.only(top:10),
+      child:Text('Complete your name and country before creating a live room.',
         style:TextStyle(color:Colors.orange.shade200))),
-    const SizedBox(height:12),
-    FirebaseProfileEditor(key:ValueKey(widget.user.uid),api:api,
-      initialName:widget.user.displayName??''),
-    const SizedBox(height:12),
-    FilledButton.icon(onPressed:()=>refresh(),icon:const Icon(Icons.refresh_rounded),
-      label:const Text('Refresh saved profile')),
+    const SizedBox(height:14),
     const SizedBox(height:16),
     for(final item in <(IconData,String,VoidCallback)>[
       (Icons.account_balance_wallet_rounded,'Wallet',wallet),
