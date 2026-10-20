@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'package:image_picker/image_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'country_picker.dart';
@@ -44,9 +45,23 @@ class FirebaseProfileApi {
     }
     return Map<String, dynamic>.from(row);
   }
+  Future<String> uploadAvatar(XFile image) async {
+    final access = await token();
+    if (access == null || access.isEmpty) throw const ProfileApiError('Please sign in again.');
+    if (await image.length() > 8 * 1024 * 1024) throw const ProfileApiError('Choose a photo smaller than 8 MB.');
+    final request = http.Request('POST', endpoint.replace(path:'${endpoint.path}/avatar'))..followRedirects=false;
+    request.headers.addAll({'Authorization':'Bearer $access','Content-Type':'application/octet-stream'});
+    request.bodyBytes = await image.readAsBytes();
+    final response = await http.Response.fromStream(await client.send(request).timeout(const Duration(seconds:30))).timeout(const Duration(seconds:30));
+    if (response.statusCode != 200) throw const ProfileApiError('Photo could not be uploaded. Please retry.');
+    final data = jsonDecode(response.body);
+    final url = data is Map ? data['avatar_url'] : null;
+    if (url is! String || !url.startsWith('${endpoint.toString()}/avatar/')) throw const ProfileApiError('Invalid photo response.');
+    return url;
+  }
   Future<Map<String, dynamic>?> load() => request('GET');
-  Future<Map<String, dynamic>?> save({required String name, required String country, required String bio, String? avatarUrl}) =>
-      request('PUT', {'display_name':name.trim(), 'country':country, 'bio':bio.trim(), 'avatar_url':avatarUrl});
+  Future<Map<String, dynamic>?> save({required String name, required String country, required String bio, String? avatarUrl, String? gender, String? birthday}) =>
+      request('PUT', {'display_name':name.trim(), 'country':country, 'bio':bio.trim(), 'avatar_url':avatarUrl, 'gender':gender, 'birthday':birthday});
 }
 
 class FirebaseProfileEditor extends StatefulWidget {
@@ -61,7 +76,7 @@ class FirebaseProfileEditor extends StatefulWidget {
 class _FirebaseProfileEditorState extends State<FirebaseProfileEditor> {
   final name=TextEditingController(), bio=TextEditingController();
   String country='';
-  String? avatarUrl;
+  String? avatarUrl, gender, birthday;
   String? message;
   bool busy=true, loaded=false;
   @override void initState() { super.initState(); load(); }
@@ -75,6 +90,8 @@ class _FirebaseProfileEditorState extends State<FirebaseProfileEditor> {
       name.text=(row?['display_name'] as String?)??widget.initialName;
       bio.text=(row?['bio'] as String?)??'';
       avatarUrl=row?['avatar_url'] as String?;
+      gender=row?['gender'] as String?;
+      birthday=row?['birthday'] as String?;
       setState(() { country=(row?['country'] as String?)??''; loaded=true; });
     } catch(e) { if(mounted) setState(() => message=error(e)); }
     finally { if(mounted) setState(() => busy=false); }
@@ -86,7 +103,7 @@ class _FirebaseProfileEditorState extends State<FirebaseProfileEditor> {
     }
     setState(() { busy=true; message=null; });
     try {
-      final row=await widget.api.save(name:name.text,country:country,bio:bio.text,avatarUrl:avatarUrl);
+      final row=await widget.api.save(name:name.text,country:country,bio:bio.text,avatarUrl:avatarUrl,gender:gender,birthday:birthday);
       if(!mounted) return;
       name.text=row!['display_name'] as String;
       bio.text=(row['bio'] as String?)??'';
@@ -95,14 +112,40 @@ class _FirebaseProfileEditorState extends State<FirebaseProfileEditor> {
     } catch(e) { if(mounted) setState(() => message=error(e)); }
     finally { if(mounted) setState(() => busy=false); }
   }
+  Future<void> choosePhoto() async {
+    if (busy) return;
+    try {
+      final image = await ImagePicker().pickImage(source:ImageSource.gallery,maxWidth:1024,maxHeight:1024,imageQuality:85);
+      if (image == null || !mounted) return;
+      setState(() { busy=true; message=null; });
+      final url=await widget.api.uploadAvatar(image);
+      if (mounted) setState(() { avatarUrl=url; message='Photo selected. Tap Save profile to apply.'; });
+    } catch(e) { if(mounted) setState(()=>message=error(e)); }
+    finally { if(mounted) setState(()=>busy=false); }
+  }
+  Future<void> chooseBirthday() async {
+    final selected=await showDatePicker(context:context,initialDate:DateTime.tryParse(birthday??'')??DateTime(2000),firstDate:DateTime(1900),lastDate:DateTime.now());
+    if(selected!=null && mounted) setState(()=>birthday=selected.toIso8601String().substring(0,10));
+  }
   @override Widget build(BuildContext context) => Card(child:Padding(
     padding:const EdgeInsets.all(18),child:Column(crossAxisAlignment:CrossAxisAlignment.stretch,children:[
       const Text('Your profile',style:TextStyle(fontSize:22,fontWeight:FontWeight.bold)),
       if(busy) const LinearProgressIndicator(),
       if(loaded)...[
+        Center(child:Column(children:[
+          CircleAvatar(radius:48,backgroundImage:avatarUrl==null?null:NetworkImage(avatarUrl!),child:avatarUrl==null?const Icon(Icons.person,size:48):null),
+          TextButton.icon(onPressed:busy?null:choosePhoto,icon:const Icon(Icons.photo_library_outlined),label:const Text('Change photo from gallery')),
+        ])),
         TextField(controller:name,enabled:!busy,maxLength:40,decoration:const InputDecoration(labelText:'Display name')),
+        DropdownButtonFormField<String>(initialValue:gender??'',decoration:const InputDecoration(labelText:'Gender (optional)'),items:const [
+          DropdownMenuItem(value:'',child:Text('Prefer not to say')),
+          DropdownMenuItem(value:'female',child:Text('Female')),
+          DropdownMenuItem(value:'male',child:Text('Male')),
+          DropdownMenuItem(value:'other',child:Text('Other')),
+        ],onChanged:busy?null:(value)=>setState(()=>gender=value==''?null:value)),
+        ListTile(contentPadding:EdgeInsets.zero,title:const Text('Birthday (optional)'),subtitle:Text(birthday??'Not set'),onTap:busy?null:chooseBirthday,trailing:birthday==null?const Icon(Icons.calendar_month):IconButton(onPressed:busy?null:()=>setState(()=>birthday=null),icon:const Icon(Icons.clear))),
         CountryPicker(value:country,onChanged:busy?null:(value)=>setState(()=>country=value)),
-        TextField(controller:bio,enabled:!busy,maxLength:150,maxLines:3,decoration:const InputDecoration(labelText:'Bio')),
+        TextField(controller:bio,enabled:!busy,maxLength:150,maxLines:3,decoration:const InputDecoration(labelText:'Signature / bio (optional)')),
         FilledButton(onPressed:busy?null:save,child:const Text('Save profile')),
       ],
       if(message!=null) Padding(padding:const EdgeInsets.symmetric(vertical:10),child:Text(message!)),

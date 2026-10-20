@@ -4,7 +4,9 @@ import os
 import sqlite3
 import time
 from pathlib import Path
-from fastapi import FastAPI, Header, HTTPException, Query
+from datetime import date
+from typing import Literal
+from fastapi import FastAPI, Header, HTTPException, Query, Request
 from .rooms import Rooms, RoomInput, MessageInput, RoomEffectInput
 from .duel import RoomDuel, MoveInput
 from .global_games import GlobalColors, ColorPick
@@ -24,6 +26,16 @@ class ProfileInput(BaseModel):
     bio: str = Field(default='', max_length=150)
     avatar_url: str | None = Field(default=None, max_length=2000)
 
+    gender: Literal['male', 'female', 'other'] | None = None
+    birthday: date | None = None
+
+    @field_validator('birthday')
+    @classmethod
+    def valid_birthday(cls, value):
+        if value is not None and not date(1900, 1, 1) <= value <= date.today():
+            raise ValueError('Invalid birthday')
+        return value
+
     @field_validator('avatar_url')
     @classmethod
     def avatar(cls, value):
@@ -42,6 +54,10 @@ class Profiles:
                 firebase_uid TEXT PRIMARY KEY, display_name TEXT NOT NULL,
                 country TEXT NOT NULL, bio TEXT NOT NULL, avatar_url TEXT,
                 updated_at INTEGER NOT NULL)''')
+            columns = {r[1] for r in db.execute('PRAGMA table_info(account_profiles)')}
+            for column in ('gender', 'birthday'):
+                if column not in columns:
+                    db.execute(f'ALTER TABLE account_profiles ADD COLUMN {column} TEXT')
 
     def get(self, uid):
         with sqlite3.connect(self.path, timeout=10) as db:
@@ -54,11 +70,16 @@ class Profiles:
 
     def save(self, uid, data):
         with sqlite3.connect(self.path, timeout=10) as db:
-            db.execute('''INSERT INTO account_profiles VALUES(?,?,?,?,?,?)
+            db.execute('''INSERT INTO account_profiles(firebase_uid,display_name,country,bio,avatar_url,updated_at) VALUES(?,?,?,?,?,?)
                 ON CONFLICT(firebase_uid) DO UPDATE SET display_name=excluded.display_name,
                 country=excluded.country,bio=excluded.bio,avatar_url=excluded.avatar_url,
                 updated_at=excluded.updated_at''', (uid, data.display_name, data.country,
                     data.bio, data.avatar_url, int(time.time())))
+            for column in ('gender', 'birthday'):
+                if column in data.model_fields_set:
+                    value = getattr(data, column)
+                    if isinstance(value, date): value = value.isoformat()
+                    db.execute(f'UPDATE account_profiles SET {column}=? WHERE firebase_uid=?', (value, uid))
         return self.get(uid)
 
 def create_app(profiles, verify, *, voice=False):
@@ -68,7 +89,7 @@ def create_app(profiles, verify, *, voice=False):
     async def private_responses(request, call_next):
         if request.method in ('PUT', 'POST'):
             length = request.headers.get('content-length')
-            if length is None or not length.isdecimal() or int(length)>(8*1024*1024 if request.url.path=='/sovera/control/media' else 8192):
+            if length is None or not length.isdecimal() or int(length)>(8*1024*1024 if request.url.path in ('/sovera/control/media','/sovera/account/avatar') else 8192):
                 from fastapi.responses import JSONResponse
                 return JSONResponse({'detail':'Invalid request size'}, status_code=413)
         response = await call_next(request)
@@ -103,6 +124,8 @@ def create_app(profiles, verify, *, voice=False):
     async def save_profile(data:ProfileInput, authorization: str | None = Header(default=None)):
         uid = await actor(authorization)
         return {'profile':await asyncio.to_thread(profiles.save, uid, data)}
+    from .profile_media import attach_profile_media
+    attach_profile_media(app, profiles, actor)
     rooms = Rooms(profiles.path)
     wallets = WalletStore(profiles.path)
     attach_greedy_wallet(app, wallets)
