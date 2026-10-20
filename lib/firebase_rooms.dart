@@ -3,7 +3,7 @@ import 'dart:math';
 import 'package:flutter/material.dart';
 import 'firebase_profile.dart';
 import 'firebase_voice.dart';
-import 'firebase_food_wheel.dart';
+import 'firebase_greedy_wheel.dart';
 import 'country_picker.dart' show soveraCountries;
 
 String _flag(String code) => RegExp(r'^[A-Z]{2}$').hasMatch(code)
@@ -41,13 +41,13 @@ class _FirebaseRoomsPageState extends State<FirebaseRoomsPage> {
   }
   Future<void> open(Map<String,dynamic> room)=>Navigator.of(context).push<void>(MaterialPageRoute(builder:(_)=>FirebaseRoomChat(api:widget.api,room:room))).then((_){if(mounted)load();});
   @override Widget build(BuildContext context)=>Scaffold(appBar:AppBar(title:const Text('Sovera rooms'),actions:[
-    IconButton(tooltip:'Food Wheel',onPressed:()=>Navigator.push(context,
-      MaterialPageRoute<void>(builder:(_)=>FirebaseFoodWheelPage(api:widget.api))),
+    IconButton(tooltip:'Greedy Wheel',onPressed:()=>Navigator.push(context,
+      MaterialPageRoute<void>(builder:(_)=>FirebaseGreedyWheelPage(api:widget.api))),
       icon:const Icon(Icons.casino_rounded)),
     IconButton(onPressed:busy?null:load,icon:const Icon(Icons.refresh))]),body:ListView(padding:const EdgeInsets.all(16),children:[
     FilledButton.icon(onPressed:()=>Navigator.push(context,
-      MaterialPageRoute<void>(builder:(_)=>FirebaseFoodWheelPage(api:widget.api))),
-      icon:const Icon(Icons.casino_rounded),label:const Text('Food Wheel · Everyone plays same round')),
+      MaterialPageRoute<void>(builder:(_)=>FirebaseGreedyWheelPage(api:widget.api))),
+      icon:const Icon(Icons.casino_rounded),label:const Text('Greedy Wheel · One server round')),
     const SizedBox(height:8),
     FilledButton.icon(onPressed:busy?null:create,icon:const Icon(Icons.add_home),label:const Text('Create / open my room')),
     const Padding(padding:EdgeInsets.symmetric(vertical:12),child:Text('Public rooms, saved text chat and live audio.')),
@@ -228,11 +228,11 @@ class _FirebaseRoomChatState extends State<FirebaseRoomChat> with WidgetsBinding
     appBar:AppBar(backgroundColor:const Color(0xFF28183D),title:Text(
       '${_flag((widget.room['country']??'').toString())} $roomName'.trim(),
       maxLines:1,overflow:TextOverflow.ellipsis),actions:[
-    IconButton(tooltip:'Food Wheel',onPressed:()=>showModalBottomSheet<void>(
+    IconButton(tooltip:'Greedy Wheel',onPressed:()=>showModalBottomSheet<void>(
       context:context,isScrollControlled:true,useSafeArea:true,
       backgroundColor:const Color(0xFF12172D),
       builder:(sheetContext)=>SizedBox(height:MediaQuery.sizeOf(sheetContext).height*.64,
-        child:FirebaseFoodWheelView(api:widget.api,inside:true))),
+        child:FirebaseGreedyWheelPage(api:widget.api,inRoom:true))),
       icon:const Icon(Icons.casino_rounded)),
 
     IconButton(tooltip:'Gift effects',onPressed:sendingEffect?null:chooseEffect,icon:const Icon(Icons.card_giftcard_rounded)),
@@ -262,9 +262,9 @@ class _FirebaseRoomChatState extends State<FirebaseRoomChat> with WidgetsBinding
       context:context,isScrollControlled:true,useSafeArea:true,
       backgroundColor:const Color(0xFF12172D),
       builder:(sheetContext)=>SizedBox(height:MediaQuery.sizeOf(sheetContext).height*.64,
-        child:FirebaseFoodWheelView(api:widget.api,inside:true))),
+        child:FirebaseGreedyWheelPage(api:widget.api,inRoom:true))),
       icon:const Icon(Icons.casino_rounded),
-      label:const Text('Food Wheel · Live shared game')),
+      label:const Text('Greedy Wheel · Live shared game')),
     if(roomEffects.isNotEmpty)AnimatedSwitcher(
       duration:const Duration(milliseconds:300),
       child:Card(
