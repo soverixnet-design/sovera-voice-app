@@ -7,7 +7,6 @@ import 'auth_gate.dart';
 import 'main.dart' show BrandLogo, Glass, gold, cyan;
 import 'member_directory.dart' show SupabaseMemberStore;
 import 'room_media.dart' show GiftAnimationCard;
-import 'effects_studio.dart' show FramePreviewAdapter;
 
 class MemberProfileStore {
   const MemberProfileStore();
@@ -183,16 +182,10 @@ class _MemberProfilePageState extends State<MemberProfilePage> {
             padding: const EdgeInsets.all(20),
             children: [
               Glass(
-                tint: gold,
+                tint: cyan,
                 child: Column(
                   children: [
-                    Align(
-                      alignment: Alignment.centerRight,
-                      child: Text(own ? 'MY PROFILE' : 'MEMBER PROFILE',
-                        style: const TextStyle(fontSize: 10, color: gold, letterSpacing: 1.4)),
-                    ),
-                    const SizedBox(height: 6),
-                    FramePreviewAdapter(size: 160, child: ClipOval(
+                    ClipOval(
                       child: card?['avatar_url'] is String
                           ? Image.network(
                               card!['avatar_url'] as String,
@@ -203,8 +196,8 @@ class _MemberProfilePageState extends State<MemberProfilePage> {
                                   const BrandLogo(size: 96),
                             )
                           : const BrandLogo(size: 96),
-                    )),
-                    const SizedBox(height: 18),
+                    ),
+                    const SizedBox(height: 14),
                     Text(
                       card!['display_name'].toString(),
                       textAlign: TextAlign.center,
@@ -235,18 +228,6 @@ class _MemberProfilePageState extends State<MemberProfilePage> {
                     ),
                     if ((card?['bio'] ?? '').toString().isNotEmpty)
                       Text(card!['bio'].toString(), textAlign: TextAlign.center),
-                    if (own)
-                      const Padding(
-                        padding: EdgeInsets.only(top: 12),
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Icon(Icons.verified_user_outlined, size: 16, color: gold),
-                            SizedBox(width: 6),
-                            Text('Your Sovera profile', style: TextStyle(color: Colors.white70)),
-                          ],
-                        ),
-                      ),
                     if (!own)
                       Wrap(
                         alignment: WrapAlignment.center,
