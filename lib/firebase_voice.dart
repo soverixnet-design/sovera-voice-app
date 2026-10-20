@@ -44,6 +44,60 @@ class FirebaseVoicePanel extends StatefulWidget {
   });
   @override State<FirebaseVoicePanel> createState()=>_FirebaseVoicePanelState();
 }
+/// Seat artwork owns the full available square; it is never nested inside
+/// another cropped portrait. Entry playback is cosmetic and keyed to occupant.
+class FirebaseSeatPortrait extends StatefulWidget {
+  final String? uid;
+  final Map<String,dynamic>? person;
+  final double size;
+  const FirebaseSeatPortrait({super.key,this.uid,this.person,this.size=80});
+  @override State<FirebaseSeatPortrait> createState()=>_FirebaseSeatPortraitState();
+}
+class _FirebaseSeatPortraitState extends State<FirebaseSeatPortrait> {
+  Timer? timer;
+  bool pending=false,playing=false;
+  @override void initState(){super.initState();pending=widget.uid!=null;startEntry();}
+  void startEntry(){
+    if(pending&&widget.person?['uid']==widget.uid&&
+        catalogAsset(widget.person?['equipped'],'entry')!=null){
+      pending=false;playing=true;
+      timer?.cancel();
+      timer=Timer(const Duration(milliseconds:3200),(){
+        if(mounted)setState(()=>playing=false);
+      });
+    }
+  }
+  @override void didUpdateWidget(covariant FirebaseSeatPortrait oldWidget){
+    super.didUpdateWidget(oldWidget);
+    if(oldWidget.uid!=widget.uid){timer?.cancel();playing=false;pending=widget.uid!=null;}
+    startEntry();
+  }
+  @override void dispose(){timer?.cancel();super.dispose();}
+  @override Widget build(BuildContext context){
+    final frame=catalogAsset(widget.person?['equipped'],'frame');
+    final entry=catalogAsset(widget.person?['equipped'],'entry');
+    final showingEntry=playing&&entry!=null&&!MediaQuery.disableAnimationsOf(context);
+    Widget portrait(String mode,Map<String,dynamic>? art)=>CatalogPortrait(
+      key:ValueKey('${widget.uid}:$mode'),asset:art,
+      avatarUrl:widget.person?['avatar_url'] as String?,size:widget.size);
+    final content=showingEntry?portrait('entry',entry):
+      widget.uid!=null&&frame!=null?portrait('frame',frame):
+      Container(key:ValueKey('${widget.uid}:default'),width:widget.size,height:widget.size,
+        padding:const EdgeInsets.all(5),
+        decoration:const BoxDecoration(shape:BoxShape.circle,
+          gradient:LinearGradient(begin:Alignment.topLeft,end:Alignment.bottomRight,
+            colors:[gold,Color(0xFF316F87),Color(0xFFCEA86C)])),
+        child:Container(decoration:BoxDecoration(shape:BoxShape.circle,
+          color:const Color(0xFF19263B),
+          border:Border.all(color:cyan.withValues(alpha:.4),width:2)),
+          child:widget.uid==null?const Icon(Icons.weekend_rounded,color:gold,size:29):
+            portrait('avatar',null)));
+    return SizedBox(width:widget.size,height:widget.size,child:AnimatedSwitcher(
+      duration:MediaQuery.disableAnimationsOf(context)?Duration.zero:
+        const Duration(milliseconds:180),
+      child:content));
+  }
+}
 class _FirebaseVoicePanelState extends State<FirebaseVoicePanel> with WidgetsBindingObserver {
   rtc.Room? room;
   VoiceSeatState seats=const VoiceSeatState(0,null,{});
@@ -56,7 +110,6 @@ class _FirebaseVoicePanelState extends State<FirebaseVoicePanel> with WidgetsBin
   Future<Map<String,dynamic>> request(String action,{int? seat})=>widget.api.call('POST',suffix:'/voice',fields:{'room_id':widget.roomId,'action':action,if(seat!=null)'seat':seat});
   @override void initState(){super.initState();WidgetsBinding.instance.addObserver(this);}
   Map<String,dynamic>? seatPerson(int index){for(final person in widget.people){if(person['uid']==seats.occupants[index])return person;}return null;}
-  Widget seatPortrait(int index){final person=seatPerson(index);return person==null?const Icon(Icons.person_rounded,color:gold,size:29):CatalogPortrait(asset:catalogAsset(person['equipped'],'frame'),avatarUrl:person['avatar_url'] as String?,size:56);}
   void changed(){if(mounted&&!closing){if(!connected||room?.localParticipant?.permissions.canPublish!=true)muted=true;setState((){});}}
   Future<void> mute()async{try{await room?.localParticipant?.setMicrophoneEnabled(false);}catch(_){} muted=true;}
   Future<void> connect()async{
@@ -185,22 +238,13 @@ class _FirebaseVoicePanelState extends State<FirebaseVoicePanel> with WidgetsBin
             borderRadius:BorderRadius.circular(52),
             onTap:!connected||busy||seats.occupants.containsKey(i)?null:()=>take(i),
             child:Column(mainAxisSize:MainAxisSize.min,children:[
-              Container(width:tileWidth.clamp(58.0,80.0).toDouble(),
-                height:tileWidth.clamp(58.0,80.0).toDouble(),
-                padding:const EdgeInsets.all(5),
-                decoration:BoxDecoration(shape:BoxShape.circle,
-                  gradient:const LinearGradient(
-                    begin:Alignment.topLeft,end:Alignment.bottomRight,
-                    colors:[gold,Color(0xFF316F87),Color(0xFFCEA86C)])),
-                child:Container(
-                  decoration:BoxDecoration(shape:BoxShape.circle,
-                    color:const Color(0xFF19263B),
-                    border:Border.all(color:cyan.withValues(alpha:.4),width:2)),
-                  child:Center(child:seats.occupants.containsKey(i)?seatPortrait(i):const Icon(Icons.weekend_rounded,color:gold,size:29)),
-                )),
+              FirebaseSeatPortrait(
+                key:ValueKey('seat-portrait-$i'),
+                uid:seats.occupants[i],person:seatPerson(i),
+                size:tileWidth.clamp(58.0,80.0).toDouble()),
               const SizedBox(height:6),
               Text(seats.mine==i?'You':seats.occupants.containsKey(i)
-                ?'Occupied':'${i+1}',maxLines:1,
+                ?(seatPerson(i)?['name']?.toString()??'Occupied'):'${i+1}',maxLines:1,
                 overflow:TextOverflow.ellipsis,
                 textAlign:TextAlign.center,
                 style:const TextStyle(fontSize:11,color:Colors.white70)),

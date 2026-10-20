@@ -14,20 +14,50 @@ class CatalogImage extends StatelessWidget{
   const CatalogImage({super.key,required this.asset,this.fit=BoxFit.contain});
   @override Widget build(BuildContext context)=>Image.network(asset['url'].toString(),fit:fit,gaplessPlayback:true,errorBuilder:(_,__,___)=>const Icon(Icons.broken_image_outlined));
 }
-/// Admin preview and app share normalized avatar size and center coordinates.
-class CatalogPortrait extends StatelessWidget{
-  final Map<String,dynamic>? asset;final String? avatarUrl;final double size;
+/// One square coordinate system for profile, seat, entry and admin preview.
+class CatalogPortraitGeometry {
+  final double side;
+  final Rect avatar;
+  const CatalogPortraitGeometry(this.side,this.avatar);
+  factory CatalogPortraitGeometry.forAsset(Map<String,dynamic>? asset,double side) {
+    double number(dynamic value,double fallback,double low,double high) {
+      final n=value is num?value.toDouble():fallback;
+      return (n.isFinite?n:fallback).clamp(low,high).toDouble();
+    }
+    final scale=number(asset?['avatar_scale'],asset==null?.72:.46,.05,1);
+    final radius=scale/2;
+    final x=number(asset?['avatar_x'],.5,radius,1-radius);
+    final y=number(asset?['avatar_y'],.5,radius,1-radius);
+    final diameter=side*scale;
+    return CatalogPortraitGeometry(side,Rect.fromLTWH(
+      side*x-diameter/2,side*y-diameter/2,diameter,diameter));
+  }
+}
+class CatalogPortrait extends StatelessWidget {
+  final Map<String,dynamic>? asset;
+  final String? avatarUrl;
+  final double size;
   const CatalogPortrait({super.key,this.asset,this.avatarUrl,this.size=100});
-  @override Widget build(BuildContext context){
-    final scale=(asset?['avatar_scale'] as num?)?.toDouble()??.72;
-    final x=(asset?['avatar_x'] as num?)?.toDouble()??.5;
-    final y=(asset?['avatar_y'] as num?)?.toDouble()??.5;
-    final diameter=size*scale;
-    return SizedBox(width:size,height:size,child:Stack(clipBehavior:Clip.none,children:[
-      Positioned(left:size*x-diameter/2,top:size*y-diameter/2,width:diameter,height:diameter,
-        child:ClipOval(child:avatarUrl?.startsWith('https://')==true?Image.network(avatarUrl!,fit:BoxFit.cover,errorBuilder:(_,__,___)=>BrandLogo(size:diameter)):BrandLogo(size:diameter))),
-      if(asset!=null)Positioned.fill(child:IgnorePointer(child:CatalogImage(asset:asset!))),
-    ]));
+  @override Widget build(BuildContext context) {
+    final requested=size.isFinite&&size>0?size:100.0;
+    return SizedBox(width:requested,height:requested,child:LayoutBuilder(
+      builder:(context,constraints) {
+        final side=min(requested,min(constraints.maxWidth,constraints.maxHeight));
+        final geometry=CatalogPortraitGeometry.forAsset(asset,side);
+        final rect=geometry.avatar;
+        return Center(child:SizedBox(width:side,height:side,
+          child:Stack(key:const ValueKey('catalog-canvas'),children:[
+            Positioned.fromRect(rect:rect,child:ClipOval(
+              key:const ValueKey('catalog-avatar'),
+              child:avatarUrl?.startsWith('https://')==true
+                ?Image.network(avatarUrl!,fit:BoxFit.cover,
+                  errorBuilder:(_,__,___)=>BrandLogo(size:rect.width))
+                :BrandLogo(size:rect.width))),
+            if(asset!=null)Positioned.fill(child:IgnorePointer(
+              child:CatalogImage(key:ValueKey('${asset!['id']}:${asset!['media_id']}'),
+                asset:asset!))),
+          ])));
+      }));
   }
 }
 class FirebaseCatalogPage extends StatefulWidget{
