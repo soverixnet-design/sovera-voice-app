@@ -1,0 +1,10 @@
+'use strict';
+const assert=require('assert/strict');
+const apply=require('./limits');
+const config={maxBetPerRound:1000000,items:[{mult:10},{mult:15},{mult:25},{mult:45}]};
+const limit=apply(config);
+assert(limit>111111111);
+assert(Number.isSafeInteger(limit*45));
+assert.equal(config.maxBetPerRound,limit);
+assert.throws(()=>apply({items:[{mult:Infinity}]}));
+console.log('BALANCE_LIMIT_POLICY_OK');

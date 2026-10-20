@@ -2,6 +2,8 @@
 const assert=require('assert/strict'),fs=require('fs'),os=require('os'),path=require('path');
 const http=require('http'),crypto=require('crypto'),{spawn,spawnSync}=require('child_process');
 const root=path.resolve(process.argv[2]);
+const large=process.argv.includes('--large-bet');
+const stake=large?2000000:1000,opening=large?3000000:10000;
 const Database=require(path.join(root,'node_modules/better-sqlite3'));
 const WebSocket=require(path.join(root,'node_modules/ws'));
 const dir=fs.mkdtempSync(path.join(os.tmpdir(),'sovera-greedy-test-'));
@@ -13,7 +15,7 @@ const server=http.createServer(async(req,res)=>{
  const expected=crypto.createHmac('sha256',secret).update(stamp+'.'+body).digest('hex');
  assert.equal(req.headers['x-greedy-signature'],expected);
  const p=JSON.parse(body),kind=req.url.split('/').pop(),key=p.txId;
- if(!balances.has(p.userId))balances.set(p.userId,10000);
+ if(!balances.has(p.userId))balances.set(p.userId,p.userId==='round-player'?opening:10000);
  let reply;
  if(receipts.has(key))reply=receipts.get(key);
  else{
@@ -40,7 +42,7 @@ async function main(){
  const port=await freePort(),database=path.join(dir,'test.db');
  const env={...process.env,PORT:String(port),DB_FILE:database,WALLET_MODE:'http',WALLET_URL:walletUrl,
   WALLET_SECRET:secret,GAME_JWT_SECRET:jwt,DEMO_AUTH:'0',LOCAL_START_BALANCE:'0',CLIENT_DIR:'',
-  BETTING_SECONDS:'2',SPIN_SECONDS:'1',RESULT_SECONDS:'1',W_SHRIMP:'1000',W_FISH:'0',W_CHICKEN:'0',W_STEAK:'0',W_CABBAGE:'0',W_CARROT:'0',W_CORN:'0',W_TOMATO:'0',W_SALAD:'0',W_PIZZA:'0',CHIPS:'1000,10000,100000,1000000',MIN_BET:'1000',MAX_BET_PER_ROUND:'1000000'};
+  BETTING_SECONDS:large?'4':'2',SPIN_SECONDS:'1',RESULT_SECONDS:'1',W_SHRIMP:'1000',W_FISH:'0',W_CHICKEN:'0',W_STEAK:'0',W_CABBAGE:'0',W_CARROT:'0',W_CORN:'0',W_TOMATO:'0',W_SALAD:'0',W_PIZZA:'0',CHIPS:'1000,10000,100000,1000000',MIN_BET:'1000',MAX_BET_PER_ROUND:'1000000'};
  Object.assign(process.env,env);
  const wallet=require(path.join(dir,'src/wallet'));
  assert.equal(await wallet.debit({txId:'once',userId:'adapter',amount:1000}),9000);
@@ -86,20 +88,20 @@ async function main(){
  const initial=hello.state;
  const round=initial.round??initial.id;
  assert(round!==undefined,'Unsupported public round state: '+JSON.stringify(initial));
- socket.send(JSON.stringify({t:'bet',round,itemId:'shrimp',amount:1000,reqId:'integration-bet'}));
+ for(let i=0;i<(large?2:1);i++)socket.send(JSON.stringify({t:'bet',round,itemId:'shrimp',amount:large?1000000:1000,reqId:'integration-bet-'+i}));
  let ack,result;
  for(let i=0;i<200;i++){
   ack=messages.find(m=>m.t==='bet_ok');
-  result=messages.find(m=>m.t==='result'&&m.you?.bet===1000);
+  result=messages.find(m=>m.t==='result'&&m.you?.bet===stake);
   const error=messages.find(m=>m.t==='bet_err');
   if(error)throw Error('Original bet rejected: '+JSON.stringify(error));
   if(ack&&result)break;await sleep(100);
  }
  assert(ack,'No bet acknowledgement from original engine');
  assert(result,'Original engine did not settle a shared round');
- assert.equal(result.you.win,10000,'Forced isolated test winner was not paid correctly');
- for(let i=0;i<60&&balances.get('round-player')!==9000+result.you.win;i++)await sleep(100);
- assert.equal(balances.get('round-player'),9000+result.you.win,'Original result and trusted wallet differ');
+ assert.equal(result.you.win,stake*10,'Forced isolated test winner was not paid correctly');
+ for(let i=0;i<60&&balances.get('round-player')!==opening-stake+result.you.win;i++)await sleep(100);
+ assert.equal(balances.get('round-player'),opening-stake+result.you.win,'Original result and trusted wallet differ');
  assert.equal([...receipts.keys()].filter(k=>k&&k.includes('round-player')&&!k.startsWith('win-')).length>=1,true);
  socket.close();child.kill('SIGTERM');await sleep(150);
  console.log('GREEDY_WALLET_AND_ROUND_TESTS_OK');

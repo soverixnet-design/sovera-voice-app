@@ -10,7 +10,7 @@ from .duel import RoomDuel, MoveInput
 from .global_games import GlobalColors, ColorPick
 from .food_wheel import FoodWheel, FoodChoice
 from .greedy_access import greedy_access
-from .wallet import WalletStore
+from .wallet import WalletStore,ExchangeInput
 from .greedy_wallet import attach_greedy_wallet
 from .community import attach_community
 from .control import attach_control
@@ -117,6 +117,10 @@ def create_app(profiles, verify, *, voice=False):
     async def wallet_state(authorization: str | None = Header(default=None)):
         uid=await actor(authorization)
         return await asyncio.to_thread(wallets.state,uid)
+
+    @app.post('/sovera/account/wallet/exchange')
+    async def exchange(data:ExchangeInput,authorization:str | None=Header(default=None)):
+        return await asyncio.to_thread(wallets.exchange,await actor(authorization),data)
 
     @app.get('/sovera/account/wallet/history')
     async def wallet_history(authorization: str | None = Header(default=None),

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'firebase_profile.dart';
+import 'firebase_community.dart' show communityRequestId;
 import 'sovera_visuals.dart' show Glass, Jewel, gold, cyan;
 
 /// A wallet view whose only source is the Sovera-owned account server.
@@ -15,6 +16,7 @@ class _FirebaseServerWalletPageState extends State<FirebaseServerWalletPage>{
   bool loading=true, loadingMore=false, hasMore=false;
   String filter='All';
   String? error;
+  Map<String,dynamic>? pendingExchange;
   Map<String,dynamic>? wallet;
   List<Map<String,dynamic>> entries=[];
   @override void initState(){super.initState();refresh();}
@@ -52,6 +54,49 @@ class _FirebaseServerWalletPageState extends State<FirebaseServerWalletPage>{
       if(mounted)setState(()=>loading=false);
     }
   }
+  Future<void> exchange()async{
+    var draft=pendingExchange?['diamonds']?.toString()??'100';
+    var working=false;String? message;
+    final saved=await showDialog<bool>(context:context,builder:(context)=>StatefulBuilder(
+      builder:(context,update)=>AlertDialog(
+        title:const Text('Exchange Diamonds'),
+        content:Column(mainAxisSize:MainAxisSize.min,children:[
+          const Text('100 Diamonds = 70 Coins'),
+          const SizedBox(height:12),
+          TextFormField(initialValue:draft,readOnly:pendingExchange!=null||working,
+            keyboardType:TextInputType.number,maxLength:16,
+            decoration:const InputDecoration(labelText:'Diamonds to exchange'),
+            onChanged:(value)=>update(()=>draft=value.trim())),
+          Text('You receive: ${((int.tryParse(draft)??0)~/100)*70} Coins'),
+          if(message!=null)Text(message!),
+        ]),
+        actions:[
+          TextButton(onPressed:working?null:()=>Navigator.pop(context,false),child:const Text('Close')),
+          FilledButton(onPressed:working?null:()async{
+            final value=int.tryParse(draft);
+            if(value==null||value<100||value>9007199254740991||value%100!=0){
+              update(()=>message='Enter a multiple of 100 Diamonds.');return;
+            }
+            if(pendingExchange==null&&(BigInt.tryParse(wallet?['diamonds']?.toString()??'')??BigInt.zero)<BigInt.from(value)){
+              update(()=>message='Insufficient Diamonds.');return;
+            }
+            pendingExchange??={'diamonds':value,'request_id':communityRequestId()};
+            update(()=>working=true);
+            try{
+              await widget.api.call('POST',suffix:'/wallet/exchange',fields:pendingExchange);
+              pendingExchange=null;
+              if(context.mounted)Navigator.pop(context,true);
+            }catch(e){
+              if(e is ProfileApiError&&e.status==409)pendingExchange=null;
+              if(context.mounted)update(()=>message=e is ProfileApiError?e.message:'Could not confirm. Retry the same exchange.');
+            }finally{if(context.mounted)update(()=>working=false);}
+          },child:Text(working?'Exchanging…':pendingExchange==null?'Confirm exchange':'Retry exchange')),
+        ])));
+    if(saved==true&&mounted){
+      await refresh();
+      if(mounted)ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content:Text('Exchange completed.')));
+    }
+  }
   Future<void> loadMore()async{
     if(loading||loadingMore||!hasMore||entries.isEmpty)return;
     setState(()=>loadingMore=true);
@@ -78,7 +123,7 @@ class _FirebaseServerWalletPageState extends State<FirebaseServerWalletPage>{
     'recharge'=>'Recharge',
     'gift'=>'Gifts',
     'game_debit'||'game_win'||'refund'=>'Games',
-    'exchange'=>'Purchases',
+    'exchange'=>'Exchange',
     'verified_import'=>'Imported',
     _=>'Other',
   };
@@ -147,6 +192,9 @@ class _FirebaseServerWalletPageState extends State<FirebaseServerWalletPage>{
         ]),
         const SizedBox(height:18),
         if(wallet?['verified']==true&&wallet?['status']=='active')
+          FilledButton.icon(onPressed:loading?null:exchange,icon:const Icon(Icons.swap_horiz),
+            label:Text(pendingExchange==null?'Exchange Diamonds → Coins':'Retry pending exchange')),
+        if(wallet?['verified']==true&&wallet?['status']=='active')
           const Text('Wallet verified · Your Coins and Diamonds are linked to this account.',
             style:TextStyle(fontSize:12,color:Colors.white70)),
         if(wallet?['verified']==true&&wallet?['canSpend']!=true)
@@ -160,7 +208,7 @@ class _FirebaseServerWalletPageState extends State<FirebaseServerWalletPage>{
         const SizedBox(height:20),
         const Text('Server transaction history',style:TextStyle(fontSize:18,fontWeight:FontWeight.bold)),
         const SizedBox(height:10),
-        Wrap(spacing:6,children:[for(final name in const ['All','Recharge','Gifts','Games','Purchases','Imported','Other'])
+        Wrap(spacing:6,children:[for(final name in const ['All','Recharge','Gifts','Games','Exchange','Imported','Other'])
           ChoiceChip(label:Text(name),selected:filter==name,onSelected:(_)=>setState(()=>filter=name))]),
         const SizedBox(height:10),
         for(final item in entries.where((x)=>filter=='All'||category(x['kind'])==filter))

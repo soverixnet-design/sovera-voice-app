@@ -1,10 +1,11 @@
 import 'dart:async';
+import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:livekit_client/livekit_client.dart' as rtc;
 import 'firebase_profile.dart';
 import 'app_preferences.dart';
 import 'firebase_catalog.dart';
-import 'sovera_visuals.dart' show gold,cyan,pink;
+import 'sovera_visuals.dart' show cyan,pink;
 import 'startup_access.dart' show requestMicrophoneAccess;
 import 'voice_connection.dart' show VoiceSeatState, voiceServerUrl;
 
@@ -40,9 +41,10 @@ class FirebaseVoicePanel extends StatefulWidget {
   final String roomId;
   final int seatCount;
   final Set<String> blockedUids;
+  final bool autoConnect;
   final List<Map<String,dynamic>> people;
   const FirebaseVoicePanel({
-    super.key,required this.api,required this.roomId,this.seatCount=9,this.people=const [],this.blockedUids=const {},
+    super.key,required this.api,required this.roomId,this.seatCount=9,this.people=const [],this.blockedUids=const {},this.autoConnect=false,
   });
   @override State<FirebaseVoicePanel> createState()=>_FirebaseVoicePanelState();
 }
@@ -87,12 +89,11 @@ class _FirebaseSeatPortraitState extends State<FirebaseSeatPortrait> {
       Container(key:ValueKey('${widget.uid}:default'),width:widget.size,height:widget.size,
         padding:const EdgeInsets.all(5),
         decoration:const BoxDecoration(shape:BoxShape.circle,
-          gradient:LinearGradient(begin:Alignment.topLeft,end:Alignment.bottomRight,
-            colors:[gold,Color(0xFF316F87),Color(0xFFCEA86C)])),
+          color:Color(0x2638CFC4)),
         child:Container(decoration:BoxDecoration(shape:BoxShape.circle,
           color:const Color(0xFF19263B),
-          border:Border.all(color:cyan.withValues(alpha:.4),width:2)),
-          child:widget.uid==null?const Icon(Icons.weekend_rounded,color:gold,size:29):
+          border:Border.all(color:Colors.white38,width:1.5)),
+          child:widget.uid==null?const Icon(Icons.chair_rounded,color:Colors.white54,size:28):
             portrait('avatar',null)));
     return SizedBox(width:widget.size,height:widget.size,child:AnimatedSwitcher(
       duration:MediaQuery.disableAnimationsOf(context)?Duration.zero:
@@ -108,12 +109,15 @@ class _FirebaseVoicePanelState extends State<FirebaseVoicePanel> with WidgetsBin
   int reconnectAttempts=0;
   bool pausedForReconnect=false;
   bool busy=false, active=true, closing=false, muted=true;
-  bool requestingMicrophone=false;
+  bool requestingMicrophone=false,listeningMuted=false;
   String? error;
   int epoch=0;
   bool get connected=>room?.connectionState==rtc.ConnectionState.connected;
   Future<Map<String,dynamic>> request(String action,{int? seat})=>widget.api.call('POST',suffix:'/voice',fields:{'room_id':widget.roomId,'action':action,if(seat!=null)'seat':seat});
-  @override void initState(){super.initState();WidgetsBinding.instance.addObserver(this);}
+  @override void initState(){
+    super.initState();WidgetsBinding.instance.addObserver(this);
+    if(widget.autoConnect)WidgetsBinding.instance.addPostFrameCallback((_){if(mounted)connect();});
+  }
   Map<String,dynamic>? seatPerson(int index){for(final person in widget.people){if(person['uid']==seats.occupants[index])return person;}return null;}
   @override void didUpdateWidget(covariant FirebaseVoicePanel oldWidget){
     super.didUpdateWidget(oldWidget);applyBlocks();
@@ -122,7 +126,7 @@ class _FirebaseVoicePanelState extends State<FirebaseVoicePanel> with WidgetsBin
     final current=room;
     if(current==null||closing)return;
     for(final participant in current.remoteParticipants.values){
-      final blocked=widget.blockedUids.contains(participant.identity);
+      final blocked=listeningMuted||widget.blockedUids.contains(participant.identity);
       for(final publication in participant.trackPublications.values){
         if(blocked&&publication.subscribed&&suppressed.add(publication.sid)){
           unawaited(publication.unsubscribe().catchError((Object _){
@@ -148,7 +152,7 @@ class _FirebaseVoicePanelState extends State<FirebaseVoicePanel> with WidgetsBin
     }
     if(connected&&pausedForReconnect){
       pausedForReconnect=false;muted=true;unawaited(mute());
-      error='Audio restored. Tap Enable mic to speak.';
+      error='Audio restored. Tap Unmute to speak.';
     }
     if(!connected||room?.localParticipant?.permissions.canPublish!=true)muted=true;
     if(room?.connectionState==rtc.ConnectionState.disconnected)scheduleReconnect();
@@ -172,7 +176,7 @@ class _FirebaseVoicePanelState extends State<FirebaseVoicePanel> with WidgetsBin
       room=candidate;candidate=null;reconnectAttempts=0;room!.addListener(changed);applyBlocks();
       seats=VoiceSeatState.parse(await request('state'));
       timer=Timer.periodic(const Duration(seconds:8),(_)=>sync());
-    }catch(_){if(candidate!=null){await candidate.disconnect();await candidate.dispose();}await closeAudio();reconnectAttempts++;error='Voice could not connect. Tap Connect to retry.';scheduleReconnect();}
+    }catch(_){if(candidate!=null){await candidate.disconnect();await candidate.dispose();}await closeAudio();reconnectAttempts++;error='Voice could not connect. Tap Retry audio or a mic seat.';scheduleReconnect();}
     finally{if(mounted&&!closing)setState(()=>busy=false);}
   }
   Future<void> sync()async{
@@ -218,7 +222,7 @@ class _FirebaseVoicePanelState extends State<FirebaseVoicePanel> with WidgetsBin
       muted=false;error=null;
     }catch(_){
       await mute();
-      error='Microphone could not start. Check phone permission, then tap Enable mic again.';
+      error='Microphone could not start. Check phone permission, then tap Unmute again.';
     }finally{busy=false;if(mounted&&!closing)setState((){});}
   }
 
@@ -239,9 +243,16 @@ class _FirebaseVoicePanelState extends State<FirebaseVoicePanel> with WidgetsBin
     }catch(_){
       await mute();
       error=seats.mine==index
-        ?'Seat reserved, but microphone is off. Tap Enable mic to retry or Leave seat.'
+        ?'Seat reserved, but microphone is off. Tap Unmute to retry or Leave seat.'
         :'Could not take this seat. Check permission and retry.';
     }finally{busy=false;if(mounted&&!closing)setState((){});}
+  }
+  Future<void> seatTap(int index)async{
+    if(busy||closing||!active)return;
+    if(!connected)await connect();
+    if(!mounted||!connected)return;
+    if(seats.occupants.containsKey(index))return;
+    await take(index);
   }
 
   Future<void> leave()async{
@@ -266,9 +277,15 @@ class _FirebaseVoicePanelState extends State<FirebaseVoicePanel> with WidgetsBin
   }
   @override void dispose(){closing=true;retryTimer?.cancel();WidgetsBinding.instance.removeObserver(this);unawaited(closeAudio().catchError((Object _){}));unawaited(request('leave').then<void>((_){}).catchError((Object _){}));super.dispose();}
   @override Widget build(BuildContext context)=>Padding(padding:const EdgeInsets.all(8),child:Column(mainAxisSize:MainAxisSize.min,children:[
-    Row(children:[const Icon(Icons.headset),const SizedBox(width:8),Expanded(child:Text(connected?(muted?'Live audio · Listening':'Live audio · Microphone on'):'Audio disconnected')),if(!connected)TextButton(onPressed:busy||!active?null:connect,child:Text(busy?'Connecting…':'Connect')),]),
+    Row(children:[
+      Icon(connected?Icons.graphic_eq:Icons.wifi_tethering,color:connected?cyan:Colors.white38,size:17),
+      const SizedBox(width:6),
+      Expanded(child:Text(connected?(muted?'Listening · Tap a mic to join':'Microphone on'):busy?'Joining room audio…':'Tap a mic to join',style:const TextStyle(fontSize:11,color:Colors.white60))),
+      IconButton(tooltip:listeningMuted?'Enable room sound':'Mute room sound',onPressed:()=>setState((){listeningMuted=!listeningMuted;applyBlocks();}),icon:Icon(listeningMuted?Icons.volume_off_rounded:Icons.volume_up_rounded,size:20)),
+      if(error!=null&&!connected)TextButton(onPressed:busy?null:connect,child:const Text('Retry audio')),
+    ]),
     if(connected&&seats.mine!=null)Align(alignment:Alignment.centerRight,child:Wrap(spacing:8,runSpacing:4,children:[
-      TextButton(onPressed:busy?null:muted?enableMic:()async{await mute();if(mounted)setState((){});},child:Text(muted?'Enable mic':'Mute')),
+      TextButton.icon(onPressed:busy?null:muted?enableMic:()async{await mute();if(mounted)setState((){});},icon:Icon(muted?Icons.mic_off_rounded:Icons.mic_rounded),label:Text(muted?'Unmute':'Mute')),
       TextButton(onPressed:busy?null:leave,child:const Text('Leave seat')),
     ])),
     // The original Sovera gold-and-blue circular room-seat layout remains
@@ -276,21 +293,22 @@ class _FirebaseVoicePanelState extends State<FirebaseVoicePanel> with WidgetsBin
     // LiveKit + server lease session reports an available microphone seat.
     LayoutBuilder(builder:(context,constraints){
       final count=connected&&seats.count>0?seats.count:widget.seatCount;
-      final columns=constraints.maxWidth<295?3:4;
+      final preferred=count==6||count==9?3:count>=15?5:count==12?4:5;
+      final columns=min(preferred,max(1,(constraints.maxWidth/62).floor()));
       final tileWidth=(constraints.maxWidth-(columns-1)*8)/columns;
       return Wrap(spacing:8,runSpacing:13,children:[
         for(var i=0;i<count;i++)SizedBox(width:tileWidth,
           child:InkWell(
             borderRadius:BorderRadius.circular(52),
-            onTap:!connected||busy||seats.occupants.containsKey(i)?null:()=>take(i),
+            onTap:busy||seats.occupants.containsKey(i)?null:()=>seatTap(i),
             child:Column(mainAxisSize:MainAxisSize.min,children:[
               FirebaseSeatPortrait(
                 key:ValueKey('seat-portrait-$i'),
                 uid:seats.occupants[i],person:seatPerson(i),
-                size:tileWidth.clamp(58.0,80.0).toDouble()),
+                size:tileWidth.clamp(48.0,66.0).toDouble()),
               const SizedBox(height:6),
               Text(seats.mine==i?'You':seats.occupants.containsKey(i)
-                ?(seatPerson(i)?['name']?.toString()??'Occupied'):'${i+1}',maxLines:1,
+                ?(seatPerson(i)?['name']?.toString()??'Occupied'):'Mic ${i+1}',maxLines:1,
                 overflow:TextOverflow.ellipsis,
                 textAlign:TextAlign.center,
                 style:const TextStyle(fontSize:11,color:Colors.white70)),

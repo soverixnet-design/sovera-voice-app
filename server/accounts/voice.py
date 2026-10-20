@@ -22,7 +22,7 @@ def attach_voice(app, rooms, actor):
             row = db.execute('SELECT seats FROM account_rooms WHERE id=?', (room,)).fetchone()
             if row is None:
                 raise HTTPException(404, 'Room not found')
-            if row['seats'] not in (5, 6, 9, 12):
+            if row['seats'] not in (5, 6, 9, 12, 15):
                 raise HTTPException(503, 'Invalid seat configuration')
             return row['seats']
 

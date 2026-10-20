@@ -61,12 +61,12 @@ void main(){
     expect(checks,3);
   });
 
-  testWidgets('voice requires explicit connection and shows no fake seats',(tester)async{
+  testWidgets('seat tap connects audio without a separate Connect button',(tester)async{
     var calls=0;
     final api=FirebaseProfileApi(uid:'alice',token:()async=>'token',client:MockClient((r)async{calls++;return http.Response('',503);}));
     await tester.pumpWidget(MaterialApp(home:Scaffold(body:FirebaseVoicePanel(api:api,roomId:'room'))));
-    expect(calls,0);expect(find.text('Audio disconnected'),findsOneWidget);
-    await tester.tap(find.text('Connect'));await tester.pumpAndSettle();
+    expect(calls,0);expect(find.text('Connect'),findsNothing);
+    await tester.tap(find.text('Mic 1'));await tester.pumpAndSettle();
     expect(find.textContaining('could not connect'),findsOneWidget);
     expect(find.text('Live audio · Microphone on'),findsNothing);
     await tester.pumpWidget(const SizedBox());await tester.pumpAndSettle();
@@ -134,7 +134,8 @@ void main(){
       'id':'room-1','name':'Friends','owner_uid':'alice','seats':9
     })));
     await tester.pumpAndSettle();
-    await tester.tap(find.byTooltip('Gift effects'));await tester.pumpAndSettle();
+    await tester.tap(find.byTooltip('Room options'));await tester.pumpAndSettle();
+    await tester.tap(find.text('Free room effects'));await tester.pumpAndSettle();
     expect(find.textContaining('No Coins'),findsOneWidget);
     await tester.tap(find.text('Friend'));await tester.pumpAndSettle();
     await tester.tap(find.text('Send effect'));await tester.pumpAndSettle();
@@ -161,7 +162,7 @@ void main(){
       return http.Response('{"saved":true}',200);
     }));
     await tester.pumpWidget(MaterialApp(home:FirebaseRoomChat(api:api,room:{'id':'room-1','name':'My room','owner_uid':'alice','seats':9})));await tester.pumpAndSettle();
-    await tester.enterText(find.byType(TextField),'Keep my message');await tester.tap(find.byIcon(Icons.send));await tester.pumpAndSettle();
+    await tester.enterText(find.byType(TextField),'Keep my message');await tester.tap(find.byIcon(Icons.send_rounded));await tester.pumpAndSettle();
     expect(find.text('Keep my message'),findsOneWidget);expect(find.byType(ListTile),findsNothing);
     expect(tester.widget<TextField>(find.byType(TextField)).readOnly,true);
     await tester.pumpWidget(const SizedBox());await tester.pumpAndSettle();

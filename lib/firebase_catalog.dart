@@ -152,11 +152,36 @@ class FirebaseCatalogGiftPicker extends StatefulWidget{
 class _FirebaseCatalogGiftPickerState extends State<FirebaseCatalogGiftPicker>{
   final selected=<String>{};Map<String,dynamic>? gift;
   @override void initState(){super.initState();if(widget.people.isNotEmpty)selected.add(widget.people.first['uid'].toString());if(widget.gifts.isNotEmpty)gift=widget.gifts.first;}
-  @override Widget build(BuildContext context)=>AlertDialog(title:const Text('Animated gifts'),content:SizedBox(width:360,child:SingleChildScrollView(child:Column(mainAxisSize:MainAxisSize.min,children:[
-    TextButton(onPressed:()=>setState((){if(selected.length==widget.people.length){selected.clear();}else{selected.addAll(widget.people.map((p)=>p['uid'].toString()));}}),child:const Text('Select / clear all')),
-    for(final person in widget.people)CheckboxListTile(dense:true,contentPadding:EdgeInsets.zero,title:Text(person['name'].toString()),subtitle:Text(person['uid'].toString(),style:const TextStyle(fontSize:10)),value:selected.contains(person['uid']),onChanged:(yes)=>setState((){if(yes==true){selected.add(person['uid'].toString());}else{selected.remove(person['uid']);}})),
-    Wrap(spacing:8,children:[for(final item in widget.gifts)SizedBox(width:125,child:InkWell(onTap:()=>setState(()=>gift=item),child:Card(color:gift?['id']==item['id']?const Color(0xFF66419B):null,child:Padding(padding:const EdgeInsets.all(8),child:Column(children:[SizedBox(height:85,child:CatalogImage(asset:item)),Text(item['title'].toString(),maxLines:1,overflow:TextOverflow.ellipsis),Text('${item['price']} Coins')])))))]),
-    if(gift!=null)Text('Total: ${(gift!['price'] as num)*selected.length} Coins · ${selected.length} recipient(s)'),
-    const Text('Paid gifts award each recipient Diamonds equal to the gift price. Free gifts award no Diamonds.',style:TextStyle(fontSize:11)),
-  ]))),actions:[TextButton(onPressed:()=>Navigator.pop(context),child:const Text('Cancel')),FilledButton(onPressed:gift==null||selected.isEmpty?null:()=>Navigator.pop(context,{'item_id':gift!['id'],'expected_price':gift!['price'],'recipient_uids':selected.toList()..sort()}),child:const Text('Confirm gift'))]);
+  @override Widget build(BuildContext context)=>SizedBox(
+    height:MediaQuery.sizeOf(context).height*.62,
+    child:Padding(padding:const EdgeInsets.all(16),child:Column(children:[
+      Row(children:[const Expanded(child:Text('Gifts',style:TextStyle(fontSize:22,fontWeight:FontWeight.bold))),
+        TextButton(onPressed:()=>setState((){if(selected.length==widget.people.length){selected.clear();}else{selected.addAll(widget.people.map((p)=>p['uid'].toString()));}}),child:const Text('Select / clear all')),
+        IconButton(tooltip:'Close gifts',onPressed:()=>Navigator.pop(context),icon:const Icon(Icons.close))]),
+      SizedBox(height:83,child:ListView(scrollDirection:Axis.horizontal,children:[
+        for(final person in widget.people)Padding(padding:const EdgeInsets.only(right:8),child:InkWell(
+          onTap:()=>setState((){final uid=person['uid'].toString();if(!selected.add(uid))selected.remove(uid);}),
+          child:Container(width:74,padding:const EdgeInsets.all(5),decoration:BoxDecoration(
+            color:selected.contains(person['uid'])?const Color(0x555C52D8):Colors.transparent,
+            borderRadius:BorderRadius.circular(14),border:Border.all(color:selected.contains(person['uid'])?Colors.cyanAccent:Colors.white12)),
+            child:Column(children:[CatalogPortrait(avatarUrl:person['avatar_url'] as String?,size:38),
+              Text(person['name'].toString(),maxLines:1,overflow:TextOverflow.ellipsis,style:const TextStyle(fontSize:10)),
+              if(person['public_id']!=null)Text('ID ${person['public_id']}',style:const TextStyle(fontSize:9,color:Colors.white54))])))),
+      ])),
+      const SizedBox(height:12),
+      Expanded(child:GridView.builder(itemCount:widget.gifts.length,
+        gridDelegate:const SliverGridDelegateWithFixedCrossAxisCount(crossAxisCount:3,childAspectRatio:.9,crossAxisSpacing:8,mainAxisSpacing:8),
+        itemBuilder:(context,index){final item=widget.gifts[index];final chosen=gift?['id']==item['id'];
+          return InkWell(onTap:()=>setState(()=>gift=item),child:Container(padding:const EdgeInsets.all(7),
+            decoration:BoxDecoration(color:chosen?const Color(0x444E3795):Colors.white.withValues(alpha:.04),
+              borderRadius:BorderRadius.circular(14),border:Border.all(color:chosen?Colors.cyanAccent:Colors.white12)),
+            child:Column(children:[Expanded(child:CatalogImage(asset:item,previewStill:!chosen)),
+              Text(item['title'].toString(),maxLines:1,overflow:TextOverflow.ellipsis,style:const TextStyle(fontSize:11)),
+              Text('${item['price']} Coins',style:const TextStyle(fontSize:11,color:Colors.amberAccent))])));}),
+      ),
+      const SizedBox(height:10),
+      if(gift!=null)Row(children:[Expanded(child:Text('Total: ${(gift!['price'] as num)*selected.length} Coins',style:const TextStyle(fontWeight:FontWeight.bold))),
+        FilledButton(onPressed:selected.isEmpty?null:()=>Navigator.pop(context,{'item_id':gift!['id'],'expected_price':gift!['price'],'recipient_uids':selected.toList()..sort()}),child:Text('Send · ${selected.length}'))]),
+      const Text('Each recipient receives Diamonds equal to the gift price.',style:TextStyle(fontSize:10,color:Colors.white54)),
+    ])));
 }

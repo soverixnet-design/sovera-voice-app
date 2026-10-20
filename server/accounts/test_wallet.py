@@ -3,6 +3,8 @@ import os
 import sqlite3
 import tempfile
 import unittest
+import uuid
+from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 from unittest.mock import patch
 from fastapi.testclient import TestClient
@@ -105,6 +107,30 @@ class ServerWalletTests(unittest.TestCase):
             r=self.client.post('/sovera/account/greedy/access',headers=self.a)
         self.assertEqual(r.status_code,503)
         self.assertNotIn('token',r.json())
+
+    def test_exchange_is_atomic_private_idempotent_and_uses_fixed_rate(self):
+        from .wallet import ExchangeInput
+        with sqlite3.connect(self.path) as db:
+            db.execute("INSERT INTO account_wallet_links VALUES('alice','exchange-test',1000,'active')")
+            db.execute("INSERT INTO account_wallet_ledger VALUES('exchange-opening','alice',20,500,'verified_import',1000)")
+        request=ExchangeInput(diamonds=300,request_id=uuid.uuid4())
+        with ThreadPoolExecutor(max_workers=4) as pool:
+            results=list(pool.map(lambda _:self.wallet.exchange('alice',request),range(4)))
+        self.assertTrue(all(r==results[0] for r in results))
+        self.assertEqual(results[0]['coins_received'],'210')
+        self.assertEqual((self.wallet.state('alice')['coins'],self.wallet.state('alice')['diamonds']),('230','200'))
+        payload={'diamonds':300,'request_id':str(request.request_id)}
+        url='/sovera/account/wallet/exchange'
+        self.assertEqual(self.client.post(url,json=payload).status_code,401)
+        self.assertEqual(self.client.post(url,headers=self.b,json=payload).status_code,409)
+        self.assertEqual(self.client.post(url,headers=self.a,json={**payload,'diamonds':200}).status_code,409)
+        self.assertEqual(self.client.post(url,headers=self.a,json={**payload,'uid':'bob'}).status_code,422)
+        self.assertEqual(self.client.post(url,headers=self.a,json={'diamonds':True,'request_id':str(uuid.uuid4())}).status_code,422)
+        self.assertEqual(self.client.post(url,headers=self.a,json={'diamonds':150,'request_id':str(uuid.uuid4())}).status_code,400)
+        self.assertEqual(self.client.post(url,headers=self.a,json={'diamonds':300,'request_id':str(uuid.uuid4())}).status_code,409)
+        with sqlite3.connect(self.path) as db:
+            db.execute("UPDATE account_wallet_links SET status='frozen' WHERE firebase_uid='alice'")
+        self.assertEqual(self.client.post(url,headers=self.a,json={'diamonds':100,'request_id':str(uuid.uuid4())}).status_code,409)
 
     def test_ledger_reconciliation_anomaly_fails_closed(self):
         with sqlite3.connect(self.path) as db:

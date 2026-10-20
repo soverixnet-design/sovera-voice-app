@@ -6,14 +6,25 @@ an absent migration is NOT a zero balance. No app-accessible credit/bet/recharge
 endpoint exists; nobody can mint coins by modifying a client request.
 """
 import sqlite3
+import time
+import uuid
+from pydantic import BaseModel, ConfigDict, Field
 from .greedy_wallet import configured
 from fastapi import HTTPException
+
+class ExchangeInput(BaseModel):
+    model_config=ConfigDict(extra='forbid')
+    diamonds:int=Field(strict=True,ge=100,le=9007199254740991)
+    request_id:uuid.UUID
 
 class WalletStore:
     def __init__(self, database_path):
         self.database_path=str(database_path)
         with sqlite3.connect(self.database_path, timeout=10) as db:
             db.executescript("""
+            CREATE TABLE IF NOT EXISTS account_wallet_exchanges(
+              request_id TEXT PRIMARY KEY,uid TEXT NOT NULL,diamonds INTEGER NOT NULL,
+              coins INTEGER NOT NULL,created_at INTEGER NOT NULL);
             CREATE TABLE IF NOT EXISTS account_wallet_links(
               firebase_uid TEXT PRIMARY KEY,
               source_ref TEXT NOT NULL UNIQUE,
@@ -64,6 +75,27 @@ class WalletStore:
                     'canSpend':link['status']=='active' and configured(),
                     'canPurchase':link['status']=='active','canGift':link['status']=='active',
                     'source':'sovera-server'}
+
+    def exchange(self,uid,data):
+        if data.diamonds%100:raise HTTPException(400,'Enter Diamonds in multiples of 100')
+        credit=data.diamonds//100*70
+        request=str(data.request_id)
+        with sqlite3.connect(self.database_path,timeout=10) as db:
+            db.execute('BEGIN IMMEDIATE')
+            prior=db.execute('SELECT uid,diamonds,coins FROM account_wallet_exchanges WHERE request_id=?',(request,)).fetchone()
+            if prior:
+                if prior!=(uid,data.diamonds,credit):raise HTTPException(409,'Exchange request already used')
+                return {'saved':True,'coins_received':str(credit),'diamonds_spent':str(data.diamonds),'request_id':request}
+            link=db.execute('SELECT status,verified_at FROM account_wallet_links WHERE firebase_uid=?',(uid,)).fetchone()
+            if not link or link[0]!='active' or link[1]<=0:raise HTTPException(409,'Active verified wallet required')
+            coins,diamonds=db.execute('SELECT COALESCE(SUM(coin_delta),0),COALESCE(SUM(diamond_delta),0) FROM account_wallet_ledger WHERE firebase_uid=?',(uid,)).fetchone()
+            if not 0<=coins<=9007199254740991 or not 0<=diamonds<=9007199254740991:raise HTTPException(409,'Wallet reconciliation required')
+            if diamonds<data.diamonds:raise HTTPException(409,'Insufficient Diamonds')
+            if coins+credit>9007199254740991:raise HTTPException(409,'Coin balance limit reached')
+            now=int(time.time())
+            db.execute('INSERT INTO account_wallet_ledger VALUES(?,?,?,?,?,?)',('diamond-exchange:'+request,uid,credit,-data.diamonds,'exchange',now))
+            db.execute('INSERT INTO account_wallet_exchanges VALUES(?,?,?,?,?)',(request,uid,data.diamonds,credit,now))
+            return {'saved':True,'coins_received':str(credit),'diamonds_spent':str(data.diamonds),'request_id':request}
 
     def history(self,uid,limit=30,before_time=None,before_ref=None):
         with sqlite3.connect(self.database_path,timeout=10) as db:

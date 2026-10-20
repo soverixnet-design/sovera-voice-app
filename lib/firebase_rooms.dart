@@ -91,7 +91,7 @@ class _FirebaseRoomSettingsDialogState extends State<FirebaseRoomSettingsDialog>
       const Text('Seats',style:TextStyle(fontWeight:FontWeight.bold)),
       const SizedBox(height:8),
       Wrap(spacing:8,runSpacing:6,children:[
-        for(final count in const [5,6,9,12])
+        for(final count in const [5,6,9,12,15])
           ChoiceChip(label:Text('$count seats'),selected:seats==count,onSelected:(_)=>setState(()=>seats=count)),
       ]),
     ])),
@@ -209,7 +209,11 @@ class _FirebaseRoomChatState extends State<FirebaseRoomChat> with WidgetsBinding
     setState(()=>sendingEffect=true);
     try{
       List<Map<String,dynamic>> gifts=[];
-      if(!legacy)try{final catalog=await widget.api.call('GET',suffix:'/catalog');gifts=(catalog['items'] as List).whereType<Map>().map((r)=>Map<String,dynamic>.from(r)).where((r)=>r['kind']=='gift').toList();}catch(_){/* Original free effects remain available. */}
+      if(!legacy){
+        final catalog=await widget.api.call('GET',suffix:'/catalog');
+        gifts=(catalog['items'] as List).whereType<Map>().map((r)=>Map<String,dynamic>.from(r)).where((r)=>r['kind']=='gift').toList();
+        if(gifts.isEmpty&&pendingGift==null)throw const ProfileApiError('No published gifts yet. The owner can add gifts in the admin catalog.');
+      }
       final found=await widget.api.call('GET',suffix:'$path/people');
       if(!mounted)return;
       final raw=found['people'];
@@ -222,7 +226,10 @@ class _FirebaseRoomChatState extends State<FirebaseRoomChat> with WidgetsBinding
       if(gifts.isNotEmpty||pendingGift!=null){
         if(pendingGift==null){
           setState(()=>sendingEffect=false);
-          final chosen=await showDialog<Map<String,dynamic>>(context:context,builder:(_)=>FirebaseCatalogGiftPicker(people:people,gifts:gifts));
+          final chosen=await showModalBottomSheet<Map<String,dynamic>>(
+            context:context,isScrollControlled:true,useSafeArea:true,
+            backgroundColor:const Color(0xFF17162B),
+            builder:(context)=>FirebaseCatalogGiftPicker(people:people,gifts:gifts));
           if(!mounted||chosen==null)return;
           pendingGift={...chosen,'request_id':_requestId()};
         }
@@ -319,7 +326,7 @@ class _FirebaseRoomChatState extends State<FirebaseRoomChat> with WidgetsBinding
       ])),
 
     if(isOwner)Padding(padding:const EdgeInsets.symmetric(vertical:3),child:Text('$seatCount seats · Owner settings',style:const TextStyle(fontSize:12,color:Colors.white70))),
-    FirebaseVoicePanel(api:widget.api,roomId:widget.room['id'] as String,seatCount:seatCount,people:roomPeople,blockedUids:blocked),
+    FirebaseVoicePanel(api:widget.api,roomId:widget.room['id'] as String,seatCount:seatCount,people:roomPeople,blockedUids:blocked,autoConnect:true),
     if(catalogEvents.isNotEmpty)CatalogRoomAnimation(key:ValueKey(catalogEvents.first['event_id']),event:catalogEvents.first,serverNow:catalogServerNow,recipients:catalogEvents.where((r)=>r['id']==catalogEvents.first['id']&&r['sender_uid']==catalogEvents.first['sender_uid']&&r['created_at']==catalogEvents.first['created_at']).toList()),
     if(roomEffects.isNotEmpty)AnimatedSwitcher(
       duration:const Duration(milliseconds:300),
@@ -345,11 +352,14 @@ class _FirebaseRoomChatState extends State<FirebaseRoomChat> with WidgetsBinding
             api:widget.api,uid:message['uid'] as String,name:message['name'].toString(),
             changed:(){setState(()=>blocked.add(message['uid'] as String));sync();}):null))),
     ]))),
-    Padding(padding:const EdgeInsets.fromLTRB(12,6,12,4),child:Row(mainAxisAlignment:MainAxisAlignment.end,children:[
-      RoomActionButton(icon:Icons.sports_esports_rounded,label:'Room games',color:const Color(0xFF7550DA),onPressed:openGame),
-      const SizedBox(width:12),
-      RoomActionButton(icon:Icons.card_giftcard_rounded,label:'Gift box',color:const Color(0xFFD64693),onPressed:sendingEffect?null:chooseEffect),
+    Padding(padding:const EdgeInsets.fromLTRB(12,8,12,10),child:Row(children:[
+      Expanded(child:TextField(controller:input,enabled:!sending,readOnly:pendingId!=null,maxLength:500,
+        decoration:InputDecoration(hintText:'Say something…',counterText:'',isDense:true,filled:true,
+          fillColor:Colors.white.withValues(alpha:.08),
+          border:OutlineInputBorder(borderRadius:BorderRadius.circular(24),borderSide:BorderSide.none)))),
+      IconButton(tooltip:'Send message',onPressed:sending?null:send,icon:const Icon(Icons.send_rounded)),
+      IconButton(tooltip:'Room games',onPressed:openGame,icon:const Icon(Icons.sports_esports_rounded,color:Color(0xFFA28BFF))),
+      IconButton(tooltip:'Gift box',onPressed:sendingEffect?null:chooseEffect,icon:const Icon(Icons.card_giftcard_rounded,color:Color(0xFFFF74BD),size:30)),
     ])),
-    Padding(padding:const EdgeInsets.all(12),child:Row(children:[Expanded(child:TextField(controller:input,enabled:!sending,readOnly:pendingId!=null,maxLength:500,decoration:const InputDecoration(labelText:'Message'))),IconButton(onPressed:sending?null:send,icon:const Icon(Icons.send))])),
   ]))));
 }

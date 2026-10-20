@@ -53,6 +53,21 @@ class CatalogTests(unittest.TestCase):
         private=self.client.get('/sovera/account',headers={'Authorization':'Bearer alice'})
         self.assertEqual(private.headers['cache-control'],'no-store')
 
+    def test_default_animated_gifts_are_seeded_once_and_keep_owner_changes(self):
+        from .seed_gifts import seed
+        first=seed(self.path)
+        self.assertEqual(first['added'],4)
+        catalog=Catalog(self.path)
+        items=[x for x in catalog.listing('owner')['items'] if x['kind']=='gift']
+        self.assertEqual(len(items),4)
+        with self.control.db() as db:
+            db.execute('UPDATE account_catalog SET price=123,active=0 WHERE id=?',(items[0]['id'],))
+            frames=db.execute('SELECT frames FROM account_media WHERE id=?',(items[0]['media_id'],)).fetchone()[0]
+        self.assertGreater(frames,1)
+        self.assertEqual(seed(self.path)['added'],0)
+        with self.control.db() as db:
+            self.assertEqual(tuple(db.execute('SELECT price,active FROM account_catalog WHERE id=?',(items[0]['id'],)).fetchone()),(123,0))
+
     def test_grants_fit_equipment_hide_and_revoke(self):
         self.setup_catalog();item=self.item(price=50)
         with self.assertRaises(HTTPException):self.catalog.select('alice',SelectInput(kind='frame',item_id=item['id']))

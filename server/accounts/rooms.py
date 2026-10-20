@@ -81,7 +81,7 @@ class Rooms:
                 FROM account_rooms r JOIN account_profiles p ON p.firebase_uid=r.owner_uid
                 ORDER BY r.created_at DESC LIMIT 100''',(self.clock()-90,)).fetchall()]
     def save(self,uid,data,room=None):
-        if data.seats not in (5,6,9,12): raise HTTPException(422,'Choose 5, 6, 9 or 12 seats')
+        if data.seats not in (5,6,9,12,15): raise HTTPException(422,'Choose 5, 6, 9, 12 or 15 seats')
         with self.db() as db:
             db.execute('BEGIN IMMEDIATE')
             self.profile(db,uid)
@@ -125,7 +125,8 @@ class Rooms:
         with self.db() as db:
             self.exists(db,room)
             from .catalog import equipped_assets
-            return [dict(r)|{'equipped':equipped_assets(db,r['uid'])} for r in db.execute('''SELECT p.firebase_uid AS uid,
+            from .wallet import legacy_identity
+            return [dict(r)|legacy_identity(db,r['uid'])|{'equipped':equipped_assets(db,r['uid'])} for r in db.execute('''SELECT p.firebase_uid AS uid,
                 p.display_name AS name,p.country,p.avatar_url FROM account_presence a
                 JOIN account_profiles p ON p.firebase_uid=a.uid
                 WHERE a.room_id=? AND a.seen_at>? ORDER BY p.display_name,p.firebase_uid

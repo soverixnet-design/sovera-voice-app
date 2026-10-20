@@ -15,6 +15,7 @@ jobs:
           node-version: '22'
       - run: npm install --no-save --prefix server/greedy better-sqlite3@12.11.1 ws@8.18.3
       - run: node server/greedy/test_wallet.js
+      - run: node server/greedy/test_limits.js
       - run: python -m py_compile server/greedy/deploy.py
   voice_server:
     runs-on: ubuntu-latest
@@ -102,16 +103,18 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           RELEASE_COMMIT: ${{ github.sha }}
         run: |
-          cp release/arm64/app-arm64-v8a-release.apk release/Sovera-0.18.3-arm64.apk
-          cp release/armv7/app-armeabi-v7a-release.apk release/Sovera-0.18.3-armv7.apk
-          cp server/accounts/update_quality.sh release/update_quality.sh
+          cp release/arm64/app-arm64-v8a-release.apk release/Sovera-0.18.4-arm64.apk
+          cp release/armv7/app-armeabi-v7a-release.apk release/Sovera-0.18.4-armv7.apk
+          sed "s/__ROOM_SOURCE_COMMIT__/$RELEASE_COMMIT/g" server/accounts/update_room.sh > release/update_room.sh
           sha256sum release/*.apk > release/SHA256SUMS.txt
-          tag="v0.18.3-rc.${GITHUB_RUN_NUMBER}"
+          tag="v0.18.4-rc.${GITHUB_RUN_NUMBER}"
           cat > release/notes.md <<'NOTES'
-          Sovera 0.18.3 release candidate
+          Sovera 0.18.4 release candidate
 
-          - Original design retained; room controls grouped into a menu.
-          - Store ownership labels and separate animated previews.
+          - Compact mic grid with 15-seat support, auto audio join, seat-tap publishing and mute/unmute.
+          - Direct gift grid and seeded animated gifts editable by the owner.
+          - Atomic Diamond-to-Coin exchange at 100 Diamonds = 70 Coins.
+          - Removed the old one-million round cap; wallet balance and exact arithmetic remain enforced.
           - Persistent low-data mode, smaller still artwork and public image caching.
           - Private reports, block/unblock controls and blocked-member audio suppression.
           - Wallet categories, receipts and older-history pagination.
@@ -119,6 +122,6 @@ jobs:
 
           Automated Flutter, account/voice server, admin and Greedy wallet checks passed.
           Real two-device audio and installation/Google sign-in still need device verification.
-          Existing VPS needs the attached update_quality.sh for new API features.
+          Existing VPS needs the attached update_room.sh for new API features.
           NOTES
-          gh release create "$tag" release/Sovera-0.18.3-arm64.apk release/Sovera-0.18.3-armv7.apk release/SHA256SUMS.txt release/update_quality.sh --target "$RELEASE_COMMIT" --title "Sovera 0.18.3 - Quality Update" --prerelease --notes-file release/notes.md
+          gh release create "$tag" release/Sovera-0.18.4-arm64.apk release/Sovera-0.18.4-armv7.apk release/SHA256SUMS.txt release/update_room.sh --target "$RELEASE_COMMIT" --title "Sovera 0.18.4 - Room & Gifts Update" --prerelease --notes-file release/notes.md
