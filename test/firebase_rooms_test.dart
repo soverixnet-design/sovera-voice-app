@@ -88,7 +88,8 @@ void main(){
     expect(find.byTooltip('Room games'),findsOneWidget);
     expect(find.byTooltip('Gift box'),findsOneWidget);
     expect(find.byTooltip('Greedy Wheel'),findsOneWidget);
-    await tester.tap(find.byTooltip('Room settings'));await tester.pumpAndSettle();
+    await tester.tap(find.byTooltip('Room options'));await tester.pumpAndSettle();
+    await tester.tap(find.text('Room settings'));await tester.pumpAndSettle();
     await tester.enterText(find.byType(TextField).last,'Renamed room');
     await tester.tap(find.text('12 seats'));await tester.pumpAndSettle();
     await tester.tap(find.text('Save changes'));await tester.pumpAndSettle();
@@ -104,7 +105,8 @@ void main(){
       return http.Response('{"saved":true}',200);
     }));
     await tester.pumpWidget(MaterialApp(home:FirebaseRoomChat(api:api,room:const {'id':'room-1','name':'Room','owner_uid':'alice','seats':9})));await tester.pumpAndSettle();
-    expect(find.byTooltip('Room settings'),findsNothing);
+    await tester.tap(find.byTooltip('Room options'));await tester.pumpAndSettle();
+    expect(find.text('Room settings'),findsNothing);
     await tester.pumpWidget(const SizedBox());await tester.pumpAndSettle();
   });
   testWidgets('gift effect selects actual online recipient and never submits coins',(tester)async{

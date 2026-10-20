@@ -80,3 +80,45 @@ jobs:
         with:
           name: sovera-armv7-release-preview-not-production
           path: build/app/outputs/flutter-apk/app-armeabi-v7a-release.apk
+
+  publish:
+    needs: [android, admin, voice_server, greedy_wallet]
+    if: github.ref == 'refs/heads/admin-control-preview'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: sovera-arm64-release-preview-not-production
+          path: release/arm64
+      - uses: actions/download-artifact@v4
+        with:
+          name: sovera-armv7-release-preview-not-production
+          path: release/armv7
+      - name: Publish verified build as a release candidate
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_COMMIT: ${{ github.sha }}
+        run: |
+          cp release/arm64/app-arm64-v8a-release.apk release/Sovera-0.18.3-arm64.apk
+          cp release/armv7/app-armeabi-v7a-release.apk release/Sovera-0.18.3-armv7.apk
+          cp server/accounts/update_quality.sh release/update_quality.sh
+          sha256sum release/*.apk > release/SHA256SUMS.txt
+          tag="v0.18.3-rc.${GITHUB_RUN_NUMBER}"
+          cat > release/notes.md <<'NOTES'
+          Sovera 0.18.3 release candidate
+
+          - Original design retained; room controls grouped into a menu.
+          - Store ownership labels and separate animated previews.
+          - Persistent low-data mode, smaller still artwork and public image caching.
+          - Private reports, block/unblock controls and blocked-member audio suppression.
+          - Wallet categories, receipts and older-history pagination.
+          - Bounded voice reconnect attempts with microphone paused after reconnect.
+
+          Automated Flutter, account/voice server, admin and Greedy wallet checks passed.
+          Real two-device audio and installation/Google sign-in still need device verification.
+          Existing VPS needs the attached update_quality.sh for new API features.
+          NOTES
+          gh release create "$tag" release/Sovera-0.18.3-arm64.apk release/Sovera-0.18.3-armv7.apk release/SHA256SUMS.txt release/update_quality.sh --target "$RELEASE_COMMIT" --title "Sovera 0.18.3 - Quality Update" --prerelease --notes-file release/notes.md
