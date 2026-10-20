@@ -18,6 +18,7 @@ on:
       - lib/firebase_sovera_home.dart
       - lib/firebase_original_profile_card.dart
       - lib/firebase_original_social.dart
+      - lib/firebase_original_coin_sellers.dart
       - lib/effects_studio.dart
       - lib/firebase_server_wallet.dart
       - lib/sovera_visuals.dart
@@ -69,7 +70,8 @@ jobs:
               'firebase_rooms.dart','firebase_profile.dart',
               'firebase_greedy_wheel.dart','firebase_server_wallet.dart',
               'sovera_visuals.dart','country_picker.dart',
-              'firebase_original_profile_card.dart','firebase_original_social.dart')
+              'firebase_original_profile_card.dart','firebase_original_social.dart',
+              'firebase_original_coin_sellers.dart')
           forbidden=('supabase_flutter', 'firebase_database',
               'cloud_firestore', 'firebase_storage',
               "import 'main.dart'", 'FirebaseDatabase.instance',
