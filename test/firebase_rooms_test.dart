@@ -7,6 +7,20 @@ import 'package:sovera/firebase_profile.dart';
 import 'package:sovera/firebase_rooms.dart';
 import 'package:sovera/firebase_voice.dart';
 void main(){
+  test('microphone sheet preserves RTC but actual background always disconnects',(){
+    expect(shouldDisconnectVoice(AppLifecycleState.inactive,requestingMicrophone:true),isFalse);
+    expect(shouldDisconnectVoice(AppLifecycleState.inactive,requestingMicrophone:false),isTrue);
+    for(final state in [AppLifecycleState.paused,AppLifecycleState.hidden,AppLifecycleState.detached]){
+      expect(shouldDisconnectVoice(state,requestingMicrophone:true),isTrue);
+    }
+    expect(shouldDisconnectVoice(AppLifecycleState.resumed,requestingMicrophone:true),isFalse);
+  });
+  test('permission completion waits for foreground and aborts replaced session',()async{
+    var ticks=0;
+    expect(await waitForMicPublishPermission(canPublish:()=>ticks>=3,canContinue:()=>true,wait:(_)async{ticks++;}),isTrue);
+    ticks=0;
+    expect(await waitForMicPublishPermission(canPublish:()=>ticks>=3,canContinue:()=>ticks<2,wait:(_)async{ticks++;}),isFalse);
+  });
   test('RTC publishing permission may arrive after the old two-second limit',()async{
     var ticks=0;
     final granted=await waitForMicPublishPermission(

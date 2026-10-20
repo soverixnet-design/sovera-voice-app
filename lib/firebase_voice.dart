@@ -26,6 +26,12 @@ Future<bool> waitForMicPublishPermission({
   return false;
 }
 
+/// A native permission sheet temporarily makes Android inactive. Keep RTC
+/// connected during that sheet, but always disconnect on real backgrounding.
+bool shouldDisconnectVoice(AppLifecycleState state, {required bool requestingMicrophone}) =>
+  state != AppLifecycleState.resumed &&
+  !(state == AppLifecycleState.inactive && requestingMicrophone);
+
 /// Live audio uses Firebase bearer authentication and server-owned seat leases.
 class FirebaseVoicePanel extends StatefulWidget {
   final FirebaseProfileApi api;
@@ -41,6 +47,7 @@ class _FirebaseVoicePanelState extends State<FirebaseVoicePanel> with WidgetsBin
   VoiceSeatState seats=const VoiceSeatState(0,null,{});
   Timer? timer;
   bool busy=false, active=true, closing=false, muted=true;
+  bool requestingMicrophone=false;
   String? error;
   int epoch=0;
   bool get connected=>room?.connectionState==rtc.ConnectionState.connected;
@@ -80,13 +87,28 @@ class _FirebaseVoicePanelState extends State<FirebaseVoicePanel> with WidgetsBin
     canContinue:()=>canUseMicrophone&&generation==epoch,
   );
 
+  Future<bool> microphonePermission(int generation)async{
+    requestingMicrophone=true;
+    try{
+      if(!await requestMicrophoneAccess())return false;
+      // Permission completion and Flutter's resumed event may arrive in either
+      // order. Never take/renew a seat until this same room is active again.
+      return await waitForMicPublishPermission(
+        canPublish:()=>active,
+        canContinue:()=>mounted&&!closing&&connected&&generation==epoch,
+        checks:30,
+      );
+    }finally{requestingMicrophone=false;}
+  }
+
   /// Retry publishing without discarding the already-authorized room seat.
   Future<void> enableMic()async{
     if(busy||!canUseMicrophone||seats.mine==null)return;
     setState(()=>busy=true);
     final generation=epoch;
     try{
-      if(!await requestMicrophoneAccess())throw StateError('Microphone denied');
+      if(!await microphonePermission(generation))throw StateError('Microphone denied or room closed');
+      if(!canUseMicrophone||generation!=epoch)return;
       seats=VoiceSeatState.parse(await request('renew'));
       if(seats.mine==null)throw StateError('Seat expired');
       if(!await awaitPublishPermission(generation))throw StateError('Publish permission delayed');
@@ -104,8 +126,9 @@ class _FirebaseVoicePanelState extends State<FirebaseVoicePanel> with WidgetsBin
     setState(()=>busy=true);
     final generation=epoch;
     try{
-      if(!await requestMicrophoneAccess())throw StateError('Microphone denied');
+      if(!await microphonePermission(generation))throw StateError('Microphone denied or room closed');
       await mute();
+      if(!canUseMicrophone||generation!=epoch)return;
       seats=VoiceSeatState.parse(await request('take',seat:index));
       if(seats.mine!=index)throw StateError('Seat not granted');
       if(!await awaitPublishPermission(generation))throw StateError('Publish permission delayed');
@@ -135,7 +158,7 @@ class _FirebaseVoicePanelState extends State<FirebaseVoicePanel> with WidgetsBin
   }
   @override void didChangeAppLifecycleState(AppLifecycleState state){
     active=state==AppLifecycleState.resumed;
-    if(!active){epoch++;unawaited(closeAudio().catchError((Object _){}));unawaited(request('leave').then<void>((_){}).catchError((Object _){}));}
+    if(shouldDisconnectVoice(state,requestingMicrophone:requestingMicrophone)){epoch++;unawaited(closeAudio().catchError((Object _){}));unawaited(request('leave').then<void>((_){}).catchError((Object _){}));}
     if(mounted)setState((){});
   }
   @override void dispose(){closing=true;WidgetsBinding.instance.removeObserver(this);unawaited(closeAudio().catchError((Object _){}));unawaited(request('leave').then<void>((_){}).catchError((Object _){}));super.dispose();}
