@@ -373,7 +373,7 @@ class _FirebaseSoveraHomeState extends State<FirebaseSoveraHome>{
             IconButton(onPressed:()=>setState(()=>tab=3),
               icon:const Icon(Icons.settings_outlined))]),
           const Padding(padding:EdgeInsets.symmetric(vertical:8),
-            child:Text('SOVERA COMMUNITY',
+            child:Text('SIGNED IN · LIVE COMMUNITY ROOMS',
               style:TextStyle(fontSize:10,color:Colors.white60,letterSpacing:1.7))),
           if(tab==0)home(),
           if(tab==1)moments(),

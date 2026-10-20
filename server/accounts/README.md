@@ -1,5 +1,38 @@
 # Account profiles during the Firebase transition
 
+## Community restoration (2026-10-20)
+
+The Firebase entrypoint now opens persisted Moments, customer-service requests
+with staff replies, official notices, published community events, member lists
+and saved room follows. The original four-tab layout, profile artwork, room
+cards, frames, gift effects and Greedy launcher are retained.
+
+The matching API is in `community.py`. Requests always derive identity from
+the Firebase bearer token. Support requests are private to their author and
+assigned staff. `account_staff` starts empty; login and profile edits cannot
+assign a staff role. Only an existing trusted server operator may provision
+these roles. A support-only role cannot publish notices or events. Published
+events are announcements; automated prize settlement is not implemented.
+
+`update_community.sh` installs a reviewed immutable source snapshot, runs the
+account/community/wallet tests before changing the service, backs up SQLite
+and the existing code, then verifies health and anonymous-access rejection.
+Failure restores previous code without overwriting newer database writes.
+It preserves existing service credentials, configuration and voice settings.
+The script does not grant roles, fabricate user IDs, import wallet balances,
+enable paid games, or imply that phone-to-phone voice was verified.
+
+Still required for a complete production release: reconcile the original
+wallet/UID mapping, activate and test the Node game with the HTTP ledger
+adapter, install the matched API update on the actual server, verify physical
+Android audio, and implement paid gift settlement, genuine referral awards,
+mutual friendship/CP requests, private messages and automated event rewards.
+These remain separate from cosmetic previews. The UI must not call them paid
+or complete merely because the Android build succeeds.
+
+Tests: `python -m unittest server.accounts.test_community -v` and
+`flutter test test/firebase_community_test.dart`.
+
 This is a separate profile service, not the full app or wallet migration.
 Firebase Admin verifies fresh bearer sessions with revocation and disabled-user
 checks. The credential needs Auth Viewer only. Profile data stays in a private,
