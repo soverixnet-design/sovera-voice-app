@@ -16,6 +16,8 @@ on:
       - lib/firebase_food_wheel.dart
       - lib/firebase_greedy_wheel.dart
       - lib/firebase_sovera_home.dart
+      - lib/firebase_server_wallet.dart
+      - lib/sovera_visuals.dart
       - assets/games/food-wheel.html
       - pubspec.yaml
       - test/firebase_rooms_test.dart
@@ -24,6 +26,7 @@ on:
       - test/firebase_food_wheel_test.dart
       - test/firebase_greedy_wheel_test.dart
       - test/firebase_sovera_home_test.dart
+      - test/firebase_server_wallet_test.dart
       - test/firebase_profile_test.dart
       - .github/workflows/firebase-login-check.yml
 permissions:
@@ -54,7 +57,25 @@ jobs:
       - run: dart run flutter_launcher_icons
       - run: dart format lib/firebase_login_main.dart test/firebase_login_test.dart
       - run: flutter analyze
-      - run: flutter test test/firebase_login_test.dart test/firebase_profile_test.dart test/firebase_rooms_test.dart test/firebase_duel_test.dart test/firebase_global_game_test.dart test/firebase_food_wheel_test.dart test/firebase_sovera_home_test.dart test/firebase_greedy_wheel_test.dart
+      - name: Enforce Firebase Auth only; Sovera data via account server
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          ui=('firebase_login_main.dart','firebase_sovera_home.dart',
+              'firebase_rooms.dart','firebase_profile.dart',
+              'firebase_greedy_wheel.dart','firebase_server_wallet.dart',
+              'sovera_visuals.dart')
+          forbidden=('supabase_flutter', 'firebase_database',
+              'cloud_firestore', 'firebase_storage',
+              "import 'main.dart'", 'FirebaseDatabase.instance',
+              'FirebaseFirestore.instance')
+          for name in ui:
+              text=Path('lib',name).read_text()
+              for bad in forbidden:
+                  assert bad not in text, f'{name} must not depend on {bad}'
+          print('FIREBASE_AUTH_ONLY_SERVER_DATA_OK')
+          PY
+      - run: flutter test test/firebase_login_test.dart test/firebase_profile_test.dart test/firebase_rooms_test.dart test/firebase_duel_test.dart test/firebase_global_game_test.dart test/firebase_food_wheel_test.dart test/firebase_sovera_home_test.dart test/firebase_greedy_wheel_test.dart test/firebase_server_wallet_test.dart
       - run: flutter build apk --debug --target lib/firebase_login_main.dart
       - name: Record this APK's public signing fingerprints
         run: |
