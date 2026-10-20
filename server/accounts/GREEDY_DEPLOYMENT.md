@@ -1,5 +1,52 @@
 # Sovera Greedy: replace legacy games without touching the voice app or wallet
 
+## Account-ledger HTTP bridge
+
+`greedy_wallet.py` now supplies the Node adapter's signed `/balance`, `/debit`
+and `/credit` operations under `/sovera/account/internal/greedy-wallet`.
+It updates the same `account_wallet_ledger` read by the app. There are no
+signup credits, automatically imported balances or alternative game wallets.
+Unmigrated and frozen wallets cannot spend. Transactions lock SQLite before
+checking funds; retries persist their original result, and conflicting reuse
+of a transaction ID fails. Refunds must match one applied debit exactly and
+each debit can be refunded once. Winnings require the trusted game service's
+signature; the app cannot call this bridge with a Firebase token.
+
+Before activation, back up and reconcile the existing authoritative wallet
+and its Firebase UID mapping into `account_wallet_links` and the account
+ledger. Freeze the old spending writer during cutover: two writable ledgers
+are not a supported migration. This code deliberately does not guess account
+matches or create wallet links from login information.
+
+On the account service, configure a private environment file with:
+
+```
+SOVERA_GREEDY_ENABLED=1
+SOVERA_GREEDY_WALLET_VERIFIED=1
+SOVERA_GREEDY_WALLET_SECRET=<unique random secret of at least 32 characters>
+SOVERA_GREEDY_JWT_SECRET=<separate random secret of at least 32 characters>
+SOVERA_GREEDY_PUBLIC_URL=https://voice.soverixnet.com/greedy/
+```
+
+On the reviewed Node service, use `WALLET_MODE=http`,
+`WALLET_URL=http://127.0.0.1:8092/sovera/account/internal/greedy-wallet`,
+`WALLET_SECRET` equal to the account service's wallet secret, and
+`GAME_JWT_SECRET` equal to its game JWT secret. Keep `DEMO_AUTH=0`.
+Do not publish the internal wallet path through the HTTPS reverse proxy.
+The Node service must use first-frame WebSocket authentication as required
+by the Flutter client, and must serve original art under `/greedy/`.
+
+Install `greedy_wallet.py` alongside the updated `wallet.py` and `app.py`;
+older pinned updater scripts do not include it. Restart only after tests pass
+and the migration has been verified. Verify with a dedicated migrated test
+account: sign in, read its balance, place one bet, retry that request, settle
+the round, then confirm the same app balance and history after restart.
+Neither GitHub CI success nor the static health flags prove this cutover.
+
+Tests: `python -m unittest server.accounts.test_greedy_wallet
+server.accounts.test_wallet server.accounts.test_greedy_access
+server.accounts.test_accounts -v` (on one line).
+
 ## Current code and what is actually online
 
 - Firebase app entry point: `lib/firebase_login_main.dart`; restored four-tab

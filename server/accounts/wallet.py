@@ -6,6 +6,7 @@ an absent migration is NOT a zero balance. No app-accessible credit/bet/recharge
 endpoint exists; nobody can mint coins by modifying a client request.
 """
 import sqlite3
+from .greedy_wallet import configured
 from fastapi import HTTPException
 
 class WalletStore:
@@ -50,7 +51,7 @@ class WalletStore:
             # is connected to this same ledger transaction boundary.
             return {'status':link['status'],'verified':True,
                     'coins':str(coins),'diamonds':str(diamonds),
-                    'canSpend':False,'source':'sovera-server'}
+                    'canSpend':link['status']=='active' and configured(),'source':'sovera-server'}
 
     def history(self,uid,limit=30):
         with sqlite3.connect(self.database_path,timeout=10) as db:

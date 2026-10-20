@@ -11,6 +11,7 @@ from .global_games import GlobalColors, ColorPick
 from .food_wheel import FoodWheel, FoodChoice
 from .greedy_access import greedy_access
 from .wallet import WalletStore
+from .greedy_wallet import attach_greedy_wallet
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 class ProfileInput(BaseModel):
@@ -97,6 +98,7 @@ def create_app(profiles, verify, *, voice=False):
         return {'profile':await asyncio.to_thread(profiles.save, uid, data)}
     rooms = Rooms(profiles.path)
     wallets = WalletStore(profiles.path)
+    attach_greedy_wallet(app, wallets)
     duel = RoomDuel(profiles.path)
     colors = GlobalColors(profiles.path)
     food_wheel = FoodWheel(profiles.path)
