@@ -278,7 +278,7 @@ class _VoiceRoomState extends State<VoiceRoom> {
  void startPresence(){if(widget.roomId==null)return;heartbeat();presenceTimer=Timer.periodic(const Duration(seconds:15),(_)=>heartbeat());}
  void stopPresence(){presenceTimer?.cancel();if(widget.roomId!=null)soveraClient.rpc('sovera_room_exit',params:{'p_room_id':widget.roomId}).catchError((Object _)=>null);}
  @override
- void dispose(){stopPresence();input.dispose();su
+ void dispose(){stopPresence();input.dispose();super.dispose();}
  @override
  Widget build(BuildContext context) => Scaffold(
   backgroundColor: const Color(0xFF101216),
@@ -525,9 +525,6 @@ class _VoiceRoomState extends State<VoiceRoom> {
     ),
    ]),
   ))),
- );
-])),
- ])))),
  );
  void toggleMic(){if(mySeat==null){notice('Take a seat first to preview your microphone indicator.');return;}setState(()=>micMuted=!micMuted);}
  void minimize(){
