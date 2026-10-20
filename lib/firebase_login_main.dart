@@ -6,7 +6,7 @@ import 'package:google_sign_in/google_sign_in.dart';
 import 'package:http/http.dart' as http;
 import 'firebase_profile.dart';
 import 'firebase_rooms.dart';
-import 'firebase_food_wheel.dart';
+import 'firebase_greedy_wheel.dart';
 import 'firebase_sovera_home.dart';
 import 'main.dart' show BrandLogo;
 
@@ -223,9 +223,9 @@ class _FirebaseSignedInPageState extends State<FirebaseSignedInPage> {
       const SizedBox(height:16),
       FilledButton.icon(onPressed:()=>Navigator.of(context).push(MaterialPageRoute<void>(builder:(_)=>FirebaseRoomsPage(api:profileApi))),icon:const Icon(Icons.meeting_room),label:const Text('Open rooms')),
       const SizedBox(height:8),
-      FilledButton.icon(onPressed:()=>Navigator.of(context).push(MaterialPageRoute<void>(builder:(_)=>FirebaseFoodWheelPage(api:profileApi))),icon:const Icon(Icons.casino_rounded),label:const Text('Food Wheel · Same round for everyone')),
+      FilledButton.icon(onPressed:()=>Navigator.of(context).push(MaterialPageRoute<void>(builder:(_)=>FirebaseGreedyWheelPage(api:profileApi))),icon:const Icon(Icons.casino_rounded),label:const Text('Greedy Wheel · Shared server round')),
       const SizedBox(height:10),
-      const Text('Original Food Wheel design, one server result for everyone. Free preview only: no Coin or Diamond transactions until the wallet is connected.'),
+      const Text('Uploaded Greedy Wheel can start only after its server and real wallet are verified. No demo coins or fake winners.'),
       if (message != null) Padding(padding: const EdgeInsets.symmetric(vertical: 16), child: Text(message!)),
       TextButton(onPressed: busy ? null : () => action(() async {
         await FirebaseAuth.instance.signOut();
