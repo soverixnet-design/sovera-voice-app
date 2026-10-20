@@ -104,11 +104,31 @@ const mediaPreview=key=>'/sovera/control/media/'+encodeURIComponent(key);
 async function assets(){
  const kind=assetKinds[view];catalogRows=(await api('catalog')).items;editingAsset=null;uploadedMedia=null;
  const rows=catalogRows.filter(r=>r.kind===kind);
- $('panel').innerHTML=`<section class="card"><h2>${esc(titles[view])}</h2><p>Upload PNG, JPG, animated GIF or WebP from your gallery. Maximum 8 MB, 4096 px and 300 animation frames. Use a transparent image for frames.</p><button id="new-asset">Add new</button><div class="content-grid space">${rows.map(r=>`<article class="content-item"><img src="${mediaPreview(r.media_id)}" alt="${esc(r.title)}"><h3>${esc(r.title)}</h3><p>${r.builtin_slide!==undefined?esc(r.subtitle||'Original home banner')+' · ':''}${num(r.price)} Coins · ${r.active?'Active':'Hidden'} · Order ${r.position}</p><button data-edit="${esc(r.id)}">Edit / preview</button><button class="secondary" data-toggle="${esc(r.id)}">${r.active?'Hide':'Publish'}</button></article>`).join('')}</div><p>${rows.length?'':'No items in this category yet.'}</p></section><div id="asset-editor"></div>`;
+ $('panel').innerHTML=`<section class="card"><h2>${esc(titles[view])}</h2><p>Upload PNG, JPG, animated GIF or WebP from your gallery. Maximum 8 MB, 4096 px and 300 animation frames. Use a transparent image for frames.</p><button id="new-asset">Add new</button><div class="content-grid space">${rows.map(r=>`<article class="content-item"><img src="${mediaPreview(r.media_id)}" alt="${esc(r.title)}"><h3>${esc(r.title)}</h3><p>${r.builtin_slide!==undefined?esc(r.subtitle||'Original home banner')+' · ':''}${num(r.price)} Coins · ${r.active?'Active':'Hidden'} · Order ${r.position}</p><button data-edit="${esc(r.id)}">Edit / preview</button>${identity.role==='owner'&&!['banner','gift'].includes(kind)?`<button data-assign="${esc(r.id)}">Give to user</button>`:''}<button class="secondary" data-toggle="${esc(r.id)}">${r.active?'Hide':'Publish'}</button></article>`).join('')}</div><p>${rows.length?'':'No items in this category yet.'}</p></section><div id="asset-editor"></div>`;
  $('new-asset').onclick=()=>assetEditor(kind);
+ root.querySelectorAll('[data-assign]').forEach(b=>b.onclick=()=>assetGrantChooser(catalogRows.find(r=>r.id===b.dataset.assign)));
  root.querySelectorAll('[data-edit]').forEach(b=>b.onclick=()=>assetEditor(kind,catalogRows.find(r=>r.id===b.dataset.edit)));
  root.querySelectorAll('[data-toggle]').forEach(b=>b.onclick=async()=>{b.disabled=true;try{const row=catalogRows.find(r=>r.id===b.dataset.toggle);await api('catalog','POST',itemPayload(row,{active:!row.active}));await assets();}catch(e){$('error').textContent=e.message;b.disabled=false;}});
 }
+function assetGrantChooser(item){
+ $('asset-editor').innerHTML=`<section class="card"><h2>Give ${esc(item.title)} to a user</h2><p>Owner grant: no Coins are deducted. This does not grant a staff role.</p><form id="grant-search"><label>User ID, name or Firebase ID<input id="grant-query" required maxlength="128"></label><button>Find user</button></form><div id="grant-results"></div><p id="grant-message" role="status"></p></section>`;
+ $('grant-search').onsubmit=async event=>{
+  event.preventDefault();
+  try{
+   const people=(await api('users?q='+encodeURIComponent($('grant-query').value.trim()))).items;
+   $('grant-results').innerHTML=people.length?`<form id="quick-grant"><label>User<select id="quick-user">${people.map(p=>`<option value="${esc(p.uid)}">${esc(p.name)} · ${esc(p.public_id||p.uid)}</option>`).join('')}</select></label><label class="check"><input id="quick-equip" type="checkbox" checked>Equip immediately</label><button id="quick-submit">Confirm free owner grant</button></form>`:'<p>No matching user.</p>';
+   if(!people.length)return;
+   $('quick-grant').onsubmit=async event=>{
+    event.preventDefault();$('quick-submit').disabled=true;
+    try{await api('catalog/grant','POST',{target_uid:$('quick-user').value,item_id:item.id,equip:$('quick-equip').checked,revoke:false});$('grant-message').textContent='Assigned successfully. The user can refresh their profile.';}
+    catch(e){$('grant-message').textContent=e.message;}
+    finally{$('quick-submit').disabled=false;}
+   };
+  }catch(e){$('grant-message').textContent=e.message;}
+ };
+ $('asset-editor').scrollIntoView({behavior:'smooth',block:'start'});
+}
+
 function itemPayload(row,changes={}){const {id,kind,title,media_id,price,active,position,avatar_scale,avatar_x,avatar_y}=row;return {id,kind,title,media_id,price,active,position,avatar_scale,avatar_x,avatar_y,...changes};}
 function assetEditor(kind,row){
  editingAsset=row??{id:id(),kind,title:'',media_id:'',price:0,active:true,position:0,avatar_scale:.46,avatar_x:.5,avatar_y:.5};uploadedMedia=null;
