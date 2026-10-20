@@ -2,6 +2,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:livekit_client/livekit_client.dart' as rtc;
 import 'firebase_profile.dart';
+import 'sovera_visuals.dart' show BrandLogo,gold,cyan,pink;
 import 'startup_access.dart' show requestMicrophoneAccess;
 import 'voice_connection.dart' show VoiceSeatState, voiceServerUrl;
 
@@ -29,7 +30,10 @@ Future<bool> waitForMicPublishPermission({
 class FirebaseVoicePanel extends StatefulWidget {
   final FirebaseProfileApi api;
   final String roomId;
-  const FirebaseVoicePanel({super.key, required this.api, required this.roomId});
+  final int seatCount;
+  const FirebaseVoicePanel({
+    super.key,required this.api,required this.roomId,this.seatCount=9,
+  });
   @override State<FirebaseVoicePanel> createState()=>_FirebaseVoicePanelState();
 }
 class _FirebaseVoicePanelState extends State<FirebaseVoicePanel> with WidgetsBindingObserver {
@@ -141,7 +145,48 @@ class _FirebaseVoicePanelState extends State<FirebaseVoicePanel> with WidgetsBin
       TextButton(onPressed:busy?null:muted?enableMic:()async{await mute();if(mounted)setState((){});},child:Text(muted?'Enable mic':'Mute')),
       TextButton(onPressed:busy?null:leave,child:const Text('Leave seat')),
     ])),
-    if(connected)Wrap(spacing:6,children:[for(var i=0;i<seats.count;i++)OutlinedButton(onPressed:busy||seats.occupants.containsKey(i)?null:()=>take(i),child:Text(seats.mine==i?'${i+1} · You':seats.occupants.containsKey(i)?'${i+1} · Busy':'Seat ${i+1}'))]),
+    // The original Sovera gold-and-blue circular room-seat layout remains
+    // visible before voice connects. Seats are interactable ONLY after the
+    // LiveKit + server lease session reports an available microphone seat.
+    LayoutBuilder(builder:(context,constraints){
+      final count=connected&&seats.count>0?seats.count:widget.seatCount;
+      final columns=constraints.maxWidth<295?3:4;
+      final tileWidth=(constraints.maxWidth-(columns-1)*8)/columns;
+      return Wrap(spacing:8,runSpacing:13,children:[
+        for(var i=0;i<count;i++)SizedBox(width:tileWidth,
+          child:InkWell(
+            borderRadius:BorderRadius.circular(52),
+            onTap:!connected||busy||seats.occupants.containsKey(i)?null:()=>take(i),
+            child:Column(mainAxisSize:MainAxisSize.min,children:[
+              Container(width:tileWidth.clamp(58.0,80.0),
+                height:tileWidth.clamp(58.0,80.0),
+                padding:const EdgeInsets.all(5),
+                decoration:BoxDecoration(shape:BoxShape.circle,
+                  gradient:const LinearGradient(
+                    begin:Alignment.topLeft,end:Alignment.bottomRight,
+                    colors:[gold,Color(0xFF316F87),Color(0xFFCEA86C)])),
+                child:Container(
+                  decoration:BoxDecoration(shape:BoxShape.circle,
+                    color:const Color(0xFF19263B),
+                    border:Border.all(color:cyan.withValues(alpha:.4),width:2)),
+                  child:Center(child:seats.mine==i
+                    ?const BrandLogo(size:47)
+                    :Icon(seats.occupants.containsKey(i)
+                      ?Icons.person_rounded:Icons.weekend_rounded,
+                      color:gold,size:29)),
+                )),
+              const SizedBox(height:6),
+              Text(seats.mine==i?'You':seats.occupants.containsKey(i)
+                ?'Occupied':'${i+1}',maxLines:1,
+                overflow:TextOverflow.ellipsis,
+                textAlign:TextAlign.center,
+                style:const TextStyle(fontSize:11,color:Colors.white70)),
+              if(seats.mine==i&&muted)const Icon(Icons.mic_off_rounded,
+                color:pink,size:14),
+            ])),
+          )),
+      ]);
+    }),
     if(error!=null)Text(error!,style:const TextStyle(color:Colors.orange)),
   ]));
 }
