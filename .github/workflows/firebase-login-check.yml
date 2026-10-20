@@ -14,6 +14,7 @@ on:
       - lib/firebase_duel.dart
       - lib/firebase_global_game.dart
       - lib/firebase_food_wheel.dart
+      - lib/firebase_sovera_home.dart
       - assets/games/food-wheel.html
       - pubspec.yaml
       - test/firebase_rooms_test.dart
