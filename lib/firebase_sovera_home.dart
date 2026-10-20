@@ -330,9 +330,8 @@ class _FirebaseSoveraHomeState extends State<FirebaseSoveraHome>{
         ()=>feature('Referrals','Firebase referral awards are not connected yet.')),
       (Icons.people_outline_rounded,'People & following',
         ()=>feature('Members','Firebase member directory is not connected yet.')),
-      (Icons.workspace_premium_rounded,'Frames & effects',()=>{
-        go(const _SoveraFrameGallery());
-      }),
+      (Icons.workspace_premium_rounded,'Frames & effects',
+        ()=>go(const _SoveraFrameGallery())),
       (Icons.add_home_rounded,'My room',createRoom),
       (Icons.settings_outlined,'Settings',
         ()=>feature('Settings','Original design saved. Additional settings are being connected to Firebase.')),
