@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:http/http.dart' as http;
 import 'firebase_profile.dart';
+import 'firebase_server_wallet.dart';
 import 'country_picker.dart' show soveraCountries;
 import 'firebase_rooms.dart';
 import 'firebase_greedy_wheel.dart';
@@ -129,8 +130,7 @@ class _FirebaseSoveraHomeState extends State<FirebaseSoveraHome>{
   }
   void notices()=>feature('Official notices',
     'The Firebase notice feed has not yet been connected. Old Supabase notices were not deleted.');
-  void wallet()=>feature('Coins & Diamonds',
-    'Wallet and recharge are not connected to this Firebase account yet. No fake balance is shown and no coins will be deducted.');
+  void wallet()=>go(FirebaseServerWalletPage(api:api));
   void rankings()=>feature('Rankings',
     'Greedy game rankings will show only server-verified results after the live game wallet is enabled.');
   void events()=>feature('Events',
