@@ -242,6 +242,9 @@ class _FirebaseRoomChatState extends State<FirebaseRoomChat> with WidgetsBinding
         begin:Alignment.topLeft,end:Alignment.bottomRight,
         colors:[Color(0xFF33205D),Color(0xFF17284C),Color(0xFF0C0D0F)])),
       child:SafeArea(child:Column(children:[
+    // Original full-size seat artwork stays scrollable on short displays;
+    // input stays fixed and accessible without layout overflow.
+    Expanded(child:SingleChildScrollView(child:Column(children:[
     Padding(padding:const EdgeInsets.fromLTRB(14,9,14,6),
       child:Row(children:[
         const CircleAvatar(radius:20,backgroundColor:Color(0xFF7D55D6),
@@ -280,7 +283,12 @@ class _FirebaseRoomChatState extends State<FirebaseRoomChat> with WidgetsBinding
       ),
     ),
     if(error!=null)Padding(padding:const EdgeInsets.all(8),child:Text(error!)),
-    Expanded(child:ListView(padding:const EdgeInsets.all(12),children:[for(final message in messages)Card(child:ListTile(title:Text('${message['name']} ${_flag(message['country'].toString())}'),subtitle:Text(message['text'] as String)))])),
+    for(final message in messages)
+      Padding(padding:const EdgeInsets.symmetric(horizontal:12),
+        child:Card(child:ListTile(
+          title:Text('${message['name']} ${_flag(message['country'].toString())}'),
+          subtitle:Text(message['text'] as String)))),
+    ]))),
     Padding(padding:const EdgeInsets.all(12),child:Row(children:[Expanded(child:TextField(controller:input,enabled:!sending,readOnly:pendingId!=null,maxLength:500,decoration:const InputDecoration(labelText:'Message'))),IconButton(onPressed:sending?null:send,icon:const Icon(Icons.send))])),
   ]))));
 }
