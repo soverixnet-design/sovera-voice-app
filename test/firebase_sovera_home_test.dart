@@ -66,9 +66,13 @@ void main(){
     await tester.tap(find.text('Me'));await tester.pumpAndSettle();
     expect(find.text('My profile'),findsOneWidget);
     expect(find.text('Edit Profile'),findsOneWidget);
+    expect(find.text('Medals'),findsOneWidget);
+    expect(find.text('My connections'),findsOneWidget);
     expect(find.text('Your profile'),findsNothing);
     expect(find.text('Country'),findsNothing);
     expect(find.text('Save profile'),findsNothing);
+    await tester.ensureVisible(find.text('Edit Profile'));
+    await tester.pumpAndSettle();
     await tester.tap(find.text('Edit Profile'));await tester.pumpAndSettle();
     expect(find.text('Your profile'),findsOneWidget);
     expect(find.text('Country'),findsOneWidget);
@@ -76,6 +80,8 @@ void main(){
     await tester.pageBack();await tester.pumpAndSettle();
     expect(find.text('Your profile'),findsNothing);
     expect(find.text('Edit Profile'),findsOneWidget);
+    await tester.ensureVisible(find.text('Frames & effects'));
+    await tester.pumpAndSettle();
     expect(find.text('Frames & effects'),findsOneWidget);
     await tester.pumpWidget(const SizedBox());
     client.close();
