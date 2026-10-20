@@ -7,7 +7,7 @@ UNIT=/etc/systemd/system/sovera-account.service
 SECRETS=/root/sovera-livekit-secrets.env
 [ -s "$SECRETS" ] && [ -f "$ROOT/server/accounts/app.py" ] && [ -s /var/lib/sovera-account/profiles.sqlite3 ] || { echo 'STOP: existing account service or voice configuration missing'; exit 1; }
 "$PYTHON" -c 'from livekit import api; import jwt'
-SOURCE=https://raw.githubusercontent.com/soverixnet-design/sovera-voice-app/9f14f8c7ca69ed42019750ad790efb50a7e4ec19
+SOURCE=https://raw.githubusercontent.com/soverixnet-design/sovera-voice-app/931002e17096a7cdd930d7bb83fcffb0dc603c8f
 STAGING=$(mktemp -d /opt/sovera-voice-update.XXXXXX)
 BACKUP=$(mktemp -d /opt/sovera-voice-backup.XXXXXX)
 chmod 700 "$STAGING" "$BACKUP"
@@ -76,5 +76,5 @@ for route in /sovera/account/wallet /sovera/account/wallet/history /sovera/accou
  CODE=$(curl --silent --output /dev/null --write-out '%{http_code}' --max-time 10 "http://127.0.0.1:8092$route")
  [ "$CODE" = 401 ] || { echo "STOP: unauthenticated game endpoint available: $route"; exit 1; }
 done
-echo FIREBASE_AUTH_ONLY_SERVER_DATA_API_READY
+echo ROOM_CARD_FRAME_API_READY
 echo "Backup: $BACKUP"

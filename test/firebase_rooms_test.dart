@@ -85,7 +85,8 @@ void main(){
     await tester.pumpWidget(MaterialApp(home:FirebaseRoomChat(api:api,room:room)));await tester.pumpAndSettle();
     expect(find.text('9 seats · Owner settings'),findsOneWidget);
     // Greedy is available from the SAME room; it is no longer the old wheel/XO.
-    expect(find.text('Greedy Wheel · Live shared game'),findsOneWidget);
+    expect(find.byTooltip('Room games'),findsOneWidget);
+    expect(find.byTooltip('Gift box'),findsOneWidget);
     expect(find.byTooltip('Greedy Wheel'),findsOneWidget);
     await tester.tap(find.byTooltip('Room settings'));await tester.pumpAndSettle();
     await tester.enterText(find.byType(TextField).last,'Renamed room');
