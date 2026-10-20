@@ -16,7 +16,7 @@ npm start                 # পোর্ট 8080
 ```
 দরকার Node.js 18 বা নতুন। সার্ভার চালু রাখতে `pm2 start src/server.js --name greedy` ব্যবহার করো, আর সামনে Nginx দিয়ে HTTPS দাও (WebSocket-এর জন্য `proxy_set_header Upgrade $http_upgrade; proxy_set_header Connection "upgrade";`)।
 
-`CLIENT_DIR=../greedy-game` দিলে এই সার্ভারই গেমের ফাইলও দেয়: `https://game.your-app.com/?token=JWT&sheet=1`।
+`CLIENT_DIR=../client` দিলে এই সার্ভারই গেমের ফাইলও দেয়: `https://game.your-app.com/?token=JWT&sheet=1`।
 
 ## ধাপ ১ — ইউজার পরিচয় (JWT)
 তোমার অ্যাপের সার্ভার প্রতিটি ইউজারের জন্য একটা টোকেন বানাবে (HS256, গোপন কী `GAME_JWT_SECRET`), তারপর গেমের লিংকে `token=` দিয়ে পাঠাবে।
