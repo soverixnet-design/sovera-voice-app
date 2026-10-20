@@ -28,6 +28,16 @@ class WalletStore:
                 ('verified_import','recharge','gift','exchange','admin_adjust','game_debit','game_win','refund')),
               created_at INTEGER NOT NULL CHECK(created_at>0),
               CHECK(coin_delta != 0 OR diamond_delta != 0));
+            CREATE TABLE IF NOT EXISTS account_wallet_imports(
+              source_ref TEXT PRIMARY KEY,
+              firebase_uid TEXT NOT NULL UNIQUE,
+              public_id TEXT NOT NULL UNIQUE,
+              snapshot_id TEXT NOT NULL UNIQUE,
+              snapshot_hash TEXT NOT NULL,
+              opening_coins INTEGER NOT NULL,
+              opening_diamonds INTEGER NOT NULL,
+              proof TEXT NOT NULL,
+              imported_at INTEGER NOT NULL);
             CREATE INDEX IF NOT EXISTS account_wallet_history
               ON account_wallet_ledger(firebase_uid,created_at DESC,reference DESC);
             """)
@@ -41,17 +51,19 @@ class WalletStore:
             if link is None:
                 return {'status':'not_migrated','verified':False,
                         'coins':None,'diamonds':None,'canSpend':False,
-                        'source':'sovera-server'}
+                        'canPurchase':False,'canGift':False,'source':'sovera-server'}
             coins,diamonds=db.execute("""SELECT COALESCE(SUM(coin_delta),0),
                     COALESCE(SUM(diamond_delta),0) FROM account_wallet_ledger
                     WHERE firebase_uid=?""",(uid,)).fetchone()
-            if coins<0 or diamonds<0:
+            if coins<0 or diamonds<0 or coins>9007199254740991 or diamonds>9007199254740991:
                 raise HTTPException(503,'Wallet reconciliation required')
             # Game spending remains disabled until trusted atomic bet settlement
             # is connected to this same ledger transaction boundary.
             return {'status':link['status'],'verified':True,
                     'coins':str(coins),'diamonds':str(diamonds),
-                    'canSpend':link['status']=='active' and configured(),'source':'sovera-server'}
+                    'canSpend':link['status']=='active' and configured(),
+                    'canPurchase':link['status']=='active','canGift':link['status']=='active',
+                    'source':'sovera-server'}
 
     def history(self,uid,limit=30):
         with sqlite3.connect(self.database_path,timeout=10) as db:
@@ -63,3 +75,12 @@ class WalletStore:
                 coin_delta,diamond_delta,created_at FROM account_wallet_ledger
                 WHERE firebase_uid=? ORDER BY created_at DESC,reference DESC
                 LIMIT ?""",(uid,limit)).fetchall()]
+
+    def has_verified_wallets(self):
+        with sqlite3.connect(self.database_path,timeout=10) as db:
+            return db.execute("SELECT EXISTS(SELECT 1 FROM account_wallet_links WHERE status='active' AND verified_at>0)").fetchone()[0]==1
+
+def legacy_identity(db,uid):
+    if not db.execute("SELECT 1 FROM sqlite_master WHERE type='table' AND name='account_wallet_imports'").fetchone():return {}
+    row=db.execute('SELECT public_id FROM account_wallet_imports WHERE firebase_uid=?',(uid,)).fetchone()
+    return {'public_id':str(row[0])} if row else {}

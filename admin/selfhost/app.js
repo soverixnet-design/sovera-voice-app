@@ -46,8 +46,8 @@ async function members(){
  $('panel').innerHTML='<section class="card"><label>Find by account ID, name or verified legacy reference<input id="search" type="search"></label><div id="results"></div><button id="more-members" class="secondary">Load more members</button></section>';
  const draw=()=>{
   const q=$('search').value.trim().toLowerCase();
-  const rows=users.filter(u=>[u.uid,u.name,u.source_ref,u.country].some(v=>String(v??'').toLowerCase().includes(q)));
-  $('results').innerHTML=table(['Member','Account ID','Country','Status / room','Role','Coins','Diamonds','Wallet','Details'],rows.map(u=>`<tr><td>${esc(u.name)}</td><td class="details">${esc(u.uid)}</td><td>${esc(u.country)}</td><td>${u.last_seen>Date.now()/1000-90?'Online':'Offline'}<br>${esc(u.current_room||'—')}</td><td>${esc(u.role||'Member')}</td><td>${u.wallet_status?num(u.coins):'Not verified'}</td><td>${u.wallet_status?num(u.diamonds):'—'}</td><td>${esc(u.wallet_status||'Awaiting migration')}</td><td><button data-user-details="${esc(u.uid)}">View / assign assets</button></td></tr>`));
+  const rows=users.filter(u=>[u.uid,u.public_id,u.name,u.source_ref,u.country].some(v=>String(v??'').toLowerCase().includes(q)));
+  $('results').innerHTML=table(['Member','Account ID','Country','Status / room','Role','Coins','Diamonds','Wallet','Details'],rows.map(u=>`<tr><td>${esc(u.name)}</td><td class="details">${u.public_id?'ID '+esc(u.public_id)+'<br>':''}${esc(u.uid)}</td><td>${esc(u.country)}</td><td>${u.last_seen>Date.now()/1000-90?'Online':'Offline'}<br>${esc(u.current_room||'—')}</td><td>${esc(u.role||'Member')}</td><td>${u.wallet_status?num(u.coins):'Not verified'}</td><td>${u.wallet_status?num(u.diamonds):'—'}</td><td>${esc(u.wallet_status||'Awaiting migration')}</td><td><button data-user-details="${esc(u.uid)}">View / assign assets</button></td></tr>`));
   root.querySelectorAll('[data-user-details]').forEach(b=>b.onclick=()=>userDetails(b.dataset.userDetails).catch(e=>{$('error').textContent=e.message;}));
  };
  let searchTimer;
@@ -57,7 +57,7 @@ async function members(){
 }
 async function recharge(){
  users=(await api('users')).items;
- $('panel').innerHTML=`<section class="card"><h2>Recharge by account</h2><p>Select a member and verify their name and wallet before issuing coins.</p><form id="recharge"><label>Member<select id="target" required><option value="">Choose member</option>${users.map(u=>`<option value="${esc(u.uid)}">${esc(u.name)} · ${esc(u.source_ref||u.uid)}</option>`).join('')}</select></label><div id="target-info"></div><label>Coins<input id="amount" type="number" min="1" max="1000000000" step="1" required></label><label>Note<input id="note" maxlength="300"></label><button id="submit">Review recharge</button></form><div id="receipt" aria-live="polite"></div></section>`;
+ $('panel').innerHTML=`<section class="card"><h2>Recharge by account</h2><p>Select a member and verify their name and wallet before issuing coins.</p><form id="recharge"><label>Member<select id="target" required><option value="">Choose member</option>${users.map(u=>`<option value="${esc(u.uid)}">${esc(u.name)} · ${esc(u.public_id||u.source_ref||u.uid)}</option>`).join('')}</select></label><div id="target-info"></div><label>Coins<input id="amount" type="number" min="1" max="1000000000" step="1" required></label><label>Note<input id="note" maxlength="300"></label><button id="submit">Review recharge</button></form><div id="receipt" aria-live="polite"></div></section>`;
  $('target').onchange=()=>{
   const user=users.find(u=>u.uid===$('target').value);
   $('target-info').textContent=user?`${user.name} · ${user.wallet_status==='active'?num(user.coins)+' Coins':'Wallet not active or not migrated'}`:'';

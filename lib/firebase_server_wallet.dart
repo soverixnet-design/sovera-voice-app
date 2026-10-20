@@ -85,9 +85,11 @@ class _FirebaseServerWalletPageState extends State<FirebaseServerWalletPage>{
           balance('Diamonds',amount(wallet!['diamonds']),Icons.diamond_rounded,cyan),
         ]),
         const SizedBox(height:18),
-        if(wallet?['canSpend']!=true)
-          const Text('Game betting and recharge remain disabled until the '
-            'original wallet is safely linked to this server.',
+        if(wallet?['verified']==true&&wallet?['status']=='active')
+          const Text('Wallet verified · Your Coins and Diamonds are linked to this account.',
+            style:TextStyle(fontSize:12,color:Colors.white70)),
+        if(wallet?['verified']==true&&wallet?['canSpend']!=true)
+          const Text('Coin games are not yet enabled. Wallet verification does not activate betting.',
             style:TextStyle(fontSize:12,color:Colors.white70)),
         if(wallet?['status']=='frozen')
           const Text('Wallet frozen · Contact support',

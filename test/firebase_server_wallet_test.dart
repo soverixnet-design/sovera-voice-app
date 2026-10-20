@@ -26,7 +26,7 @@ void main(){
       expect(find.text('My Sovera Wallet'),findsOneWidget);
       expect(find.textContaining('No balance has been reset'),findsOneWidget);
       expect(find.text('0'),findsNothing);
-      expect(find.textContaining('Game betting and recharge remain disabled'),findsOneWidget);
+      expect(find.textContaining('Wallet verified'),findsNothing);
       expect(calls,['/sovera/account/wallet']);
       await tester.pumpWidget(const SizedBox());
       client.close();
@@ -53,6 +53,8 @@ void main(){
       await tester.pumpAndSettle();
       expect(find.text('12,345'),findsOneWidget);
       expect(find.text('70'),findsOneWidget);
+      expect(find.textContaining('Wallet verified'),findsOneWidget);
+      expect(find.textContaining('Coin games are not yet enabled'),findsOneWidget);
       expect(find.text('Server transaction history'),findsOneWidget);
       expect(calls,['/sovera/account/wallet','/sovera/account/wallet/history']);
       await tester.pumpWidget(const SizedBox());

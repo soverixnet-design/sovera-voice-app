@@ -113,7 +113,7 @@ class Control:
     def users(self,uid,q='',offset=0):
         with self.db() as db:
             if self.role(db,uid)=='support':raise HTTPException(403,'User lookup permission required')
-            return [dict(r) for r in db.execute('''SELECT p.firebase_uid AS uid,p.display_name AS name,p.country,p.bio,p.avatar_url,p.updated_at,
+            return [dict(r) for r in db.execute('''SELECT p.firebase_uid AS uid,p.display_name AS name,p.country,i.public_id,p.bio,p.avatar_url,p.updated_at,
               (SELECT seen_at FROM account_presence WHERE uid=p.firebase_uid) AS last_seen,
               (SELECT r.name FROM account_presence a JOIN account_rooms r ON r.id=a.room_id WHERE a.uid=p.firebase_uid AND a.seen_at>strftime('%s','now')-90) AS current_room,
               (SELECT role FROM account_staff WHERE uid=p.firebase_uid) AS role,
@@ -121,8 +121,9 @@ class Control:
               (SELECT COALESCE(SUM(coin_delta),0) FROM account_wallet_ledger e WHERE e.firebase_uid=p.firebase_uid) AS coins,
               (SELECT COALESCE(SUM(diamond_delta),0) FROM account_wallet_ledger e WHERE e.firebase_uid=p.firebase_uid) AS diamonds
               FROM account_profiles p LEFT JOIN account_wallet_links l ON l.firebase_uid=p.firebase_uid
-              WHERE (?='' OR p.display_name LIKE ? OR p.firebase_uid LIKE ? OR COALESCE(l.source_ref,'') LIKE ? OR p.country LIKE ?)
-              ORDER BY p.display_name,p.firebase_uid LIMIT 200 OFFSET ?''',(q,'%'+q+'%','%'+q+'%','%'+q+'%','%'+q+'%',offset))]
+              LEFT JOIN account_wallet_imports i ON i.firebase_uid=p.firebase_uid
+              WHERE (?='' OR p.display_name LIKE ? OR p.firebase_uid LIKE ? OR COALESCE(l.source_ref,'') LIKE ? OR p.country LIKE ? OR COALESCE(i.public_id,'') LIKE ?)
+              ORDER BY p.display_name,p.firebase_uid LIMIT 200 OFFSET ?''',(q,'%'+q+'%','%'+q+'%','%'+q+'%','%'+q+'%','%'+q+'%',offset))]
 
     def recharge(self,uid,data):
         with self.db() as db:
