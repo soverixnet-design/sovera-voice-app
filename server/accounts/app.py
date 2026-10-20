@@ -90,7 +90,7 @@ def create_app(profiles, verify, *, voice=False):
 
     @app.get('/sovera/account/health')
     def health():
-        return {'ready':True, 'profiles':True, 'rooms':True, 'chat':True, 'voice':voice, 'room_effects':True, 'free_duel':True, 'global_color_game':True, 'food_wheel_preview':True, 'greedy_ready':False, 'wallet':False, 'server_wallet_read':True, 'games':False}
+        return {'ready':True, 'profiles':True, 'rooms':True, 'chat':True, 'voice':voice, 'room_effects':True, 'catalog':True, 'managed_banners':True, 'animated_gifts':True, 'free_duel':True, 'global_color_game':True, 'food_wheel_preview':True, 'greedy_ready':False, 'wallet':False, 'server_wallet_read':True, 'games':False}
 
     @app.get('/sovera/account')
     async def get_profile(authorization: str | None = Header(default=None)):

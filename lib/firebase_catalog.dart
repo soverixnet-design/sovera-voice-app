@@ -53,6 +53,12 @@ class _FirebaseCatalogPageState extends State<FirebaseCatalogPage>{
     }catch(e){if(e is ProfileApiError&&e.status==409)pending=null;if(mounted)setState(()=>error=e is ProfileApiError?e.message:'Could not save. Retry the same item.');}
     finally{if(mounted)setState(()=>busy=false);}
   }
+  Future<void> remove()async{
+    setState(()=>busy=true);
+    try{await widget.api.call('PUT',suffix:'/catalog/equip',fields:{'kind':kind,'item_id':null});await load();}
+    catch(e){if(mounted)setState(()=>error=e is ProfileApiError?e.message:'Could not remove item. Retry.');}
+    finally{if(mounted)setState(()=>busy=false);}
+  }
   @override Widget build(BuildContext context){
     final items=((data?['items'] as List?)??[]).whereType<Map>().map((r)=>Map<String,dynamic>.from(r)).where((r)=>r['kind']==kind).toList();
     final owned=(data?['owned'] as List?)??[];
@@ -61,7 +67,7 @@ class _FirebaseCatalogPageState extends State<FirebaseCatalogPage>{
       if(data==null&&error==null)const LinearProgressIndicator(),
       if(error!=null)Padding(padding:const EdgeInsets.all(12),child:Text(error!)),
       if(data!=null&&items.isEmpty)const Padding(padding:EdgeInsets.all(24),child:Text('No published items yet. Pull down to refresh.')),
-      if(catalogAsset(data?['equipped'],kind)!=null)TextButton(onPressed:busy||pending!=null?null:()async{await widget.api.call('PUT',suffix:'/catalog/equip',fields:{'kind':kind,'item_id':null});await load();},child:const Text('Remove equipped item')),
+      if(catalogAsset(data?['equipped'],kind)!=null)TextButton(onPressed:busy||pending!=null?null:remove,child:const Text('Remove equipped item')),
       for(final item in items)Card(child:Padding(padding:const EdgeInsets.all(16),child:Column(children:[
         SizedBox(height:170,child:kind=='frame'||kind=='entry'||kind=='room_frame'?CatalogPortrait(asset:item,size:170):CatalogImage(asset:item)),
         Text(item['title'].toString(),style:const TextStyle(fontWeight:FontWeight.bold)),
@@ -72,8 +78,8 @@ class _FirebaseCatalogPageState extends State<FirebaseCatalogPage>{
   }
 }
 class CatalogRoomAnimation extends StatefulWidget{
-  final Map<String,dynamic> event;final int serverNow;
-  const CatalogRoomAnimation({super.key,required this.event,required this.serverNow});
+  final Map<String,dynamic> event;final int serverNow;final List<Map<String,dynamic>> recipients;
+  const CatalogRoomAnimation({super.key,required this.event,required this.serverNow,this.recipients=const []});
   @override State<CatalogRoomAnimation> createState()=>_CatalogRoomAnimationState();
 }
 class _CatalogRoomAnimationState extends State<CatalogRoomAnimation>{
@@ -87,6 +93,7 @@ class _CatalogRoomAnimationState extends State<CatalogRoomAnimation>{
       Text('${widget.event['sender_name']} → ${widget.event['recipient_name']}',maxLines:1,overflow:TextOverflow.ellipsis),
       SizedBox(height:210,child:asset['kind']=='entry'?CatalogPortrait(asset:asset,avatarUrl:widget.event['avatar_url'] as String?,size:210):Stack(alignment:Alignment.center,children:[Positioned(right:8,bottom:4,child:CatalogPortrait(avatarUrl:widget.event['avatar_url'] as String?,size:65)),TweenAnimationBuilder<double>(tween:Tween(begin:0,end:1),duration:const Duration(milliseconds:1000),builder:(context,t,child)=>Transform.translate(offset:Offset(50*t,20*t),child:Transform.scale(scale:1-.3*t,child:child)),child:CatalogImage(asset:asset))])),
       Text(asset['title'].toString()),
+      if(asset['kind']=='gift')Wrap(alignment:WrapAlignment.center,spacing:8,children:[for(final person in widget.recipients.take(6))Column(mainAxisSize:MainAxisSize.min,children:[CatalogPortrait(avatarUrl:person['avatar_url'] as String?,size:48),SizedBox(width:72,child:Text(person['recipient_name'].toString(),maxLines:1,overflow:TextOverflow.ellipsis,textAlign:TextAlign.center))]),if(widget.recipients.length>6)Text('+${widget.recipients.length-6} recipients')]),
     ])));
   }
 }

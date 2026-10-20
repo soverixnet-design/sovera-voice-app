@@ -43,13 +43,17 @@ function dashboard(){
 }
 async function members(){
  users=(await api('users')).items;
- $('panel').innerHTML='<section class="card"><label>Find by account ID, name or verified legacy reference<input id="search" type="search"></label><div id="results"></div></section>';
+ $('panel').innerHTML='<section class="card"><label>Find by account ID, name or verified legacy reference<input id="search" type="search"></label><div id="results"></div><button id="more-members" class="secondary">Load more members</button></section>';
  const draw=()=>{
   const q=$('search').value.trim().toLowerCase();
-  const rows=users.filter(u=>[u.uid,u.name,u.source_ref].some(v=>String(v??'').toLowerCase().includes(q)));
+  const rows=users.filter(u=>[u.uid,u.name,u.source_ref,u.country].some(v=>String(v??'').toLowerCase().includes(q)));
   $('results').innerHTML=table(['Member','Account ID','Country','Status / room','Role','Coins','Diamonds','Wallet','Details'],rows.map(u=>`<tr><td>${esc(u.name)}</td><td class="details">${esc(u.uid)}</td><td>${esc(u.country)}</td><td>${u.last_seen>Date.now()/1000-90?'Online':'Offline'}<br>${esc(u.current_room||'—')}</td><td>${esc(u.role||'Member')}</td><td>${u.wallet_status?num(u.coins):'Not verified'}</td><td>${u.wallet_status?num(u.diamonds):'—'}</td><td>${esc(u.wallet_status||'Awaiting migration')}</td><td><button data-user-details="${esc(u.uid)}">View / assign assets</button></td></tr>`));
   root.querySelectorAll('[data-user-details]').forEach(b=>b.onclick=()=>userDetails(b.dataset.userDetails).catch(e=>{$('error').textContent=e.message;}));
- };$('search').oninput=draw;draw();
+ };
+ let searchTimer;
+ $('search').oninput=()=>{clearTimeout(searchTimer);const query=$('search').value.trim();searchTimer=setTimeout(async()=>{try{const data=await api('users?q='+encodeURIComponent(query));if(!$('search')||$('search').value.trim()!==query)return;users=data.items;draw();}catch(e){if($('error'))$('error').textContent=e.message;}},250);};
+ $('more-members').onclick=async()=>{const query=$('search').value.trim();$('more-members').disabled=true;try{const data=await api('users?q='+encodeURIComponent(query)+'&offset='+users.length);if(!$('search')||$('search').value.trim()!==query)return;users.push(...data.items);draw();$('more-members').hidden=data.items.length<200;}catch(e){if($('error'))$('error').textContent=e.message;}finally{if($('more-members'))$('more-members').disabled=false;}};
+ $('more-members').hidden=users.length<200;draw();
 }
 async function recharge(){
  users=(await api('users')).items;

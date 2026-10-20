@@ -6,7 +6,7 @@ import secrets
 import sqlite3
 import time
 import uuid
-from fastapi import Header, HTTPException, Request
+from fastapi import Header, HTTPException, Request, Query
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, ConfigDict, Field
 from .community import Community
@@ -110,7 +110,7 @@ class Control:
                 'rooms':db.execute('SELECT COUNT(*) FROM account_rooms').fetchone()[0],
                 'open_tickets':db.execute("SELECT COUNT(*) FROM account_support WHERE reply='' ").fetchone()[0]}
 
-    def users(self,uid):
+    def users(self,uid,q='',offset=0):
         with self.db() as db:
             if self.role(db,uid)=='support':raise HTTPException(403,'User lookup permission required')
             return [dict(r) for r in db.execute('''SELECT p.firebase_uid AS uid,p.display_name AS name,p.country,p.bio,p.avatar_url,p.updated_at,
@@ -121,7 +121,8 @@ class Control:
               (SELECT COALESCE(SUM(coin_delta),0) FROM account_wallet_ledger e WHERE e.firebase_uid=p.firebase_uid) AS coins,
               (SELECT COALESCE(SUM(diamond_delta),0) FROM account_wallet_ledger e WHERE e.firebase_uid=p.firebase_uid) AS diamonds
               FROM account_profiles p LEFT JOIN account_wallet_links l ON l.firebase_uid=p.firebase_uid
-              ORDER BY p.display_name,p.firebase_uid LIMIT 200''')]
+              WHERE (?='' OR p.display_name LIKE ? OR p.firebase_uid LIKE ? OR COALESCE(l.source_ref,'') LIKE ? OR p.country LIKE ?)
+              ORDER BY p.display_name,p.firebase_uid LIMIT 200 OFFSET ?''',(q,'%'+q+'%','%'+q+'%','%'+q+'%','%'+q+'%',offset))]
 
     def recharge(self,uid,data):
         with self.db() as db:
@@ -222,7 +223,7 @@ def attach_control(app,profiles,actor):
     async def session(request:Request):return await asyncio.to_thread(service.overview,await staff_actor(request))
 
     @app.get('/sovera/control/users')
-    async def users(request:Request):return {'items':await asyncio.to_thread(service.users,await staff_actor(request))}
+    async def users(request:Request,q:str=Query(default='',max_length=128),offset:int=Query(default=0,ge=0,le=1000000)):return {'items':await asyncio.to_thread(service.users,await staff_actor(request),q,offset)}
 
     @app.post('/sovera/control/recharge')
     async def recharge(data:RechargeInput,request:Request):return await asyncio.to_thread(service.recharge,await staff_actor(request),data)

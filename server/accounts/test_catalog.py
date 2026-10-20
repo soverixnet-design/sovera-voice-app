@@ -29,6 +29,9 @@ class CatalogTests(unittest.TestCase):
         self.setup_catalog();self.login()
         headers={'Origin':'https://admin.soverixnet.com'}
         self.assertEqual(self.client.post('/sovera/control/media',content=b'<svg></svg>',headers=headers).status_code,400)
+        self.assertEqual(self.client.post('/sovera/control/media',content=b'x',headers=headers|{'content-length':'9000000'}).status_code,413)
+        self.assertEqual([r['uid'] for r in self.control.users('owner','legacy-alice')],['alice'])
+        self.assertEqual(self.control.users('owner','legacy-alice',1),[])
         with self.assertRaises(HTTPException):self.catalog.upload('support',b'bad')
         data=io.BytesIO();Image.new('RGB',(32,32),'red').save(data,format='GIF',save_all=True,append_images=[Image.new('RGB',(32,32),'blue')],duration=100,loop=0)
         result=self.client.post('/sovera/control/media',content=data.getvalue(),headers=headers)

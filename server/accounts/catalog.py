@@ -190,10 +190,10 @@ class Catalog:
     def events(self,uid,room):
         with self.control.db() as db:
             if not db.execute('SELECT 1 FROM account_presence WHERE uid=? AND room_id=? AND seen_at>?',(uid,room,int(time.time())-90)).fetchone():raise HTTPException(403,'Join the room first')
-            return {'server_now':int(time.time()),'items':[dict(r)|{'asset':self.public(r)} for r in db.execute('''SELECT c.*,e.id AS event_id,e.sender_uid,e.recipient_uid,e.created_at,p.display_name AS recipient_name,s.display_name AS sender_name,p.avatar_url FROM account_catalog_events e JOIN account_catalog c ON c.id=e.item_id JOIN account_profiles p ON p.firebase_uid=e.recipient_uid JOIN account_profiles s ON s.firebase_uid=e.sender_uid WHERE e.room_id=? AND e.created_at>? AND c.active=1 ORDER BY e.id DESC LIMIT 20''',(room,int(time.time())-15))]}
+            return {'server_now':int(time.time()),'items':[dict(r)|{'asset':self.public(r)} for r in db.execute('''SELECT c.*,e.id AS event_id,e.sender_uid,e.recipient_uid,e.created_at,p.display_name AS recipient_name,s.display_name AS sender_name,p.avatar_url FROM account_catalog_events e JOIN account_catalog c ON c.id=e.item_id JOIN account_profiles p ON p.firebase_uid=e.recipient_uid JOIN account_profiles s ON s.firebase_uid=e.sender_uid WHERE e.room_id=? AND e.created_at>? AND c.active=1 ORDER BY e.id DESC LIMIT 100''',(room,int(time.time())-15))]}
     def details(self,uid,target):
         with self.control.db() as db:
-            self.control.role(db,uid)
+            if self.control.role(db,uid)=='support':raise HTTPException(403,'User lookup permission required')
             profile=db.execute('SELECT * FROM account_profiles WHERE firebase_uid=?',(target,)).fetchone()
             if not profile:raise HTTPException(404,'User not found')
             presence=db.execute('''SELECT a.seen_at,a.room_id,r.name AS room_name FROM account_presence a LEFT JOIN account_rooms r ON r.id=a.room_id WHERE a.uid=?''',(target,)).fetchone()

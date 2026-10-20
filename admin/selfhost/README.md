@@ -50,3 +50,27 @@ them. Running the provisioner again resets credentials and revokes old sessions.
 Passwords use salted scrypt hashes; sign-in attempts have persistent 15-minute
 limits and all sessions still require current staff permission. There is no
 public admin registration endpoint.
+
+The managed catalog provides Home banners, profile frames, entry animations,
+animated gifts, medals, tags and room frames. Owner/admin can upload PNG, JPEG,
+GIF and WebP files (8 MB, 4096 px, 300 frames maximum), preview normalized avatar
+fit, set the price and display order, and publish or hide each item. Media is
+public artwork, served only as its verified image MIME type. It is stored in the
+existing SQLite database and included in the database backup; the media limit is
+200 MB. GIF/animated WebP retain animation. SVG, HTML, video and SVGA are rejected.
+
+Owners can grant/revoke wearables from Members → View / assign assets. Published
+free items can be equipped by members; purchased or granted paid items stay in
+their inventory. Disabling an item hides it and removes its active appearance
+without deleting ownership. The updated native Firebase app refreshes banners
+and profile equipment, displays room entry events and recipient-selected gifts,
+and has My frames & entries. Original layouts and Firebase configuration remain.
+
+A paid purchase checks the displayed price before charging. A gift costs its
+price per unique selected recipient, awards that same number of Diamonds per
+recipient, and settles all recipients atomically. Self gifts are allowed. Free
+gifts do not create Diamonds. Both the sender and paid recipients require active,
+verified wallet links; unverified legacy balances are never replaced or assumed.
+Request IDs protect retries from duplicate charges. Catalog events disappear
+15 seconds after server time. Game wallet cutover and two-device voice testing
+remain separate deployment requirements.

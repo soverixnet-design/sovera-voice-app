@@ -197,12 +197,12 @@ class _FirebaseRoomChatState extends State<FirebaseRoomChat> with WidgetsBinding
     }catch(e){if(mounted)setState(()=>error=_error(e));}
     finally{if(mounted)setState(()=>savingRoom=false);}
   }
-  Future<void> chooseEffect()async{
+  Future<void> chooseEffect({bool legacy=false})async{
     if(sendingEffect)return;
     setState(()=>sendingEffect=true);
     try{
       List<Map<String,dynamic>> gifts=[];
-      try{final catalog=await widget.api.call('GET',suffix:'/catalog');gifts=(catalog['items'] as List).whereType<Map>().map((r)=>Map<String,dynamic>.from(r)).where((r)=>r['kind']=='gift').toList();}catch(_){/* Original free effects remain available. */}
+      if(!legacy)try{final catalog=await widget.api.call('GET',suffix:'/catalog');gifts=(catalog['items'] as List).whereType<Map>().map((r)=>Map<String,dynamic>.from(r)).where((r)=>r['kind']=='gift').toList();}catch(_){/* Original free effects remain available. */}
       final found=await widget.api.call('GET',suffix:'$path/people');
       if(!mounted)return;
       final raw=found['people'];
@@ -272,6 +272,7 @@ class _FirebaseRoomChatState extends State<FirebaseRoomChat> with WidgetsBinding
         child:FirebaseGreedyWheelPage(api:widget.api,inRoom:true))),
       icon:const Icon(Icons.casino_rounded)),
 
+    IconButton(tooltip:'Free room effects',onPressed:sendingEffect?null:()=>chooseEffect(legacy:true),icon:const Icon(Icons.auto_awesome_rounded)),
     IconButton(tooltip:'Gift effects',onPressed:sendingEffect?null:chooseEffect,icon:const Icon(Icons.card_giftcard_rounded)),
     if(isOwner)IconButton(tooltip:'Room settings',onPressed:savingRoom?null:editRoom,icon:const Icon(Icons.tune_rounded))]),
     body:Container(
@@ -298,7 +299,7 @@ class _FirebaseRoomChatState extends State<FirebaseRoomChat> with WidgetsBinding
 
     if(isOwner)Padding(padding:const EdgeInsets.symmetric(vertical:3),child:Text('$seatCount seats · Owner settings',style:const TextStyle(fontSize:12,color:Colors.white70))),
     FirebaseVoicePanel(api:widget.api,roomId:widget.room['id'] as String,seatCount:seatCount,people:roomPeople),
-    if(catalogEvents.isNotEmpty)CatalogRoomAnimation(key:ValueKey(catalogEvents.first['event_id']),event:catalogEvents.first,serverNow:catalogServerNow),
+    if(catalogEvents.isNotEmpty)CatalogRoomAnimation(key:ValueKey(catalogEvents.first['event_id']),event:catalogEvents.first,serverNow:catalogServerNow,recipients:catalogEvents.where((r)=>r['id']==catalogEvents.first['id']&&r['sender_uid']==catalogEvents.first['sender_uid']&&r['created_at']==catalogEvents.first['created_at']).toList()),
     if(roomEffects.isNotEmpty)AnimatedSwitcher(
       duration:const Duration(milliseconds:300),
       child:Card(
