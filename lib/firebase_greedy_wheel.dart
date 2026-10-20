@@ -76,8 +76,7 @@ class _FirebaseGreedyWheelPageState extends State<FirebaseGreedyWheelPage>{
       if(mounted)setState((){controller=ctl;loading=false;});
     }catch(e){
       if(mounted)setState((){
-        error=e is ProfileApiError?e.message:
-          'Greedy Wheel is not connected to the live wallet yet.';
+        error='Greedy Wheel server and Sovera coin wallet have not been verified together yet. No fake coins or bets will run.';
         loading=false;
       });
     }
