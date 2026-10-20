@@ -22,6 +22,7 @@ on:
       - test/firebase_duel_test.dart
       - test/firebase_global_game_test.dart
       - test/firebase_food_wheel_test.dart
+      - test/firebase_greedy_wheel_test.dart
       - test/firebase_sovera_home_test.dart
       - test/firebase_profile_test.dart
       - .github/workflows/firebase-login-check.yml
@@ -53,7 +54,7 @@ jobs:
       - run: dart run flutter_launcher_icons
       - run: dart format lib/firebase_login_main.dart test/firebase_login_test.dart
       - run: flutter analyze
-      - run: flutter test test/firebase_login_test.dart test/firebase_profile_test.dart test/firebase_rooms_test.dart test/firebase_duel_test.dart test/firebase_global_game_test.dart test/firebase_food_wheel_test.dart test/firebase_sovera_home_test.dart
+      - run: flutter test test/firebase_login_test.dart test/firebase_profile_test.dart test/firebase_rooms_test.dart test/firebase_duel_test.dart test/firebase_global_game_test.dart test/firebase_food_wheel_test.dart test/firebase_sovera_home_test.dart test/firebase_greedy_wheel_test.dart
       - run: flutter build apk --debug --target lib/firebase_login_main.dart
       - name: Record this APK's public signing fingerprints
         run: |
