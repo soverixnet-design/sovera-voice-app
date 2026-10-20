@@ -1,0 +1,16 @@
+{
+  "name": "greedy-game-server",
+  "version": "1.0.0",
+  "description": "Server-authoritative Greedy Wheel game server (rounds, results, bets, payouts) with wallet adapter for your app",
+  "main": "src/server.js",
+  "scripts": {
+    "start": "node src/server.js",
+    "mock-wallet": "node tools/mock-app-wallet.js",
+    "token": "node tools/make-token.js"
+  },
+  "engines": { "node": ">=18" },
+  "dependencies": {
+    "better-sqlite3": "^12.11.1",
+    "ws": "^8.22.0"
+  }
+}
