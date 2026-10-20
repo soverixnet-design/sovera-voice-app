@@ -16,6 +16,9 @@ on:
       - lib/firebase_food_wheel.dart
       - lib/firebase_greedy_wheel.dart
       - lib/firebase_sovera_home.dart
+      - lib/firebase_original_profile_card.dart
+      - lib/firebase_original_social.dart
+      - lib/effects_studio.dart
       - lib/firebase_server_wallet.dart
       - lib/sovera_visuals.dart
       - lib/country_picker.dart
@@ -65,7 +68,8 @@ jobs:
           ui=('firebase_login_main.dart','firebase_sovera_home.dart',
               'firebase_rooms.dart','firebase_profile.dart',
               'firebase_greedy_wheel.dart','firebase_server_wallet.dart',
-              'sovera_visuals.dart','country_picker.dart')
+              'sovera_visuals.dart','country_picker.dart',
+              'firebase_original_profile_card.dart','firebase_original_social.dart')
           forbidden=('supabase_flutter', 'firebase_database',
               'cloud_firestore', 'firebase_storage',
               "import 'main.dart'", 'FirebaseDatabase.instance',
