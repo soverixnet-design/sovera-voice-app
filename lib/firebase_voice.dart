@@ -183,7 +183,7 @@ class _FirebaseVoicePanelState extends State<FirebaseVoicePanel> with WidgetsBin
                 style:const TextStyle(fontSize:11,color:Colors.white70)),
               if(seats.mine==i&&muted)const Icon(Icons.mic_off_rounded,
                 color:pink,size:14),
-            ])),
+            ]),
           )),
       ]);
     }),
