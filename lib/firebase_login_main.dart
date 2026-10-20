@@ -84,17 +84,19 @@ class _FirebaseLoginPageState extends State<FirebaseLoginPage> {
   @override
   void dispose() { email.dispose(); password.dispose(); super.dispose(); }
 
-  Future<void> perform(Future<String?> Function() action) async {
+  Future<void> perform(Future<String?> Function() action,{bool googleFlow=false}) async {
     if (busy) return;
     setState(() { busy = true; message = null; });
     try {
       final result = await action();
       if (mounted) setState(() => message = result);
     } on FirebaseAuthException catch (e) {
-      if (mounted) setState(() => message = firebaseLoginError(e.code));
+      if (mounted) setState(() => message = googleFlow
+        ? 'Google account sign-in failed at Firebase (${e.code}). Check the Android signing certificate and Google provider settings.'
+        : firebaseLoginError(e.code));
     } on GoogleSignInException catch (e) {
       if (mounted) setState(() => message = e.code == GoogleSignInExceptionCode.canceled
-        ? 'Google sign-in was cancelled.' : 'Google sign-in did not complete. You can also use email.');
+        ? 'Google sign-in was cancelled.' : 'Google sign-in failed (${e.code.name}). Check the app signing SHA-1 in Firebase. Email sign-in is also available.');
     } catch (_) {
       if (mounted) setState(() => message = 'Could not connect. Please retry.');
     } finally {
@@ -111,7 +113,7 @@ class _FirebaseLoginPageState extends State<FirebaseLoginPage> {
     if (idToken == null) throw FirebaseAuthException(code: 'invalid-credential');
     await FirebaseAuth.instance.signInWithCredential(GoogleAuthProvider.credential(idToken: idToken));
     return null;
-  });
+  },googleFlow:true);
 
   bool validEmail() => RegExp(r'^[^\s@]+@[^\s@]+\.[^\s@]+$').hasMatch(email.text.trim());
   Future<void> submit() async {
