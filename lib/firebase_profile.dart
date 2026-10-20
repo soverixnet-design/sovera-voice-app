@@ -133,7 +133,7 @@ class _FirebaseProfileEditorState extends State<FirebaseProfileEditor> {
       if(busy) const LinearProgressIndicator(),
       if(loaded)...[
         Center(child:Column(children:[
-          CircleAvatar(radius:48,backgroundImage:avatarUrl==null?null:NetworkImage(avatarUrl!),child:avatarUrl==null?const Icon(Icons.person,size:48):null),
+          CircleAvatar(radius:48,child:avatarUrl==null?const Icon(Icons.person,size:48):ClipOval(child:Image.network(avatarUrl!,width:96,height:96,fit:BoxFit.cover,errorBuilder:(_,error,stack)=>const Icon(Icons.person,size:48)))),
           TextButton.icon(onPressed:busy?null:choosePhoto,icon:const Icon(Icons.photo_library_outlined),label:const Text('Change photo from gallery')),
         ])),
         TextField(controller:name,enabled:!busy,maxLength:40,decoration:const InputDecoration(labelText:'Display name')),
