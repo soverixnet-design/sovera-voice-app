@@ -38,3 +38,15 @@ Android build checks do not prove device Google sign-in or two-device audio.
 
 Tests: `python -m unittest server.accounts.test_control -v` and, in
 `admin/tests`, `node selfhost-dom-test.mjs`.
+
+Direct password sign-in is also supported. An operator with root console access
+runs `python -m server.accounts.provision_password --single-owner` from
+`/opt/sovera-account` using the account virtual environment. The single-owner
+option refuses databases with more than one profile; select the intended UID
+with `--uid` in that case. This assigns the confirmed existing profile as owner
+only if no other owner exists. Enter a username and a 12–128 character password
+at the interactive prompts. Do not pass passwords as command arguments or commit
+them. Running the provisioner again resets credentials and revokes old sessions.
+Passwords use salted scrypt hashes; sign-in attempts have persistent 15-minute
+limits and all sessions still require current staff permission. There is no
+public admin registration endpoint.
