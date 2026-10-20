@@ -34,5 +34,5 @@ class RoomActionButton extends StatelessWidget {
         gradient:LinearGradient(begin:Alignment.topLeft,end:Alignment.bottomRight,colors:[color,color.withValues(alpha:.45)]),
         borderRadius:BorderRadius.circular(16),border:Border.all(color:Colors.white38),
         boxShadow:[BoxShadow(color:color.withValues(alpha:.2),blurRadius:10,offset:const Offset(0,3))]),
-        child:Semantics(button:true,label:label,enabled:onPressed!=null,child:Icon(icon,color:Colors.white,size:30)))));
+        child:Semantics(button:true,label:label,enabled:onPressed!=null,child:Icon(icon,color:Colors.white,size:30))))));
 }
