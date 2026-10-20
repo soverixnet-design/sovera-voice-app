@@ -9,6 +9,7 @@ from .rooms import Rooms, RoomInput, MessageInput, RoomEffectInput
 from .duel import RoomDuel, MoveInput
 from .global_games import GlobalColors, ColorPick
 from .food_wheel import FoodWheel, FoodChoice
+from .greedy_access import greedy_access
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 class ProfileInput(BaseModel):
@@ -82,7 +83,7 @@ def create_app(profiles, verify, *, voice=False):
 
     @app.get('/sovera/account/health')
     def health():
-        return {'ready':True, 'profiles':True, 'rooms':True, 'chat':True, 'voice':voice, 'room_effects':True, 'free_duel':True, 'global_color_game':True, 'food_wheel_preview':True, 'wallet':False, 'games':False}
+        return {'ready':True, 'profiles':True, 'rooms':True, 'chat':True, 'voice':voice, 'room_effects':True, 'free_duel':True, 'global_color_game':True, 'food_wheel_preview':True, 'greedy_ready':False, 'wallet':False, 'games':False}
 
     @app.get('/sovera/account')
     async def get_profile(authorization: str | None = Header(default=None)):
@@ -191,6 +192,14 @@ def create_app(profiles, verify, *, voice=False):
     async def wheel_pick(data:FoodChoice,authorization: str | None = Header(default=None)):
         uid=await actor(authorization)
         return await asyncio.to_thread(food_wheel.choose,uid,data)
+
+    @app.post('/sovera/account/greedy/access')
+    async def greedy_token(authorization: str | None = Header(default=None)):
+        uid=await actor(authorization)
+        profile=await asyncio.to_thread(profiles.get,uid)
+        if profile is None:
+            raise HTTPException(409,'Save your profile first')
+        return greedy_access(uid,profile)
 
     if voice:
         from .voice import attach_voice
