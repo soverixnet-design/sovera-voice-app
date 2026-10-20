@@ -257,7 +257,7 @@ class _FirebaseRoomChatState extends State<FirebaseRoomChat> with WidgetsBinding
       ])),
 
     if(isOwner)Padding(padding:const EdgeInsets.symmetric(vertical:3),child:Text('$seatCount seats · Owner settings',style:const TextStyle(fontSize:12,color:Colors.white70))),
-    FirebaseVoicePanel(api:widget.api,roomId:widget.room['id'] as String),
+    FirebaseVoicePanel(api:widget.api,roomId:widget.room['id'] as String,seatCount:seatCount),
     OutlinedButton.icon(onPressed:()=>showModalBottomSheet<void>(
       context:context,isScrollControlled:true,useSafeArea:true,
       backgroundColor:const Color(0xFF12172D),
