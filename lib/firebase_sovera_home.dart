@@ -80,6 +80,7 @@ class _FirebaseSoveraHomeState extends State<FirebaseSoveraHome>{
           padding:const EdgeInsets.all(18),
           child:FirebaseProfileEditor(
             api:api,initialName:displayName,
+            onSaved:()=>Navigator.of(context).pop(),
           ),
         )),
       ),
