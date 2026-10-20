@@ -109,8 +109,12 @@ class GlobalColorsTests(unittest.TestCase):
         self.assertEqual(allowed.json()['my_pick'],'red')
         self.assertEqual(client.get(uri,headers={'Authorization':'Bearer bob'}).json()['my_pick'],None)
         with sqlite3.connect(self.path) as conn:
-            self.assertFalse(any('wallet' in row[0] for row in conn.execute(
-                "SELECT name FROM sqlite_master WHERE type='table' AND name LIKE '%wallet%'")))
+            # The wallet schema may exist, but FREE color picks must never
+            # credit, debit, or auto-create a wallet for any participant.
+            self.assertEqual(conn.execute(
+                "SELECT count(*) FROM account_wallet_links").fetchone()[0],0)
+            self.assertEqual(conn.execute(
+                "SELECT count(*) FROM account_wallet_ledger").fetchone()[0],0)
 
 if __name__=='__main__':
     unittest.main()
