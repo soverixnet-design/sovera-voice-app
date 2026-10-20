@@ -18,14 +18,20 @@ FILES=(server/accounts/app.py server/accounts/control.py server/accounts/provisi
  server/accounts/test_greedy_wallet.py server/accounts/test_greedy_access.py
  server/accounts/test_community.py server/accounts/test_duel.py
  server/accounts/test_global_games.py server/accounts/test_food_wheel.py)
-CADDY=/etc/caddy/Caddyfile
-WEB=/var/www/sovera-control
-command -v caddy >/dev/null && [ -f "$CADDY" ] && systemctl is-active --quiet caddy || { echo 'Existing Caddy service required; no changes made'; exit 1; }
+CADDY=/opt/livekit/caddy.yaml
+CONTAINER=livekit-caddy-1
+WEB=/opt/livekit/caddy_data/sovera-control
+command -v docker >/dev/null && [ -f "$CADDY" ] || { echo 'Existing LiveKit Docker Caddy configuration required'; exit 1; }
+[ "$(docker inspect "$CONTAINER" --format '{{.State.Running}} {{.HostConfig.NetworkMode}}')" = 'true host' ] || { echo 'Expected running host-network LiveKit Caddy'; exit 1; }
+# Confirm the exact bind mounts before writing any config or web assets.
+docker inspect "$CONTAINER" --format '{{json .Mounts}}' | "$PYTHON" -c 'import json,sys; m={x["Destination"]:x["Source"] for x in json.load(sys.stdin) if x["Type"]=="bind"}; assert m.get("/etc/caddy.yaml")=="/opt/livekit/caddy.yaml" and m.get("/data")=="/opt/livekit/caddy_data", "Unexpected Caddy mounts"'
+reload_proxy(){ docker exec "$CONTAINER" caddy reload --config /etc/caddy.yaml --adapter yaml; }
 if grep -Fq 'admin.soverixnet.com' "$CADDY"; then echo 'Admin domain already has a Caddy entry; review it before installing'; exit 1; fi
 getent ahostsv4 admin.soverixnet.com | awk '{print $1}' | grep -Fxq '206.189.238.27' || { echo 'DNS not ready: admin A record must point directly to 206.189.238.27'; exit 1; }
 STATIC=(index.html app.js style.css sovera-logo.png)
 STAGING=$(mktemp -d /opt/sovera-control-stage.XXXXXX)
-CANDIDATE=$(mktemp /etc/caddy/Caddyfile.sovera.XXXXXX)
+CANDIDATE=$(mktemp /opt/livekit/caddy.sovera.XXXXXX)
+REMOTE_CANDIDATE=/tmp/sovera-control-candidate-$$.json
 BACKUP=
 CHANGED=0
 cleanup(){
@@ -38,11 +44,12 @@ cleanup(){
         rm -f "$TARGET/$file"
       fi
     done
-    if [ -f "$BACKUP/Caddyfile" ]; then cp -a "$BACKUP/Caddyfile" "$CADDY"; caddy reload --config "$CADDY" --adapter caddyfile || true; fi
+    if [ -f "$BACKUP/Caddyfile" ]; then cat "$BACKUP/Caddyfile" > "$CADDY"; reload_proxy || true; fi
     if [ -d "$BACKUP/website" ]; then rm -rf "$WEB"; cp -a "$BACKUP/website" "$WEB"; elif [ -f "$BACKUP/no-website" ]; then rm -rf "$WEB"; fi
     systemctl restart sovera-account || true
     echo 'Update failed; previous server code restored. New user data was not overwritten.'
   fi
+  docker exec "$CONTAINER" rm -f "$REMOTE_CANDIDATE" >/dev/null 2>&1 || true
   rm -rf "$STAGING"
   rm -f "$CANDIDATE"
 }
@@ -55,10 +62,48 @@ mkdir -p "$STAGING/website"
 for file in "${STATIC[@]}"; do
   curl --fail --silent --show-error --connect-timeout 10 --max-time 45 "$SOURCE/admin/selfhost/$file" -o "$STAGING/website/$file"
 done
-cp "$CADDY" "$CANDIDATE"
-printf '\n' >> "$CANDIDATE"
-curl --fail --silent --show-error --connect-timeout 10 --max-time 45 "$SOURCE/admin/selfhost/Caddyfile" >> "$CANDIDATE"
-caddy validate --config "$CANDIDATE" --adapter caddyfile
+docker exec "$CONTAINER" caddy adapt --config /etc/caddy.yaml --adapter yaml > "$STAGING/baseline.json"
+"$PYTHON" - "$STAGING/baseline.json" "$CANDIDATE" <<'CADDY_JSON'
+import copy,json,sys
+config=json.load(open(sys.argv[1]))
+original=copy.deepcopy(config)
+domain='admin.soverixnet.com'
+assert domain not in json.dumps(config), 'Admin domain already configured'
+apps=config['apps']
+automate=apps['tls']['certificates']['automate']
+assert isinstance(automate,list) and 'voice.soverixnet.com' in automate
+routes=apps['layer4']['servers']['main']['routes']
+assert isinstance(routes,list) and routes
+servers=apps['http']['servers']
+assert 'sovera_control' not in servers
+# This loopback listener must be unused by every other configured HTTP server.
+assert not any('7883' in str(server.get('listen',[])) for server in servers.values())
+automate.append(domain)
+routes.insert(0,{'match':[{'tls':{'sni':[domain]}}], 'handle':[
+ {'handler':'tls','connection_policies':[{'alpn':['http/1.1']}]},
+ {'handler':'proxy','upstreams':[{'dial':['127.0.0.1:7883']}]}]})
+headers={'Content-Security-Policy':["default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src 'self'; frame-ancestors 'none'; base-uri 'none'; form-action 'self'"],
+ 'X-Content-Type-Options':['nosniff'],'Referrer-Policy':['no-referrer'],'Cache-Control':['no-store']}
+servers['sovera_control']={'listen':['127.0.0.1:7883'],'automatic_https':{'disable':True},'routes':[
+ {'match':[{'host':[domain]}],'handle':[
+  {'handler':'headers','response':{'set':headers,'delete':['Server']}},
+  {'handler':'subroute','routes':[
+   {'match':[{'path':['/sovera/control/*']}],'handle':[{'handler':'reverse_proxy','upstreams':[{'dial':'127.0.0.1:8092'}]}],'terminal':True},
+   {'handle':[{'handler':'file_server','root':'/data/sovera-control','hide':['.*']}]}]}],'terminal':True},
+ {'handle':[{'handler':'static_response','status_code':404}]}]}
+# Verify that the transformation preserves every original route and setting.
+check=copy.deepcopy(config)
+check['apps']['tls']['certificates']['automate'].remove(domain)
+check['apps']['layer4']['servers']['main']['routes'].pop(0)
+del check['apps']['http']['servers']['sovera_control']
+assert check==original
+with open(sys.argv[2],'w') as out: json.dump(config,out,indent=2); out.write('\n')
+CADDY_JSON
+# JSON is a YAML subset: retain the existing YAML adapter and mounted filename.
+docker cp "$CANDIDATE" "$CONTAINER:$REMOTE_CANDIDATE"
+docker exec "$CONTAINER" caddy validate --config "$REMOTE_CANDIDATE" --adapter yaml
+# Do not claim port 7883 if an unrelated process already owns it.
+if ss -ltnH 'sport = :7883' | grep -q .; then echo 'Loopback port 7883 is already in use'; exit 1; fi
 (cd "$STAGING" && "$PYTHON" -m unittest server.accounts.test_accounts server.accounts.test_control) >/dev/null
 (cd "$STAGING" && "$PYTHON" -m unittest server.accounts.test_community \
  server.accounts.test_wallet server.accounts.test_greedy_wallet \
@@ -99,8 +144,14 @@ for path in community/moments community/support staff; do
 done
 install -d -m 755 "$WEB"
 for file in "${STATIC[@]}"; do install -m 644 "$STAGING/website/$file" "$WEB/$file"; done
-install -m 644 "$CANDIDATE" "$CADDY"
-caddy reload --config "$CADDY" --adapter caddyfile
+# Preserve the inode: Docker mounts this individual file, not its parent directory.
+cat "$CANDIDATE" > "$CADDY"
+reload_proxy
+curl --fail --silent --show-error --max-time 10 https://voice.soverixnet.com/sovera/account/health -o "$STAGING/voice-health.json"
+"$PYTHON" - "$STAGING/voice-health.json" <<'PY_HEALTH'
+import json,sys
+assert json.load(open(sys.argv[1])).get('ready') is True
+PY_HEALTH
 curl --fail --silent --show-error --retry 5 --retry-all-errors --retry-delay 2 --connect-timeout 5 --max-time 10 https://admin.soverixnet.com/ -o "$STAGING/admin.html"
 grep -Fq 'Sovera Control' "$STAGING/admin.html"
 code=$(curl --silent --output /dev/null --write-out '%{http_code}' --max-time 10 https://admin.soverixnet.com/sovera/control/session)
