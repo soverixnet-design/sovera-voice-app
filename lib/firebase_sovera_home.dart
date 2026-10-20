@@ -6,7 +6,7 @@ import 'package:http/http.dart' as http;
 import 'firebase_profile.dart';
 import 'country_picker.dart' show soveraCountries;
 import 'firebase_rooms.dart';
-import 'firebase_food_wheel.dart';
+import 'firebase_greedy_wheel.dart';
 import 'main.dart' show BrandLogo, Glass, Jewel, violet, gold, pink, cyan;
 
 /// Restores the ORIGINAL Sovera Home/Moments/Messages/Me visual hierarchy.
@@ -40,7 +40,7 @@ class _FirebaseSoveraHomeState extends State<FirebaseSoveraHome>{
   final followed=<String>{}; // Local preview only; no fake server follows.
   final slides=const <(String,String,IconData,Color)>[
     ('Your voice. Your world.','Create a room and make it yours.',Icons.mic_rounded,violet),
-    ('Sovera Hall of Fame','Shared Food Wheel results are server verified.',Icons.emoji_events_rounded,gold),
+    ('Sovera Hall of Fame','Greedy Wheel · One server round for everyone.',Icons.emoji_events_rounded,gold),
     ('Something worth celebrating','Voice rooms, gifts and community.',Icons.celebration_rounded,pink),
   ];
   @override void initState(){
@@ -132,7 +132,7 @@ class _FirebaseSoveraHomeState extends State<FirebaseSoveraHome>{
   void wallet()=>feature('Coins & Diamonds',
     'Wallet and recharge are not connected to this Firebase account yet. No fake balance is shown and no coins will be deducted.');
   void rankings()=>feature('Rankings',
-    'The Food Wheel preview shows genuine winning food and names, but paid ranking and rewards are not enabled.');
+    'Greedy game rankings will show only server-verified results after the live game wallet is enabled.');
   void events()=>feature('Events',
     'Admin-created community events need their verified Firebase API before going live.');
   Widget roomCard(Map<String,dynamic> room,int index){
@@ -269,7 +269,7 @@ class _FirebaseSoveraHomeState extends State<FirebaseSoveraHome>{
       quick(Icons.celebration_rounded,'Events',events,pink),
       quick(Icons.add_home_rounded,'My room',createRoom,cyan),
       quick(Icons.sports_esports_rounded,'Games',
-        ()=>go(FirebaseFoodWheelPage(api:api)),violet),
+        ()=>go(FirebaseGreedyWheelPage(api:api)),violet),
     ]),
     const SizedBox(height:18),
     Row(children:[
