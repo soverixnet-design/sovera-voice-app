@@ -158,8 +158,8 @@ class _FirebaseVoicePanelState extends State<FirebaseVoicePanel> with WidgetsBin
             borderRadius:BorderRadius.circular(52),
             onTap:!connected||busy||seats.occupants.containsKey(i)?null:()=>take(i),
             child:Column(mainAxisSize:MainAxisSize.min,children:[
-              Container(width:tileWidth.clamp(58.0,80.0),
-                height:tileWidth.clamp(58.0,80.0),
+              Container(width:tileWidth.clamp(58.0,80.0).toDouble(),
+                height:tileWidth.clamp(58.0,80.0).toDouble(),
                 padding:const EdgeInsets.all(5),
                 decoration:BoxDecoration(shape:BoxShape.circle,
                   gradient:const LinearGradient(
