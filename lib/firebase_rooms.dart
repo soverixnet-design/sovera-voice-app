@@ -155,6 +155,9 @@ class _FirebaseRoomChatState extends State<FirebaseRoomChat> with WidgetsBinding
   int catalogServerNow=0;
   Map<String,dynamic>? pendingGift;
   Set<String> blocked={};
+  Set<int> lockedSeats={};
+  String roomRole='member';
+  List<Map<String,dynamic>> roomAdmins=[];
 
   late String roomName;late int seatCount;late String roomFrame;
   bool get isOwner=>widget.room['owner_uid']==widget.api.uid;
@@ -173,6 +176,10 @@ class _FirebaseRoomChatState extends State<FirebaseRoomChat> with WidgetsBinding
       try{
         final list=await widget.api.call('GET',suffix:'/community/blocks');
         if(mounted)setState(()=>blocked=(list['items'] as List).whereType<Map>().map((r)=>r['uid'].toString()).toSet());
+      }catch(_){}
+      try {
+        final controls=await widget.api.call('GET',suffix:'$path/controls');
+        if(mounted)setState((){roomRole=controls['role'] as String;lockedSeats=(controls['locked_seats'] as List).cast<int>().toSet();roomAdmins=(controls['admins'] as List).whereType<Map>().map((r)=>Map<String,dynamic>.from(r)).toList();});
       }catch(_){}
       final data=await widget.api.call('GET',suffix:'$path/messages');
       if(mounted)setState((){messages..clear()..addAll((data['messages'] as List).map((r)=>Map<String,dynamic>.from(r as Map)));error=null;});
@@ -258,12 +265,37 @@ class _FirebaseRoomChatState extends State<FirebaseRoomChat> with WidgetsBinding
     }finally{if(mounted)setState(()=>sendingEffect=false);}
   }
 
-  void openGame()=>showModalBottomSheet<void>(
+  void launchGreedy()=>showModalBottomSheet<void>(
     context:context,isScrollControlled:true,useSafeArea:true,
     backgroundColor:const Color(0xFF12172D),
     builder:(sheetContext)=>SizedBox(height:MediaQuery.sizeOf(sheetContext).height*.64,
       child:FirebaseGreedyWheelPage(api:widget.api,inRoom:true)));
+  void openGame()=>showModalBottomSheet<void>(context:context,useSafeArea:true,
+    backgroundColor:const Color(0xF5101424),builder:(sheetContext)=>Padding(
+      padding:const EdgeInsets.all(20),child:Column(mainAxisSize:MainAxisSize.min,crossAxisAlignment:CrossAxisAlignment.stretch,children:[
+        const Text('Room games',textAlign:TextAlign.center,style:TextStyle(fontSize:22,fontWeight:FontWeight.bold)),
+        const SizedBox(height:20),
+        Align(alignment:Alignment.centerLeft,child:SizedBox(width:145,child:InkWell(
+          borderRadius:BorderRadius.circular(22),onTap:(){Navigator.pop(sheetContext);launchGreedy();},
+          child:Container(padding:const EdgeInsets.all(16),decoration:BoxDecoration(borderRadius:BorderRadius.circular(22),gradient:const LinearGradient(colors:[Color(0xFFFFCB59),Color(0xFF7750D9)])),child:const Column(children:[
+            Icon(Icons.restaurant_rounded,size:64,color:Colors.white),SizedBox(height:10),Text('Greedy Wheel',style:TextStyle(fontWeight:FontWeight.bold,color:Colors.white)),
+          ]))))),
+        const SizedBox(height:16),
+      ])));
 
+  Future<void> manageAdmins() async {
+    await showModalBottomSheet<void>(context:context,isScrollControlled:true,builder:(context)=>SafeArea(child:SizedBox(height:MediaQuery.sizeOf(context).height*.55,child:ListView(children:[
+      const ListTile(title:Text('Room admins'),subtitle:Text('Only the owner can give or remove room permissions.')),
+      for(final person in {for(final p in [...roomPeople,...roomAdmins])p['uid']:p}.values)
+        if(person['uid']!=widget.api.uid)ListTile(title:Text(person['name']?.toString()??'Room member'),
+          trailing:TextButton(child:Text(roomAdmins.any((a)=>a['uid']==person['uid'])?'Remove admin':'Make admin'),onPressed:()async{
+            final enabled=!roomAdmins.any((a)=>a['uid']==person['uid']);
+            Navigator.pop(context);
+            try{await widget.api.call('PUT',suffix:'$path/admins',fields:{'uid':person['uid'],'enabled':enabled});await sync();}
+            catch(e){if(mounted)setState(()=>error=_error(e));}
+          })),
+    ]))));
+  }
   Future<void> send()async{
     final text=input.text.trim();if(sending||text.isEmpty)return;
     if(pendingText!=null&&pendingText!=text){setState(()=>error='Retry the pending message before changing its text.');return;}
@@ -279,17 +311,9 @@ class _FirebaseRoomChatState extends State<FirebaseRoomChat> with WidgetsBinding
     appBar:AppBar(backgroundColor:const Color(0xFF28183D),title:Text(
       '${_flag((widget.room['country']??'').toString())} $roomName'.trim(),
       maxLines:1,overflow:TextOverflow.ellipsis),actions:[
-    IconButton(tooltip:'Greedy Wheel',onPressed:()=>showModalBottomSheet<void>(
-      context:context,isScrollControlled:true,useSafeArea:true,
-      backgroundColor:const Color(0xFF12172D),
-      builder:(sheetContext)=>SizedBox(height:MediaQuery.sizeOf(sheetContext).height*.64,
-        child:FirebaseGreedyWheelPage(api:widget.api,inRoom:true))),
-      icon:const Icon(Icons.casino_rounded)),
-
-
-    IconButton(tooltip:'Gift effects',onPressed:sendingEffect?null:chooseEffect,icon:const Icon(Icons.card_giftcard_rounded)),
     PopupMenuButton<String>(tooltip:'Room options',onSelected:(value){
       if(value=='settings')editRoom();
+      if(value=='admins')manageAdmins();
       if(value=='effects')chooseEffect(legacy:true);
       if(value=='report')reportSovera(context,widget.api,'room',widget.room['id'].toString());
       if(value=='members')showModalBottomSheet<void>(context:context,builder:(context)=>SafeArea(
@@ -301,6 +325,7 @@ class _FirebaseRoomChatState extends State<FirebaseRoomChat> with WidgetsBinding
       const PopupMenuItem(value:'members',child:Text('Room members')),
       const PopupMenuItem(value:'effects',child:Text('Free room effects')),
       if(isOwner)const PopupMenuItem(value:'settings',child:Text('Room settings')),
+      if(isOwner)const PopupMenuItem(value:'admins',child:Text('Room admins')),
       const PopupMenuItem(value:'report',child:Text('Report room')),
     ])]),
     body:Container(
@@ -311,22 +336,16 @@ class _FirebaseRoomChatState extends State<FirebaseRoomChat> with WidgetsBinding
     // Original full-size seat artwork stays scrollable on short displays;
     // input stays fixed and accessible without layout overflow.
     Expanded(child:SingleChildScrollView(child:Column(children:[
-    Padding(padding:const EdgeInsets.fromLTRB(14,9,14,6),
-      child:Row(children:[
-        const CircleAvatar(radius:20,backgroundColor:Color(0xFF7D55D6),
-          child:Icon(Icons.mic_rounded,color:Colors.white)),
-        const SizedBox(width:10),
-        Expanded(child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
-          Text(roomName,maxLines:1,overflow:TextOverflow.ellipsis,
-            style:const TextStyle(fontSize:16,fontWeight:FontWeight.w800)),
-          Text('${widget.room['owner_name']??'Room host'} · $seatCount mic seats',
-            style:const TextStyle(fontSize:11,color:Colors.white60)),
-        ])),
-        const Icon(Icons.graphic_eq_rounded,color:Color(0xFF71E5E6)),
+    Padding(padding:const EdgeInsets.fromLTRB(14,8,14,8),child:Row(children:[
+      const CircleAvatar(radius:18,child:Icon(Icons.mic_rounded,size:20)),
+      const SizedBox(width:8),
+      Expanded(child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
+        Text(roomName,maxLines:1,overflow:TextOverflow.ellipsis,style:const TextStyle(fontWeight:FontWeight.bold)),
+        Text(widget.room['owner_name']?.toString()??'Room host',style:const TextStyle(fontSize:11,color:Colors.white70)),
       ])),
-
-    if(isOwner)Padding(padding:const EdgeInsets.symmetric(vertical:3),child:Text('$seatCount seats · Owner settings',style:const TextStyle(fontSize:12,color:Colors.white70))),
-    FirebaseVoicePanel(api:widget.api,roomId:widget.room['id'] as String,seatCount:seatCount,people:roomPeople,blockedUids:blocked,autoConnect:true),
+      Chip(avatar:const Icon(Icons.people_outline,size:14),label:Text('${roomPeople.length}')),
+    ])),
+    FirebaseVoicePanel(api:widget.api,roomId:widget.room['id'] as String,seatCount:seatCount,people:roomPeople,blockedUids:blocked,autoConnect:true,roomRole:isOwner?'owner':roomRole,lockedSeats:lockedSeats,onControlsChanged:sync),
     if(catalogEvents.isNotEmpty)CatalogRoomAnimation(key:ValueKey(catalogEvents.first['event_id']),event:catalogEvents.first,serverNow:catalogServerNow,recipients:catalogEvents.where((r)=>r['id']==catalogEvents.first['id']&&r['sender_uid']==catalogEvents.first['sender_uid']&&r['created_at']==catalogEvents.first['created_at']).toList()),
     if(roomEffects.isNotEmpty)AnimatedSwitcher(
       duration:const Duration(milliseconds:300),
@@ -363,3 +382,4 @@ class _FirebaseRoomChatState extends State<FirebaseRoomChat> with WidgetsBinding
     ])),
   ]))));
 }
+

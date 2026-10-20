@@ -42,9 +42,12 @@ class FirebaseVoicePanel extends StatefulWidget {
   final int seatCount;
   final Set<String> blockedUids;
   final bool autoConnect;
+  final String roomRole;
+  final Set<int> lockedSeats;
+  final VoidCallback? onControlsChanged;
   final List<Map<String,dynamic>> people;
   const FirebaseVoicePanel({
-    super.key,required this.api,required this.roomId,this.seatCount=9,this.people=const [],this.blockedUids=const {},this.autoConnect=false,
+    super.key,required this.api,required this.roomId,this.seatCount=9,this.people=const [],this.blockedUids=const {},this.autoConnect=false,this.roomRole='member',this.lockedSeats=const {},this.onControlsChanged,
   });
   @override State<FirebaseVoicePanel> createState()=>_FirebaseVoicePanelState();
 }
@@ -247,7 +250,24 @@ class _FirebaseVoicePanelState extends State<FirebaseVoicePanel> with WidgetsBin
         :'Could not take this seat. Check permission and retry.';
     }finally{busy=false;if(mounted&&!closing)setState((){});}
   }
+  Future<void> seatMenu(int index) async {
+    final locked=widget.lockedSeats.contains(index);
+    final action=await showModalBottomSheet<String>(context:context,builder:(context)=>SafeArea(child:Column(mainAxisSize:MainAxisSize.min,children:[
+      ListTile(title:Text('Mic ${index+1}'),subtitle:const Text('Room microphone controls')),
+      if(!seats.occupants.containsKey(index))ListTile(leading:const Icon(Icons.mic),title:const Text('Take mic'),onTap:()=>Navigator.pop(context,'take')),
+      ListTile(leading:Icon(locked?Icons.lock_open:Icons.lock),title:Text(locked?'Unlock seat':'Lock seat'),onTap:()=>Navigator.pop(context,locked?'unlock':'lock')),
+      ListTile(leading:const Icon(Icons.lock_outline),title:const Text('Lock all seats'),onTap:()=>Navigator.pop(context,'lockAll')),
+      ListTile(leading:const Icon(Icons.lock_open),title:const Text('Unlock all seats'),onTap:()=>Navigator.pop(context,'unlockAll')),
+    ])));
+    if(action==null||!mounted)return;
+    if(action=='take'){await seatTap(index);return;}
+    try{
+      await widget.api.call('PUT',suffix:'/rooms/${widget.roomId}/seat-lock',fields:{'locked':action=='lock'||action=='lockAll',if(!action.endsWith('All'))'seat':index});
+      widget.onControlsChanged?.call();
+    }catch(_){if(mounted)setState(()=>error='Could not change seat lock. Please retry.');}
+  }
   Future<void> seatTap(int index)async{
+    if(widget.lockedSeats.contains(index)&&widget.roomRole=='member'){setState(()=>error='This mic seat is locked.');return;}
     if(busy||closing||!active)return;
     if(!connected)await connect();
     if(!mounted||!connected)return;
@@ -300,12 +320,15 @@ class _FirebaseVoicePanelState extends State<FirebaseVoicePanel> with WidgetsBin
         for(var i=0;i<count;i++)SizedBox(width:tileWidth,
           child:InkWell(
             borderRadius:BorderRadius.circular(52),
-            onTap:busy||seats.occupants.containsKey(i)?null:()=>seatTap(i),
+            onTap:busy?null:widget.roomRole!='member'?()=>seatMenu(i):seats.occupants.containsKey(i)?null:()=>seatTap(i),
+            onLongPress:busy||widget.roomRole=='member'?null:()=>seatMenu(i),
             child:Column(mainAxisSize:MainAxisSize.min,children:[
-              FirebaseSeatPortrait(
+              Stack(alignment:Alignment.center,children:[FirebaseSeatPortrait(
                 key:ValueKey('seat-portrait-$i'),
                 uid:seats.occupants[i],person:seatPerson(i),
                 size:tileWidth.clamp(48.0,66.0).toDouble()),
+                if(widget.lockedSeats.contains(i)&&!seats.occupants.containsKey(i))const Icon(Icons.lock_rounded,color:Color(0xFFFFD785),size:30),
+              ]),
               const SizedBox(height:6),
               Text(seats.mine==i?'You':seats.occupants.containsKey(i)
                 ?(seatPerson(i)?['name']?.toString()??'Occupied'):'Mic ${i+1}',maxLines:1,

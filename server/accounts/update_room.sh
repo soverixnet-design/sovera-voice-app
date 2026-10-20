@@ -17,7 +17,7 @@ STAGE=$(mktemp -d /opt/sovera-room-stage.XXXXXX)
 chmod 755 "$STAGE"
 BACKUP=
 CHANGED=0
-FILES=(app.py wallet.py rooms.py voice.py profile_media.py seed_gifts.py test_profile_media.py test_wallet.py test_catalog.py)
+FILES=(app.py wallet.py rooms.py voice.py room_controls.py test_room_controls.py profile_media.py seed_gifts.py test_profile_media.py test_wallet.py test_catalog.py)
 GAMEFILES=(start.js limits.js selftest.js)
 cleanup(){
   result=$?
@@ -28,6 +28,7 @@ cleanup(){
     for name in "${GAMEFILES[@]}"; do
       if [ -f "$BACKUP/game/$name" ]; then install -m 644 "$BACKUP/game/$name" "$GAME/src/$name"; else rm -f "$GAME/src/$name"; fi
     done
+    if [ -f "$BACKUP/gateway.py" ]; then install -m 644 "$BACKUP/gateway.py" "$TARGET/server/voice/app.py"; fi
     systemctl restart sovera-account || true
     systemctl restart sovera-greedy || true
     echo 'Previous code restored; wallet and game transactions preserved.'
@@ -46,7 +47,9 @@ for name in "${GAMEFILES[@]}"; do
   curl -fLsS --retry 3 --connect-timeout 10 --max-time 60 "$SOURCE/server/greedy/$name" -o "$STAGE/game/src/$name"
   "$NODE" --check "$STAGE/game/src/$name"
 done
-(cd "$STAGE" && "$PYTHON" -m unittest server.accounts.test_wallet server.accounts.test_catalog server.accounts.test_accounts server.accounts.test_profile_media server.accounts.test_voice server.accounts.test_greedy_wallet server.accounts.test_greedy_access -q)
+(cd "$STAGE" && "$PYTHON" -m unittest server.accounts.test_wallet server.accounts.test_catalog server.accounts.test_accounts server.accounts.test_profile_media server.accounts.test_room_controls server.accounts.test_voice server.accounts.test_greedy_wallet server.accounts.test_greedy_access -q)
+curl -fLsS --retry 3 --connect-timeout 10 --max-time 60 "$SOURCE/server/voice/app.py" -o "$STAGE/server/voice/app.py"
+(cd "$STAGE" && "$PYTHON" -m unittest server.accounts.test_room_controls server.accounts.test_voice -q)
 echo 'Testing a shared round above one million using isolated test balances...'
 "$NODE" "$STAGE/game/src/selftest.js" "$STAGE/game" --large-bet
 BACKUP=$(mktemp -d /opt/sovera-room-backup.XXXXXX)
@@ -73,7 +76,9 @@ for original,name in [
     finally:target.close();source.close()
     os.chmod(dest,0o600)
 PY
+cp -a "$TARGET/server/voice/app.py" "$BACKUP/gateway.py"
 CHANGED=1
+install -m 644 "$STAGE/server/voice/app.py" "$TARGET/server/voice/app.py"
 for name in "${FILES[@]}"; do install -m 644 "$STAGE/server/accounts/$name" "$TARGET/server/accounts/$name"; done
 for name in "${GAMEFILES[@]}"; do install -m 644 "$STAGE/game/src/$name" "$GAME/src/$name"; done
 (cd "$TARGET" && "$PYTHON" -m server.accounts.seed_gifts --database "$DATABASE")

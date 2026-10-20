@@ -15,6 +15,8 @@ def attach_voice(app, rooms, actor):
     if not os.environ.get('LIVEKIT_API_KEY') or not os.environ.get('LIVEKIT_API_SECRET'):
         raise RuntimeError('Voice credentials required')
     gateway.ROOM_PREFIX = 'fb-'
+    from .room_controls import RoomControls
+    gateway.seat_policy = RoomControls(rooms).check_take
 
     def allowed(uid, room):
         with rooms.db() as db:

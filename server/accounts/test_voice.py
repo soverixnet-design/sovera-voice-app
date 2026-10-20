@@ -13,7 +13,7 @@ import unittest
 class VoiceTests(unittest.TestCase):
     def setUp(self):
         AccountTests.setUp(self)
-        previous=(gateway.authorize,gateway.ROOM_PREFIX,gateway.lk,gateway.lock)
+        previous=(gateway.authorize,gateway.ROOM_PREFIX,gateway.lk,gateway.lock,gateway.seat_policy)
         self.addCleanup(lambda: self.restore(previous))
         env=patch.dict(os.environ,{'SOVERA_VOICE_ROOM_PREFIX':'fb-','LIVEKIT_URL':'wss://voice.soverixnet.com','LIVEKIT_API_KEY':'test','LIVEKIT_API_SECRET':'test-secret-only-32-characters-long'})
         env.start();self.addCleanup(env.stop)
@@ -23,7 +23,7 @@ class VoiceTests(unittest.TestCase):
         self.client=TestClient(create_app(self.store,verify,voice=True))
         self.headers={'Authorization':'Bearer alice'}
     def restore(self,old):
-        gateway.authorize,gateway.ROOM_PREFIX,gateway.lk,gateway.lock=old
+        gateway.authorize,gateway.ROOM_PREFIX,gateway.lk,gateway.lock,gateway.seat_policy=old
         gateway.seats.clear()
     def test_verified_profile_room_and_server_seat_count(self):
         path='/sovera/account/voice';room=str(uuid.uuid4())

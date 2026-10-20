@@ -76,7 +76,7 @@ class Profiles:
                 updated_at=excluded.updated_at''', (uid, data.display_name, data.country,
                     data.bio, data.avatar_url, int(time.time())))
             for column in ('gender', 'birthday'):
-                if column in data.model_fields_set:
+                if column in getattr(data, 'model_fields_set', set()):
                     value = getattr(data, column)
                     if isinstance(value, date): value = value.isoformat()
                     db.execute(f'UPDATE account_profiles SET {column}=? WHERE firebase_uid=?', (value, uid))
@@ -127,6 +127,8 @@ def create_app(profiles, verify, *, voice=False):
     from .profile_media import attach_profile_media
     attach_profile_media(app, profiles, actor)
     rooms = Rooms(profiles.path)
+    from .room_controls import attach_room_controls
+    attach_room_controls(app, rooms, actor)
     wallets = WalletStore(profiles.path)
     attach_greedy_wallet(app, wallets)
     duel = RoomDuel(profiles.path)

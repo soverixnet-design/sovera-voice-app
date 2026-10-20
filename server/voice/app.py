@@ -27,6 +27,7 @@ LEASE_SECONDS = 35
 seats = {}
 lock = asyncio.Lock()
 lk = None
+seat_policy = None
 
 
 class Join(BaseModel):
@@ -245,6 +246,8 @@ async def token(body: Join, authorization: str = Header(default='')):
                     raise HTTPException(409, 'Join live audio first')
                 if body.seat is None or not 0 <= body.seat < count:
                     raise HTTPException(422, 'Invalid seat')
+                if seat_policy is not None:
+                    seat_policy(uid, str(body.room_id), body.seat)
                 target = (room, body.seat)
                 if target in seats and seats[target]['uid'] != uid:
                     raise HTTPException(409, 'Seat occupied')
