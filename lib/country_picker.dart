@@ -1,8 +1,11 @@
 import 'package:flutter/material.dart';
-// UI-only ISO country flags. No Supabase/client database import is allowed.
-String countryFlag(dynamic value){
+
+// Pure country-picker UI, completely independent of Firebase/Supabase data.
+String countryFlag(dynamic value) {
   final code=(value??'').toString().trim().toUpperCase();
-  if(!RegExp(r'^[A-Z]{2}
+  if (!RegExp(r'^[A-Z]{2}$').hasMatch(code)) return '';
+  return String.fromCharCodes(code.codeUnits.map((v)=>v+127397));
+}
 const soveraCountries=<String,String>{
  'BD':'Bangladesh','OM':'Oman','SA':'Saudi Arabia','AE':'United Arab Emirates','QA':'Qatar','KW':'Kuwait','BH':'Bahrain','MY':'Malaysia','IN':'India','PK':'Pakistan','NP':'Nepal','LK':'Sri Lanka','ID':'Indonesia','PH':'Philippines','SG':'Singapore','TH':'Thailand','VN':'Vietnam','MM':'Myanmar','CN':'China','JP':'Japan','KR':'South Korea','AU':'Australia','NZ':'New Zealand','GB':'United Kingdom','US':'United States','CA':'Canada','DE':'Germany','FR':'France','IT':'Italy','ES':'Spain','PT':'Portugal','NL':'Netherlands','SE':'Sweden','NO':'Norway','FI':'Finland','DK':'Denmark','IE':'Ireland','CH':'Switzerland','AT':'Austria','BE':'Belgium','PL':'Poland','GR':'Greece','TR':'Türkiye','RU':'Russia','UA':'Ukraine','EG':'Egypt','MA':'Morocco','DZ':'Algeria','TN':'Tunisia','ZA':'South Africa','NG':'Nigeria','KE':'Kenya','GH':'Ghana','ET':'Ethiopia','AF':'Afghanistan','IR':'Iran','IQ':'Iraq','JO':'Jordan','LB':'Lebanon','YE':'Yemen','SY':'Syria','PS':'Palestine','MV':'Maldives','BN':'Brunei','UZ':'Uzbekistan','KZ':'Kazakhstan','BR':'Brazil','AR':'Argentina','MX':'Mexico','CO':'Colombia','CL':'Chile','PE':'Peru','CU':'Cuba','HK':'Hong Kong','TW':'Taiwan','KH':'Cambodia','LA':'Laos','MN':'Mongolia','BT':'Bhutan','MU':'Mauritius','SC':'Seychelles','SD':'Sudan','SO':'Somalia','LY':'Libya','AL':'Albania','BA':'Bosnia and Herzegovina','RO':'Romania','HU':'Hungary','CZ':'Czechia','SK':'Slovakia','HR':'Croatia','RS':'Serbia','BG':'Bulgaria','IS':'Iceland','LU':'Luxembourg','MT':'Malta','CY':'Cyprus','EE':'Estonia','LV':'Latvia','LT':'Lithuania','GE':'Georgia','AM':'Armenia','AZ':'Azerbaijan','KG':'Kyrgyzstan','TJ':'Tajikistan','TM':'Turkmenistan',
 };
