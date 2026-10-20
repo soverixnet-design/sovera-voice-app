@@ -6,6 +6,16 @@ on:
 permissions:
   contents: read
 jobs:
+  greedy_wallet:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: npm install --no-save --prefix server/greedy better-sqlite3@12.11.1 ws@8.18.3
+      - run: node server/greedy/test_wallet.js
+      - run: python -m py_compile server/greedy/deploy.py
   voice_server:
     runs-on: ubuntu-latest
     steps:
