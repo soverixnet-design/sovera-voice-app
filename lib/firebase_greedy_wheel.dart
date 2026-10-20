@@ -34,7 +34,8 @@ class _FirebaseGreedyWheelPageState extends State<FirebaseGreedyWheelPage>{
           url.path!='/greedy/'||url.hasQuery||url.hasFragment){
         throw const ProfileApiError('Unexpected Greedy game server');
       }
-      final ctl=WebViewController()
+      late final WebViewController ctl;
+      ctl=WebViewController()
         ..setJavaScriptMode(JavaScriptMode.unrestricted)
         ..setBackgroundColor(const Color(0xFF1A0E2B))
         ..setNavigationDelegate(NavigationDelegate(
