@@ -49,7 +49,10 @@ class FirebaseProfileApi {
 class FirebaseProfileEditor extends StatefulWidget {
   final FirebaseProfileApi api;
   final String initialName;
-  const FirebaseProfileEditor({super.key, required this.api, this.initialName = ''});
+  final VoidCallback? onSaved;
+  const FirebaseProfileEditor({
+    super.key,required this.api,this.initialName='',this.onSaved,
+  });
   @override State<FirebaseProfileEditor> createState() => _FirebaseProfileEditorState();
 }
 class _FirebaseProfileEditorState extends State<FirebaseProfileEditor> {
@@ -85,6 +88,7 @@ class _FirebaseProfileEditorState extends State<FirebaseProfileEditor> {
       name.text=row!['display_name'] as String;
       bio.text=(row['bio'] as String?)??'';
       setState(() { country=row['country'] as String; message='Profile saved to your server.'; });
+      widget.onSaved?.call();
     } catch(e) { if(mounted) setState(() => message=error(e)); }
     finally { if(mounted) setState(() => busy=false); }
   }
