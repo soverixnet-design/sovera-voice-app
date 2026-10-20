@@ -9,6 +9,7 @@ import 'firebase_original_social.dart';
 import 'firebase_original_coin_sellers.dart';
 import 'effects_studio.dart' show EffectsStudio;
 import 'firebase_server_wallet.dart';
+import 'firebase_community.dart';
 import 'country_picker.dart' show soveraCountries;
 import 'firebase_rooms.dart';
 import 'room_card_art.dart';
@@ -42,8 +43,9 @@ class _FirebaseSoveraHomeState extends State<FirebaseSoveraHome>{
   int tab=0,banner=0;
   bool loading=false,creating=false;
   String query='',filter='All';
-  final posts=<String>[];
-  final followed=<String>{}; // Local preview only; no fake server follows.
+  String? staffRole;
+  bool followBusy=false;
+  final followed=<String>{};
   final slides=const <(String,String,IconData,Color)>[
     ('Your voice. Your world.','Create a room and make it yours.',Icons.mic_rounded,violet),
     ('Sovera Hall of Fame','Greedy Wheel · One server round for everyone.',Icons.emoji_events_rounded,gold),
@@ -64,9 +66,17 @@ class _FirebaseSoveraHomeState extends State<FirebaseSoveraHome>{
     try{
       final data=await api.call('GET',suffix:'/rooms');
       final p=await api.load();
+      // Older deployed servers may not yet have community endpoints.
+      Set<String>? savedFollows;String? role;
+      try{
+        final following=await api.call('GET',suffix:'/community/follows');
+        savedFollows=(following['items'] as List).map((r)=>(r as Map)['room'].toString()).toSet();
+        role=(await api.call('GET',suffix:'/staff'))['role'] as String?;
+      }catch(_){/* Room access remains available during server rollout. */}
       if(mounted)setState((){
         rooms=(data['rooms'] as List).map((e)=>Map<String,dynamic>.from(e as Map)).toList();
-        profile=p;error=null;
+        profile=p;error=null;staffRole=role;
+        if(savedFollows!=null){followed..clear()..addAll(savedFollows);}
       });
     }catch(e){if(mounted&&!silent)setState(()=>error=e is ProfileApiError?e.message:'Could not load rooms. Check connection.');}
     finally{if(mounted)setState(()=>loading=false);}
@@ -133,13 +143,22 @@ class _FirebaseSoveraHomeState extends State<FirebaseSoveraHome>{
       title:Text(name),content:Text(explanation),
       actions:[TextButton(onPressed:()=>Navigator.pop(context),child:const Text('Close'))]));
   }
-  void notices()=>feature('Official notices',
-    'The Firebase notice feed has not yet been connected. Old Supabase notices were not deleted.');
+  void community(String section,String title)=>go(FirebaseCommunity(api:api,section:section,title:title));
+  void notices()=>community('notices','Official notices');
+  Future<void> toggleFollow(String id)async{
+    if(followBusy)return;
+    setState(()=>followBusy=true);
+    final enable=!followed.contains(id);
+    try{
+      await api.call(enable?'PUT':'DELETE',suffix:'/community/follows/${Uri.encodeComponent(id)}');
+      if(mounted)setState(()=>enable?followed.add(id):followed.remove(id));
+    }catch(e){say(e is ProfileApiError?e.message:'Could not save room follow.');}
+    finally{if(mounted)setState(()=>followBusy=false);}
+  }
   void wallet()=>go(FirebaseServerWalletPage(api:api));
   void rankings()=>feature('Rankings',
     'Greedy game rankings will show only server-verified results after the live game wallet is enabled.');
-  void events()=>feature('Events',
-    'Admin-created community events need their verified Firebase API before going live.');
+  void events()=>community('events','Community events');
   Widget roomCard(Map<String,dynamic> room,int index){
     const tones=[violet,cyan,gold,pink];
     final color=tones[index%tones.length];
@@ -170,9 +189,8 @@ class _FirebaseSoveraHomeState extends State<FirebaseSoveraHome>{
                 decoration:BoxDecoration(color:Colors.black54,borderRadius:BorderRadius.circular(15)),
                 child:const Text('VOICE ROOM',style:TextStyle(fontSize:10,color:Colors.white)))),
               Positioned(right:0,top:0,child:IconButton(
-                tooltip:isFollowed?'Unmark room':'Mark favorite (this device)',
-                onPressed:()=>setState(()=>
-                  isFollowed?followed.remove(id):followed.add(id)),
+                tooltip:isFollowed?'Unfollow room':'Follow room',
+                onPressed:followBusy?null:()=>toggleFollow(id),
                 icon:Icon(isFollowed?Icons.favorite:Icons.favorite_border,
                   color:isFollowed?pink:Colors.white))),
               Positioned(right:9,bottom:8,child:Container(
@@ -285,35 +303,14 @@ class _FirebaseSoveraHomeState extends State<FirebaseSoveraHome>{
     ]),
     const SizedBox(height:16),directory(),
   ]);
-  Widget moments()=>Column(crossAxisAlignment:CrossAxisAlignment.stretch,children:[
-    title('Moments'),
-    FilledButton.icon(onPressed:()async{
-      final edit=TextEditingController();
-      final note=await showDialog<String>(context:context,builder:(ctx)=>
-        AlertDialog(title:const Text('Write a moment (local draft)'),
-          content:TextField(controller:edit,maxLength:500,maxLines:5),
-          actions:[TextButton(onPressed:()=>Navigator.pop(ctx),child:const Text('Cancel')),
-            FilledButton(onPressed:()=>Navigator.pop(ctx,edit.text.trim()),
-              child:const Text('Save draft'))]));
-      edit.dispose();
-      if(note!=null&&note.isNotEmpty&&mounted)setState(()=>posts.insert(0,note));
-    },icon:const Icon(Icons.edit_rounded),label:const Text('Write a moment')),
-    const SizedBox(height:16),
-    if(posts.isEmpty)const Glass(child:Text(
-      'Moments design restored. Publishing to the Firebase feed is not yet connected; drafts stay on this device during this session.')),
-    for(final p in posts)Padding(padding:const EdgeInsets.only(bottom:12),
-      child:Glass(child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
-        Text(displayName,style:const TextStyle(fontWeight:FontWeight.bold)),
-        const SizedBox(height:12),Text(p),
-      ]))),
-  ]);
+  Widget moments()=>FirebaseCommunity(api:api,section:'moments',title:'Moments',embedded:true);
   Widget messages()=>Column(crossAxisAlignment:CrossAxisAlignment.stretch,children:[
     title('Messages'),
     for(final item in <(IconData,String,Color,VoidCallback)>[
       (Icons.support_agent_rounded,'Official support',cyan,
-        ()=>feature('Customer service','A live Firebase support inbox is not connected yet.')),
+        ()=>community('support','Official support')),
       (Icons.campaign_rounded,'Official notices',gold,notices),
-      (Icons.account_balance_wallet_rounded,'Recharge support',pink,wallet),
+      (Icons.account_balance_wallet_rounded,'Recharge support',pink,()=>community('support','Recharge support')),
     ])Padding(padding:const EdgeInsets.only(bottom:12),child:InkWell(onTap:item.$4,
       child:Glass(tint:item.$3,child:Row(children:[
         Jewel(item.$1,color:item.$3,size:45),const SizedBox(width:14),
@@ -345,10 +342,12 @@ class _FirebaseSoveraHomeState extends State<FirebaseSoveraHome>{
       (Icons.card_giftcard_rounded,'Invite & referrals',
         ()=>feature('Referrals','The referral award server API is not connected yet.')),
       (Icons.people_outline_rounded,'People & following',
-        ()=>feature('Members','The account server member directory is not connected yet.')),
+        ()=>community('members','Members')),
       (Icons.workspace_premium_rounded,'Frames & effects',
         ()=>go(const EffectsStudio())),
       (Icons.add_home_rounded,'My room',createRoom),
+      if(staffRole!=null)(Icons.admin_panel_settings_outlined,'Community admin',
+        ()=>go(FirebaseStaffPage(api:api,role:staffRole!))),
       (Icons.settings_outlined,'Settings',
         ()=>feature('Settings','The original UI designs are preserved. Additional settings still need server APIs.')),
     ])ListTile(leading:Icon(item.$1,color:gold),title:Text(item.$2),
@@ -374,7 +373,7 @@ class _FirebaseSoveraHomeState extends State<FirebaseSoveraHome>{
             IconButton(onPressed:()=>setState(()=>tab=3),
               icon:const Icon(Icons.settings_outlined))]),
           const Padding(padding:EdgeInsets.symmetric(vertical:8),
-            child:Text('SIGNED IN · LIVE COMMUNITY ROOMS',
+            child:Text('SOVERA COMMUNITY',
               style:TextStyle(fontSize:10,color:Colors.white60,letterSpacing:1.7))),
           if(tab==0)home(),
           if(tab==1)moments(),

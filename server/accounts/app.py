@@ -12,6 +12,7 @@ from .food_wheel import FoodWheel, FoodChoice
 from .greedy_access import greedy_access
 from .wallet import WalletStore
 from .greedy_wallet import attach_greedy_wallet
+from .community import attach_community
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 class ProfileInput(BaseModel):
@@ -102,6 +103,7 @@ def create_app(profiles, verify, *, voice=False):
     duel = RoomDuel(profiles.path)
     colors = GlobalColors(profiles.path)
     food_wheel = FoodWheel(profiles.path)
+    attach_community(app, profiles, actor)
 
     @app.get('/sovera/account/wallet')
     async def wallet_state(authorization: str | None = Header(default=None)):
