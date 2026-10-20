@@ -10,6 +10,7 @@ from .duel import RoomDuel, MoveInput
 from .global_games import GlobalColors, ColorPick
 from .food_wheel import FoodWheel, FoodChoice
 from .greedy_access import greedy_access
+from .wallet import WalletStore
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 class ProfileInput(BaseModel):
@@ -83,7 +84,7 @@ def create_app(profiles, verify, *, voice=False):
 
     @app.get('/sovera/account/health')
     def health():
-        return {'ready':True, 'profiles':True, 'rooms':True, 'chat':True, 'voice':voice, 'room_effects':True, 'free_duel':True, 'global_color_game':True, 'food_wheel_preview':True, 'greedy_ready':False, 'wallet':False, 'games':False}
+        return {'ready':True, 'profiles':True, 'rooms':True, 'chat':True, 'voice':voice, 'room_effects':True, 'free_duel':True, 'global_color_game':True, 'food_wheel_preview':True, 'greedy_ready':False, 'wallet':False, 'server_wallet_read':True, 'games':False}
 
     @app.get('/sovera/account')
     async def get_profile(authorization: str | None = Header(default=None)):
@@ -95,9 +96,20 @@ def create_app(profiles, verify, *, voice=False):
         uid = await actor(authorization)
         return {'profile':await asyncio.to_thread(profiles.save, uid, data)}
     rooms = Rooms(profiles.path)
+    wallets = WalletStore(profiles.path)
     duel = RoomDuel(profiles.path)
     colors = GlobalColors(profiles.path)
     food_wheel = FoodWheel(profiles.path)
+
+    @app.get('/sovera/account/wallet')
+    async def wallet_state(authorization: str | None = Header(default=None)):
+        uid=await actor(authorization)
+        return await asyncio.to_thread(wallets.state,uid)
+
+    @app.get('/sovera/account/wallet/history')
+    async def wallet_history(authorization: str | None = Header(default=None)):
+        uid=await actor(authorization)
+        return {'entries':await asyncio.to_thread(wallets.history,uid)}
 
     @app.get('/sovera/account/rooms')
     async def directory(authorization: str | None = Header(default=None)):
@@ -199,6 +211,9 @@ def create_app(profiles, verify, *, voice=False):
         profile=await asyncio.to_thread(profiles.get,uid)
         if profile is None:
             raise HTTPException(409,'Save your profile first')
+        verified=await asyncio.to_thread(wallets.state,uid)
+        if verified['canSpend'] is not True:
+            raise HTTPException(503,'Game wallet migration and settlement not verified')
         return greedy_access(uid,profile)
 
     if voice:
