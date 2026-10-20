@@ -7,6 +7,8 @@ import 'package:http/http.dart' as http;
 import 'firebase_profile.dart';
 import 'firebase_rooms.dart';
 import 'firebase_food_wheel.dart';
+import 'firebase_sovera_home.dart';
+import 'main.dart' show BrandLogo;
 
 const _webClient = '486331346860-trjijmpedgurb05npsvao3d3v327b6ii.apps.googleusercontent.com';
 
@@ -47,7 +49,7 @@ class FirebaseLoginApp extends StatelessWidget {
   const FirebaseLoginApp({super.key});
   @override
   Widget build(BuildContext context) => MaterialApp(
-    title: 'Sovera sign-in check', debugShowCheckedModeBanner: false,
+    title: 'Sovera Voice Chat', debugShowCheckedModeBanner: false,
     theme: ThemeData.dark(useMaterial3: true).copyWith(
       scaffoldBackgroundColor: const Color(0xFF12172D),
       colorScheme: const ColorScheme.dark(primary: Color(0xFF9268F4)),
@@ -61,7 +63,7 @@ class FirebaseLoginApp extends StatelessWidget {
         if (snapshot.connectionState == ConnectionState.waiting) {
           return const Scaffold(body: Center(child: CircularProgressIndicator()));
         }
-        return snapshot.data == null ? const FirebaseLoginPage() : FirebaseSignedInPage(key:ValueKey(snapshot.data!.uid),user: snapshot.data!);
+        return snapshot.data == null ? const FirebaseLoginPage() : FirebaseSoveraHome(key:ValueKey(snapshot.data!.uid),user: snapshot.data!);
       },
     ),
   );
@@ -139,15 +141,17 @@ class _FirebaseLoginPageState extends State<FirebaseLoginPage> {
   }
 
   @override
-  Widget build(BuildContext context) => Scaffold(body: SafeArea(child: Center(
+  Widget build(BuildContext context) => Scaffold(body: Container(
+    decoration: const BoxDecoration(gradient:LinearGradient(begin:Alignment.topLeft,end:Alignment.bottomRight,colors:[Color(0xFF882580),Color(0xFF43249A),Color(0xFF25116B)])),
+    child: SafeArea(child: Center(
     child: SingleChildScrollView(padding: const EdgeInsets.all(24), child: ConstrainedBox(
       constraints: const BoxConstraints(maxWidth: 420), child: AutofillGroup(child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-          Image.asset('assets/sovera-logo-transparent.png', height: 120),
+          const BrandLogo(size:130),
           const SizedBox(height: 20),
           const Text('Welcome to Sovera', textAlign: TextAlign.center, style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold)),
           const SizedBox(height: 10),
-          const Text('Google / email account and profile', textAlign: TextAlign.center),
+          const Text('Your voice. Your world.', textAlign: TextAlign.center,style:TextStyle(color:Colors.white70)),
           const SizedBox(height: 24),
           FilledButton.icon(onPressed: busy ? null : google, icon: const Icon(Icons.login), label: const Text('Continue with Google')),
           const Padding(padding: EdgeInsets.symmetric(vertical: 18), child: Text('or use email', textAlign: TextAlign.center)),
@@ -169,7 +173,7 @@ class _FirebaseLoginPageState extends State<FirebaseLoginPage> {
         ],
       )),
     )),
-  )));
+  ))));
 }
 
 class FirebaseSignedInPage extends StatefulWidget {
