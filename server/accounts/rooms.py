@@ -30,6 +30,8 @@ class Rooms:
         self.path,self.clock=str(path),clock
         with self.db() as db:
             db.executescript('''
+            CREATE TABLE IF NOT EXISTS account_blocks(uid TEXT NOT NULL,target TEXT NOT NULL,
+              created_at INTEGER NOT NULL,PRIMARY KEY(uid,target));
             CREATE TABLE IF NOT EXISTS account_rooms(
               id TEXT PRIMARY KEY,owner_uid TEXT NOT NULL UNIQUE,name TEXT NOT NULL,
               seats INTEGER NOT NULL,created_at REAL NOT NULL);
@@ -107,13 +109,16 @@ class Rooms:
                     entry=equipped_assets(db,uid).get('entry')
                     if entry:db.execute('INSERT INTO account_catalog_events(room_id,sender_uid,recipient_uid,item_id,created_at) VALUES(?,?,?,?,?)',(room,uid,uid,entry['id'],int(self.clock())))
             return {'saved':True}
-    def messages(self,room,after=0):
+    def messages(self,room,after=0,viewer=None):
         with self.db() as db:
             self.exists(db,room)
+            sql='''SELECT id,text,name,country,created_at,sender_uid AS uid
+                FROM account_messages m WHERE room_id=? AND NOT EXISTS(
+                SELECT 1 FROM account_blocks b WHERE b.uid=? AND b.target=m.sender_uid)'''
             if after:
-                rows=db.execute('SELECT id,text,name,country,created_at FROM account_messages WHERE room_id=? AND id>? ORDER BY id LIMIT 50',(room,after)).fetchall()
+                rows=db.execute(sql+' AND id>? ORDER BY id LIMIT 50',(room,viewer,after)).fetchall()
             else:
-                rows=list(reversed(db.execute('SELECT id,text,name,country,created_at FROM account_messages WHERE room_id=? ORDER BY id DESC LIMIT 50',(room,)).fetchall()))
+                rows=list(reversed(db.execute(sql+' ORDER BY id DESC LIMIT 50',(room,viewer)).fetchall()))
             return [dict(r) for r in rows]
     def people(self,room):
         """Only heartbeat-confirmed participants, with server-owned names/UIDs."""

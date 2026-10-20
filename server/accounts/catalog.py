@@ -7,6 +7,7 @@ import sqlite3
 import time
 import uuid
 import warnings
+from functools import lru_cache
 from typing import Literal
 from fastapi import Header, HTTPException, Request
 from fastapi.responses import Response
@@ -97,11 +98,25 @@ class Catalog:
                 if size+len(data)>200*1024*1024:raise HTTPException(409,'Media storage limit reached (200 MB)')
                 db.execute('INSERT INTO account_media VALUES(?,?,?,?,?,?,?)',(key,mime,data,width,height,frames,int(time.time())))
             return {'id':key,'url':PUBLIC+key,'width':width,'height':height,'frames':frames,'mime':mime}
-    def media(self,key):
+    @lru_cache(maxsize=64)
+    def still(self,key):
+        from PIL import Image
+        with self.control.db() as db:
+            row=db.execute('SELECT data FROM account_media WHERE id=?',(key,)).fetchone()
+            if not row:raise HTTPException(404,'Image not found')
+        with Image.open(io.BytesIO(bytes(row['data']))) as image:
+            image.seek(0)
+            frame=image.convert('RGBA')
+            frame.thumbnail((384,384))
+            result=io.BytesIO()
+            frame.save(result,format='WEBP',quality=65,method=4)
+            return result.getvalue()
+
+    def media(self,key,still=False):
         with self.control.db() as db:
             row=db.execute('SELECT mime,data FROM account_media WHERE id=?',(key,)).fetchone()
             if not row:raise HTTPException(404,'Image not found')
-            return Response(bytes(row['data']),media_type=row['mime'],headers={'X-Content-Type-Options':'nosniff','Content-Security-Policy':"default-src 'none'; sandbox"})
+            return Response(self.still(key) if still else bytes(row['data']),media_type='image/webp' if still else row['mime'],headers={'X-Content-Type-Options':'nosniff','Content-Security-Policy':"default-src 'none'; sandbox",'Cache-Control':'public, max-age=31536000, immutable'})
     def save(self,uid,data):
         with self.control.db() as db:
             db.execute('BEGIN IMMEDIATE');self.manage(db,uid)
@@ -221,7 +236,7 @@ def attach_catalog(app,profiles,actor):
         return await asyncio.to_thread(service.upload,uid,bytes(data))
     @app.get('/sovera/control/media/{key}')
     @app.get('/sovera/account/media/{key}')
-    async def media(key:str):return await asyncio.to_thread(service.media,key)
+    async def media(key:str,still:bool=False):return await asyncio.to_thread(service.media,key,still)
     @app.get('/sovera/control/catalog')
     async def control_items(request:Request):return await asyncio.to_thread(service.listing,await staff(request),True)
     @app.post('/sovera/control/catalog')

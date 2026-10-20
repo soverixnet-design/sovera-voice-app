@@ -67,6 +67,33 @@ class ServerWalletTests(unittest.TestCase):
                 db.execute("""INSERT INTO account_wallet_links VALUES(?,?,?,?)""",
                     ('bob','legacy-proof-01',1000,'active'))
 
+    def test_paginated_history_same_timestamp_is_private_and_complete(self):
+        with sqlite3.connect(self.path) as db:
+            db.execute("INSERT INTO account_wallet_links VALUES(?,?,?,?)",
+                ('alice','pagination-proof',1000,'active'))
+            db.executemany("INSERT INTO account_wallet_ledger VALUES(?,?,?,?,?,?)",
+                [(f'page-{i:03d}','alice',1,0,'recharge',1000) for i in range(37)])
+        seen=[]
+        params={'limit':10}
+        while True:
+            response=self.client.get('/sovera/account/wallet/history',
+                headers=self.a,params=params)
+            self.assertEqual(response.status_code,200)
+            page=response.json()
+            seen.extend(row['reference'] for row in page['entries'])
+            if not page['has_more']:break
+            last=page['entries'][-1]
+            params.update(before_time=last['created_at'],before_ref=last['reference'])
+        self.assertEqual(len(seen),37)
+        self.assertEqual(len(set(seen)),37)
+        self.assertEqual(seen,sorted(seen,reverse=True))
+        self.assertEqual(self.client.get('/sovera/account/wallet/history',
+            headers=self.b,params={'limit':10}).json()['entries'],[])
+        self.assertEqual(self.client.get('/sovera/account/wallet/history',
+            headers=self.a,params={'before_time':1000}).status_code,400)
+        self.assertEqual(self.client.get('/sovera/account/wallet/history',
+            headers=self.a,params={'limit':101}).status_code,422)
+
     def test_even_env_flags_cannot_enable_unreconciled_coin_game(self):
         from server.accounts.app import ProfileInput
         Profiles(self.path).save('alice',ProfileInput(

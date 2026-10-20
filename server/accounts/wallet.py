@@ -65,16 +65,22 @@ class WalletStore:
                     'canPurchase':link['status']=='active','canGift':link['status']=='active',
                     'source':'sovera-server'}
 
-    def history(self,uid,limit=30):
+    def history(self,uid,limit=30,before_time=None,before_ref=None):
         with sqlite3.connect(self.database_path,timeout=10) as db:
             db.row_factory=sqlite3.Row
             link=db.execute("""SELECT 1 FROM account_wallet_links
                  WHERE firebase_uid=?""",(uid,)).fetchone()
             if link is None:return []
+            cursor=''
+            params=[uid]
+            if before_time is not None and before_ref is not None:
+                cursor=' AND (created_at < ? OR (created_at = ? AND reference < ?))'
+                params.extend([before_time,before_time,before_ref])
+            params.append(limit)
             return [dict(row) for row in db.execute("""SELECT reference,kind,
                 coin_delta,diamond_delta,created_at FROM account_wallet_ledger
-                WHERE firebase_uid=? ORDER BY created_at DESC,reference DESC
-                LIMIT ?""",(uid,limit)).fetchall()]
+                WHERE firebase_uid=?"""+cursor+""" ORDER BY created_at DESC,reference DESC
+                LIMIT ?""",params).fetchall()]
 
     def has_verified_wallets(self):
         with sqlite3.connect(self.database_path,timeout=10) as db:

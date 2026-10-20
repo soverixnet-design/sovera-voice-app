@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:math';
 import 'package:flutter/material.dart';
 import 'firebase_profile.dart';
+import 'app_preferences.dart';
 import 'sovera_visuals.dart' show BrandLogo;
 
 Map<String,dynamic>? catalogAsset(dynamic equipped,String kind){
@@ -10,9 +11,15 @@ Map<String,dynamic>? catalogAsset(dynamic equipped,String kind){
 }
 String catalogRequestId(){final r=Random.secure();final h=List.generate(16,(_)=>r.nextInt(256).toRadixString(16).padLeft(2,'0')).join();return '${h.substring(0,8)}-${h.substring(8,12)}-${h.substring(12,16)}-${h.substring(16,20)}-${h.substring(20)}';}
 class CatalogImage extends StatelessWidget{
-  final Map<String,dynamic> asset;final BoxFit fit;
-  const CatalogImage({super.key,required this.asset,this.fit=BoxFit.contain});
-  @override Widget build(BuildContext context)=>Image.network(asset['url'].toString(),fit:fit,gaplessPlayback:true,errorBuilder:(_,__,___)=>const Icon(Icons.broken_image_outlined));
+  final Map<String,dynamic> asset;final BoxFit fit;final bool previewStill;
+  const CatalogImage({super.key,required this.asset,this.fit=BoxFit.contain,this.previewStill=false});
+  @override Widget build(BuildContext context)=>ValueListenableBuilder<bool>(
+    valueListenable:SoveraPreferences.lowData,builder:(context,lowData,child){
+      final id=asset['media_id']?.toString()??'';
+      if(CatalogMediaCache.valid(id))return CachedCatalogArtwork(id:id,
+        still:previewStill||lowData||MediaQuery.disableAnimationsOf(context),fit:fit);
+      return Image.network(asset['url'].toString(),fit:fit,gaplessPlayback:true,errorBuilder:(_,__,___)=>const Icon(Icons.broken_image_outlined));
+    });
 }
 /// One square coordinate system for profile, seat, entry and admin preview.
 class CatalogPortraitGeometry {
@@ -37,7 +44,8 @@ class CatalogPortrait extends StatelessWidget {
   final Map<String,dynamic>? asset;
   final String? avatarUrl;
   final double size;
-  const CatalogPortrait({super.key,this.asset,this.avatarUrl,this.size=100});
+  final bool still;
+  const CatalogPortrait({super.key,this.asset,this.avatarUrl,this.size=100,this.still=false});
   @override Widget build(BuildContext context) {
     final requested=size.isFinite&&size>0?size:100.0;
     return SizedBox(width:requested,height:requested,child:LayoutBuilder(
@@ -55,7 +63,7 @@ class CatalogPortrait extends StatelessWidget {
                 :BrandLogo(size:rect.width))),
             if(asset!=null)Positioned.fill(child:IgnorePointer(
               child:CatalogImage(key:ValueKey('${asset!['id']}:${asset!['media_id']}'),
-                asset:asset!))),
+                asset:asset!,previewStill:still))),
           ])));
       }));
   }
@@ -83,6 +91,14 @@ class _FirebaseCatalogPageState extends State<FirebaseCatalogPage>{
     }catch(e){if(e is ProfileApiError&&e.status==409)pending=null;if(mounted)setState(()=>error=e is ProfileApiError?e.message:'Could not save. Retry the same item.');}
     finally{if(mounted)setState(()=>busy=false);}
   }
+  void preview(Map<String,dynamic> item){
+    showDialog<void>(context:context,builder:(context)=>AlertDialog(
+      title:Text(item['title'].toString()),
+      content:SizedBox(width:240,height:240,child:
+        ['frame','entry','room_frame'].contains(item['kind'])
+          ?CatalogPortrait(asset:item,size:240):CatalogImage(asset:item)),
+      actions:[TextButton(onPressed:()=>Navigator.pop(context),child:const Text('Close'))]));
+  }
   Future<void> remove()async{
     setState(()=>busy=true);
     try{await widget.api.call('PUT',suffix:'/catalog/equip',fields:{'kind':kind,'item_id':null});await load();}
@@ -99,9 +115,10 @@ class _FirebaseCatalogPageState extends State<FirebaseCatalogPage>{
       if(data!=null&&items.isEmpty)const Padding(padding:EdgeInsets.all(24),child:Text('No published items yet. Pull down to refresh.')),
       if(catalogAsset(data?['equipped'],kind)!=null)TextButton(onPressed:busy||pending!=null?null:remove,child:const Text('Remove equipped item')),
       for(final item in items)Card(child:Padding(padding:const EdgeInsets.all(16),child:Column(children:[
-        SizedBox(height:170,child:kind=='frame'||kind=='entry'||kind=='room_frame'?CatalogPortrait(asset:item,size:170):CatalogImage(asset:item)),
+        SizedBox(height:170,child:kind=='frame'||kind=='entry'||kind=='room_frame'?CatalogPortrait(asset:item,size:170,still:true):CatalogImage(asset:item,previewStill:true)),
         Text(item['title'].toString(),style:const TextStyle(fontWeight:FontWeight.bold)),
-        Text('${item['price']} Coins'),
+        Text(owned.contains(item['id'])?'Owned · ${item['price']} Coins':'${item['price']} Coins · Locked'),
+        TextButton.icon(onPressed:()=>preview(item),icon:const Icon(Icons.play_circle_outline),label:const Text('Preview animation')),
         FilledButton(onPressed:busy||(pending!=null&&pending!['item_id']!=item['id'])?null:()=>choose(item,owned.contains(item['id'])||item['price']==0),child:Text(pending?['item_id']==item['id']?'Retry same purchase':catalogAsset(data?['equipped'],kind)?['id']==item['id']?'Equipped':owned.contains(item['id'])||item['price']==0?'Equip':'Buy & equip')),
       ]))),
     ]))));

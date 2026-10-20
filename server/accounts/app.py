@@ -72,7 +72,8 @@ def create_app(profiles, verify, *, voice=False):
                 from fastapi.responses import JSONResponse
                 return JSONResponse({'detail':'Invalid request size'}, status_code=413)
         response = await call_next(request)
-        response.headers['Cache-Control'] = 'no-store'
+        if not request.url.path.startswith(('/sovera/account/media/','/sovera/control/media/')) or 'cache-control' not in response.headers:
+            response.headers['Cache-Control'] = 'no-store'
         return response
 
     async def actor(authorization):
@@ -118,9 +119,15 @@ def create_app(profiles, verify, *, voice=False):
         return await asyncio.to_thread(wallets.state,uid)
 
     @app.get('/sovera/account/wallet/history')
-    async def wallet_history(authorization: str | None = Header(default=None)):
+    async def wallet_history(authorization: str | None = Header(default=None),
+            limit:int=Query(default=30,ge=1,le=100),
+            before_time:int | None=Query(default=None,ge=0),
+            before_ref:str | None=Query(default=None,min_length=1,max_length=250)):
         uid=await actor(authorization)
-        return {'entries':await asyncio.to_thread(wallets.history,uid)}
+        if (before_time is None)!=(before_ref is None):
+            raise HTTPException(400,'Both history cursor fields are required')
+        rows=await asyncio.to_thread(wallets.history,uid,limit+1,before_time,before_ref)
+        return {'entries':rows[:limit],'has_more':len(rows)>limit}
 
     @app.get('/sovera/account/rooms')
     async def directory(authorization: str | None = Header(default=None)):
@@ -149,8 +156,8 @@ def create_app(profiles, verify, *, voice=False):
 
     @app.get('/sovera/account/rooms/{room}/messages')
     async def messages(room:str,after:int=Query(default=0,ge=0),authorization: str | None = Header(default=None)):
-        await actor(authorization)
-        return {'messages':await asyncio.to_thread(rooms.messages,room,after)}
+        uid=await actor(authorization)
+        return {'messages':await asyncio.to_thread(rooms.messages,room,after,uid)}
 
     @app.post('/sovera/account/rooms/{room}/messages')
     async def send(room:str,data:MessageInput,authorization: str | None = Header(default=None)):

@@ -19,7 +19,8 @@ class FirebaseProfileApi {
   Future<Map<String, dynamic>> call(String method, {String suffix='', Map<String,dynamic>? fields}) async {
     final access = await token();
     if (access == null || access.isEmpty) throw const ProfileApiError('Please sign in again.');
-    final req = http.Request(method, endpoint.replace(path:'${endpoint.path}$suffix'))..followRedirects = false;
+    final route = Uri.parse('${endpoint.path}$suffix');
+    final req = http.Request(method, endpoint.replace(path:route.path,query:route.hasQuery?route.query:null))..followRedirects = false;
     req.headers.addAll({'Authorization': 'Bearer $access', 'Content-Type': 'application/json'});
     if (fields != null) req.body = jsonEncode(fields);
     final response = await http.Response.fromStream(await client.send(req).timeout(const Duration(seconds: 15)))

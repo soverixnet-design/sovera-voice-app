@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:http/http.dart' as http;
 import 'firebase_profile.dart';
+import 'app_preferences.dart';
 import 'firebase_rooms.dart';
 import 'firebase_greedy_wheel.dart';
 import 'firebase_sovera_home.dart';
@@ -14,6 +15,7 @@ const _webClient = '486331346860-trjijmpedgurb05npsvao3d3v327b6ii.apps.googleuse
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  await SoveraPreferences.load();
   try {
     await Firebase.initializeApp(options: const FirebaseOptions(
       apiKey: 'AIzaSyB_VFxK6IXwvPtm84LV6kojh1s_zsQN-Wg',

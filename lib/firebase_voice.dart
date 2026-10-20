@@ -2,6 +2,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:livekit_client/livekit_client.dart' as rtc;
 import 'firebase_profile.dart';
+import 'app_preferences.dart';
 import 'firebase_catalog.dart';
 import 'sovera_visuals.dart' show gold,cyan,pink;
 import 'startup_access.dart' show requestMicrophoneAccess;
@@ -38,9 +39,10 @@ class FirebaseVoicePanel extends StatefulWidget {
   final FirebaseProfileApi api;
   final String roomId;
   final int seatCount;
+  final Set<String> blockedUids;
   final List<Map<String,dynamic>> people;
   const FirebaseVoicePanel({
-    super.key,required this.api,required this.roomId,this.seatCount=9,this.people=const [],
+    super.key,required this.api,required this.roomId,this.seatCount=9,this.people=const [],this.blockedUids=const {},
   });
   @override State<FirebaseVoicePanel> createState()=>_FirebaseVoicePanelState();
 }
@@ -76,7 +78,7 @@ class _FirebaseSeatPortraitState extends State<FirebaseSeatPortrait> {
   @override Widget build(BuildContext context){
     final frame=catalogAsset(widget.person?['equipped'],'frame');
     final entry=catalogAsset(widget.person?['equipped'],'entry');
-    final showingEntry=playing&&entry!=null&&!MediaQuery.disableAnimationsOf(context);
+    final showingEntry=playing&&entry!=null&&!SoveraPreferences.lowData.value&&!MediaQuery.disableAnimationsOf(context);
     Widget portrait(String mode,Map<String,dynamic>? art)=>CatalogPortrait(
       key:ValueKey('${widget.uid}:$mode'),asset:art,
       avatarUrl:widget.person?['avatar_url'] as String?,size:widget.size);
@@ -101,7 +103,10 @@ class _FirebaseSeatPortraitState extends State<FirebaseSeatPortrait> {
 class _FirebaseVoicePanelState extends State<FirebaseVoicePanel> with WidgetsBindingObserver {
   rtc.Room? room;
   VoiceSeatState seats=const VoiceSeatState(0,null,{});
-  Timer? timer;
+  Timer? timer,retryTimer;
+  final suppressed=<String>{};
+  int reconnectAttempts=0;
+  bool pausedForReconnect=false;
   bool busy=false, active=true, closing=false, muted=true;
   bool requestingMicrophone=false;
   String? error;
@@ -110,10 +115,49 @@ class _FirebaseVoicePanelState extends State<FirebaseVoicePanel> with WidgetsBin
   Future<Map<String,dynamic>> request(String action,{int? seat})=>widget.api.call('POST',suffix:'/voice',fields:{'room_id':widget.roomId,'action':action,if(seat!=null)'seat':seat});
   @override void initState(){super.initState();WidgetsBinding.instance.addObserver(this);}
   Map<String,dynamic>? seatPerson(int index){for(final person in widget.people){if(person['uid']==seats.occupants[index])return person;}return null;}
-  void changed(){if(mounted&&!closing){if(!connected||room?.localParticipant?.permissions.canPublish!=true)muted=true;setState((){});}}
+  @override void didUpdateWidget(covariant FirebaseVoicePanel oldWidget){
+    super.didUpdateWidget(oldWidget);applyBlocks();
+  }
+  void applyBlocks(){
+    final current=room;
+    if(current==null||closing)return;
+    for(final participant in current.remoteParticipants.values){
+      final blocked=widget.blockedUids.contains(participant.identity);
+      for(final publication in participant.trackPublications.values){
+        if(blocked&&publication.subscribed&&suppressed.add(publication.sid)){
+          unawaited(publication.unsubscribe().catchError((Object _){
+            unawaited(closeAudio().catchError((Object _){}));
+          }));
+        }else if(!blocked&&suppressed.remove(publication.sid)){
+          unawaited(publication.subscribe().catchError((Object _){}));
+        }
+      }
+    }
+  }
+  void scheduleReconnect(){
+    if(closing||!active||reconnectAttempts>=3||retryTimer?.isActive==true)return;
+    retryTimer=Timer(Duration(seconds:2*(reconnectAttempts+1)),(){
+      if(mounted&&active&&!connected&&!busy)connect();
+    });
+  }
+  void changed(){
+    if(!mounted||closing)return;
+    applyBlocks();
+    if(room?.connectionState==rtc.ConnectionState.reconnecting&&!pausedForReconnect){
+      pausedForReconnect=true;muted=true;unawaited(mute());
+    }
+    if(connected&&pausedForReconnect){
+      pausedForReconnect=false;muted=true;unawaited(mute());
+      error='Audio restored. Tap Enable mic to speak.';
+    }
+    if(!connected||room?.localParticipant?.permissions.canPublish!=true)muted=true;
+    if(room?.connectionState==rtc.ConnectionState.disconnected)scheduleReconnect();
+    setState((){});
+  }
   Future<void> mute()async{try{await room?.localParticipant?.setMicrophoneEnabled(false);}catch(_){} muted=true;}
   Future<void> connect()async{
     if(busy||closing||!active)return;
+    retryTimer?.cancel();
     setState((){busy=true;error=null;});
     final generation=epoch;
     rtc.Room? candidate;
@@ -125,10 +169,10 @@ class _FirebaseVoicePanelState extends State<FirebaseVoicePanel> with WidgetsBin
       candidate=rtc.Room();
       await candidate.connect(voiceServerUrl,data['token'] as String);
       if(!mounted||closing||!active||generation!=epoch){await candidate.disconnect();await candidate.dispose();candidate=null;return;}
-      room=candidate;candidate=null;room!.addListener(changed);
+      room=candidate;candidate=null;reconnectAttempts=0;room!.addListener(changed);applyBlocks();
       seats=VoiceSeatState.parse(await request('state'));
       timer=Timer.periodic(const Duration(seconds:8),(_)=>sync());
-    }catch(_){if(candidate!=null){await candidate.disconnect();await candidate.dispose();}await closeAudio();error='Voice could not connect. Tap Connect to retry.';}
+    }catch(_){if(candidate!=null){await candidate.disconnect();await candidate.dispose();}await closeAudio();reconnectAttempts++;error='Voice could not connect. Tap Connect to retry.';scheduleReconnect();}
     finally{if(mounted&&!closing)setState(()=>busy=false);}
   }
   Future<void> sync()async{
@@ -208,17 +252,19 @@ class _FirebaseVoicePanelState extends State<FirebaseVoicePanel> with WidgetsBin
     finally{busy=false;if(mounted&&!closing)setState((){});}
   }
   Future<void> closeAudio()async{
-    timer?.cancel();timer=null;
+    timer?.cancel();timer=null;suppressed.clear();
     final old=room;room=null;
     if(old!=null){old.removeListener(changed);try{await old.localParticipant?.setMicrophoneEnabled(false);await old.disconnect();}finally{await old.dispose();}}
     muted=true;seats=const VoiceSeatState(0,null,{});
   }
   @override void didChangeAppLifecycleState(AppLifecycleState state){
     active=state==AppLifecycleState.resumed;
+    retryTimer?.cancel();
+    if(active){reconnectAttempts=0;if(room==null)scheduleReconnect();}
     if(shouldDisconnectVoice(state,requestingMicrophone:requestingMicrophone)){epoch++;unawaited(closeAudio().catchError((Object _){}));unawaited(request('leave').then<void>((_){}).catchError((Object _){}));}
     if(mounted)setState((){});
   }
-  @override void dispose(){closing=true;WidgetsBinding.instance.removeObserver(this);unawaited(closeAudio().catchError((Object _){}));unawaited(request('leave').then<void>((_){}).catchError((Object _){}));super.dispose();}
+  @override void dispose(){closing=true;retryTimer?.cancel();WidgetsBinding.instance.removeObserver(this);unawaited(closeAudio().catchError((Object _){}));unawaited(request('leave').then<void>((_){}).catchError((Object _){}));super.dispose();}
   @override Widget build(BuildContext context)=>Padding(padding:const EdgeInsets.all(8),child:Column(mainAxisSize:MainAxisSize.min,children:[
     Row(children:[const Icon(Icons.headset),const SizedBox(width:8),Expanded(child:Text(connected?(muted?'Live audio · Listening':'Live audio · Microphone on'):'Audio disconnected')),if(!connected)TextButton(onPressed:busy||!active?null:connect,child:Text(busy?'Connecting…':'Connect')),]),
     if(connected&&seats.mine!=null)Align(alignment:Alignment.centerRight,child:Wrap(spacing:8,runSpacing:4,children:[

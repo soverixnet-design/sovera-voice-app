@@ -23,6 +23,27 @@ class CommunityTests(unittest.TestCase):
     def post(self,section,uid='alice',**extra):
         return self.client.post('/sovera/account/community/'+section,headers=self.auth(uid),json={'text':'Hello','request_id':str(uuid.uuid4()),**extra})
 
+    def test_report_retries_are_private_and_blocking_filters_members_and_moments(self):
+        report={'target_kind':'user','target_id':'bob','reason':'Repeated harassment',
+                'request_id':str(uuid.uuid4())}
+        url='/sovera/account/community/report'
+        self.assertEqual(self.client.post(url,json=report).status_code,401)
+        first=self.client.post(url,headers=self.auth('alice'),json=report)
+        self.assertEqual(first.status_code,200,first.text)
+        self.assertEqual(self.client.post(url,headers=self.auth('alice'),json=report).json(),first.json())
+        self.assertEqual(self.client.post(url,headers=self.auth('alice'),
+            json={**report,'reason':'Different reason'}).status_code,409)
+        self.assertEqual(Community(self.path).list('bob','support'),[])
+        self.assertIn('Repeated harassment',Community(self.path).list('alice','support')[0]['text'])
+        self.post('moments',uid='bob')
+        block='/sovera/account/community/blocks/bob'
+        self.assertEqual(self.client.put(block,headers=self.auth('alice')).status_code,200)
+        self.assertEqual(Community(self.path).list('alice','moments'),[])
+        self.assertNotIn('bob',[r['uid'] for r in Community(self.path).list('alice','members')])
+        self.assertEqual(Community(self.path).list('bob','blocks'),[])
+        self.assertEqual(self.client.delete(block,headers=self.auth('alice')).status_code,200)
+        self.assertEqual(len(Community(self.path).list('alice','moments')),1)
+
     def test_auth_and_moments_survive_restart_without_fake_authorship(self):
         self.assertEqual(self.client.get('/sovera/account/community/moments').status_code,401)
         self.assertEqual(self.post('moments',uid='alice',firebase_uid='bob').status_code,422)

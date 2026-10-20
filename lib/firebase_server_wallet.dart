@@ -12,7 +12,8 @@ class FirebaseServerWalletPage extends StatefulWidget {
 }
 
 class _FirebaseServerWalletPageState extends State<FirebaseServerWalletPage>{
-  bool loading=true;
+  bool loading=true, loadingMore=false, hasMore=false;
+  String filter='All';
   String? error;
   Map<String,dynamic>? wallet;
   List<Map<String,dynamic>> entries=[];
@@ -27,6 +28,7 @@ class _FirebaseServerWalletPageState extends State<FirebaseServerWalletPage>{
         throw const ProfileApiError('Invalid wallet server response.');
       }
       List<Map<String,dynamic>> history=[];
+      var more=false;
       if(result['verified']==true){
         if(result['coins'] is! String||result['diamonds'] is! String){
           throw const ProfileApiError('Wallet balances are unverified.');
@@ -35,19 +37,78 @@ class _FirebaseServerWalletPageState extends State<FirebaseServerWalletPage>{
         if(rows['entries'] is! List){
           throw const ProfileApiError('Wallet history unavailable.');
         }
+        more=rows['has_more']==true;
         history=(rows['entries'] as List).whereType<Map>()
           .map((x)=>Map<String,dynamic>.from(x)).toList();
       }
-      if(mounted)setState((){wallet=result;entries=history;error=null;});
+      if(mounted)setState((){wallet=result;entries=history;hasMore=more;error=null;});
     }catch(e){
       if(mounted)setState((){
         error=e is ProfileApiError?e.message:
           'Could not connect to the Sovera wallet server.';
-        wallet=null;entries=[];
+        wallet=null;entries=[];hasMore=false;
       });
     }finally{
       if(mounted)setState(()=>loading=false);
     }
+  }
+  Future<void> loadMore()async{
+    if(loading||loadingMore||!hasMore||entries.isEmpty)return;
+    setState(()=>loadingMore=true);
+    try{
+      final last=entries.last;
+      final cursor=Uri(queryParameters:{
+        'before_time':'${last['created_at']}',
+        'before_ref':'${last['reference']}',
+      }).query;
+      final result=await widget.api.call('GET',suffix:'/wallet/history?$cursor');
+      if(result['entries'] is! List)throw const ProfileApiError('Wallet history unavailable.');
+      final rows=(result['entries'] as List).whereType<Map>()
+        .map((x)=>Map<String,dynamic>.from(x)).toList();
+      if(mounted)setState((){
+        final known=entries.map((x)=>x['reference']).toSet();
+        entries.addAll(rows.where((x)=>known.add(x['reference'])));
+        hasMore=result['has_more']==true;error=null;
+      });
+    }catch(e){
+      if(mounted)setState(()=>error=e is ProfileApiError?e.message:'Could not load older transactions.');
+    }finally{if(mounted)setState(()=>loadingMore=false);}
+  }
+  static String category(Object? kind)=>switch(kind){
+    'recharge'=>'Recharge',
+    'gift'=>'Gifts',
+    'game_debit'||'game_win'||'refund'=>'Games',
+    'exchange'=>'Purchases',
+    'verified_import'=>'Imported',
+    _=>'Other',
+  };
+  static String label(Object? kind)=>switch(kind){
+    'game_debit'=>'Game stake',
+    'game_win'=>'Game winnings',
+    'refund'=>'Game refund',
+    'verified_import'=>'Imported balance',
+    'admin_adjust'=>'Admin adjustment',
+    _=>category(kind),
+  };
+  static String signed(Object? value){
+    final number=BigInt.tryParse(value?.toString()??'');
+    if(number==null)return '—';
+    return '${number.isNegative?'-':number>BigInt.zero?'+':''}${amount(number.abs())}';
+  }
+  static String date(Object? value){
+    final seconds=int.tryParse(value?.toString()??'');
+    if(seconds==null)return '';
+    final time=DateTime.fromMillisecondsSinceEpoch(seconds*1000).toLocal();
+    return '${time.year}-${time.month.toString().padLeft(2,'0')}-${time.day.toString().padLeft(2,'0')} '
+      '${time.hour.toString().padLeft(2,'0')}:${time.minute.toString().padLeft(2,'0')}';
+  }
+  void receipt(Map<String,dynamic> item){
+    showDialog<void>(context:context,builder:(context)=>AlertDialog(
+      title:Text(label(item['kind'])),
+      content:SelectableText('${date(item['created_at'])}\n'
+        'Coins: ${signed(item['coin_delta'])}\nDiamonds: ${signed(item['diamond_delta'])}\n\n'
+        'Reference: ${item['reference']}'),
+      actions:[TextButton(onPressed:()=>Navigator.pop(context),child:const Text('Close'))]));
   }
   static String amount(Object? value){
     final text=value?.toString()??'';
@@ -60,7 +121,7 @@ class _FirebaseServerWalletPageState extends State<FirebaseServerWalletPage>{
       Jewel(icon,color:color,size:45),const SizedBox(height:8),
       Text(title,style:const TextStyle(fontSize:12,color:Colors.white70)),
       const SizedBox(height:5),
-      Text(value,style:const TextStyle(fontSize:20,fontWeight:FontWeight.bold)),
+      FittedBox(fit:BoxFit.scaleDown,child:Text(value,style:const TextStyle(fontSize:20,fontWeight:FontWeight.bold))),
     ]));
   @override Widget build(BuildContext context)=>Scaffold(
     appBar:AppBar(title:const Text('My Sovera Wallet'),
@@ -99,12 +160,20 @@ class _FirebaseServerWalletPageState extends State<FirebaseServerWalletPage>{
         const SizedBox(height:20),
         const Text('Server transaction history',style:TextStyle(fontSize:18,fontWeight:FontWeight.bold)),
         const SizedBox(height:10),
-        for(final item in entries)
+        Wrap(spacing:6,children:[for(final name in const ['All','Recharge','Gifts','Games','Purchases','Imported','Other'])
+          ChoiceChip(label:Text(name),selected:filter==name,onSelected:(_)=>setState(()=>filter=name))]),
+        const SizedBox(height:10),
+        for(final item in entries.where((x)=>filter=='All'||category(x['kind'])==filter))
           ListTile(
-            title:Text(item['kind']?.toString()??'Server transaction'),
-            subtitle:Text(item['reference']?.toString()??''),
-            trailing:Text('C ${item['coin_delta']??'—'}  ·  D ${item['diamond_delta']??'—'}'),
+            onTap:()=>receipt(item),
+            title:Text(label(item['kind'])),
+            subtitle:Text(date(item['created_at'])),
+            trailing:Text('C ${signed(item['coin_delta'])}  ·  D ${signed(item['diamond_delta'])}'),
           ),
+        if(!entries.any((x)=>filter=='All'||category(x['kind'])==filter))
+          const Padding(padding:EdgeInsets.all(12),child:Text('No matching transactions in loaded history.')),
+        if(hasMore)TextButton(onPressed:loadingMore?null:loadMore,
+          child:Text(loadingMore?'Loading older transactions…':'Load older transactions')),
       ],
     ])),
   );

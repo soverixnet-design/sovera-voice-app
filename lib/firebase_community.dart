@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'firebase_profile.dart';
+import 'firebase_safety.dart';
 import 'sovera_visuals.dart' show Glass, cyan, gold, violet;
 
 String communityRequestId() {
@@ -70,6 +71,14 @@ class _FirebaseCommunityState extends State<FirebaseCommunity> {
     if(!loading&&error==null&&items.isEmpty)const Glass(child:Text('Nothing here yet. Pull new updates with Refresh.')),
     for(final row in items)Padding(padding:const EdgeInsets.only(bottom:12),child:Glass(tint:cyan,child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
       if(row['name']!=null||row['title']!=null)Text((row['name']??row['title']).toString(),style:const TextStyle(fontSize:17,fontWeight:FontWeight.bold)),
+      if((widget.section=='members'||widget.section=='moments')&&row['uid']!=null)
+        SoveraSafetyMenu(api:widget.api,uid:row['uid'].toString(),name:(row['name']??'User').toString(),changed:load),
+      if(widget.section=='blocks')TextButton(onPressed:()async{
+        try{
+          await widget.api.call('DELETE',suffix:'/community/blocks/${Uri.encodeComponent(row['uid'].toString())}');
+          if(mounted)await load();
+        }catch(e){if(mounted)setState(()=>error=e is ProfileApiError?e.message:'Could not unblock. Retry.');}
+      },child:const Text('Unblock')),
       if(row['text']!=null)Padding(padding:const EdgeInsets.symmetric(vertical:10),child:SelectableText(row['text'].toString())),
       if(widget.section=='members')...[
         Text('Country · ${row['country']??''}',style:const TextStyle(color:Colors.white60)),

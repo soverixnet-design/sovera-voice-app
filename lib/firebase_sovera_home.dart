@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:http/http.dart' as http;
 import 'firebase_profile.dart';
+import 'app_preferences.dart';
 import 'firebase_catalog.dart';
 import 'firebase_original_profile_card.dart';
 import 'firebase_original_social.dart';
@@ -56,9 +57,11 @@ class _FirebaseSoveraHomeState extends State<FirebaseSoveraHome>{
   @override void initState(){
     super.initState();
     refresh();
-    refreshTimer=Timer.periodic(const Duration(seconds:30),(_)=>refresh(silent:true));
+    resetRefreshTimer();
+    SoveraPreferences.lowData.addListener(resetRefreshTimer);
   }
-  @override void dispose(){refreshTimer?.cancel();search.dispose();client.close();super.dispose();}
+  void resetRefreshTimer(){refreshTimer?.cancel();refreshTimer=Timer.periodic(Duration(seconds:SoveraPreferences.lowData.value?60:30),(_)=>refresh(silent:true));}
+  @override void dispose(){SoveraPreferences.lowData.removeListener(resetRefreshTimer);refreshTimer?.cancel();search.dispose();client.close();super.dispose();}
   void say(String text){if(mounted)ScaffoldMessenger.of(context).showSnackBar(SnackBar(content:Text(text)));}
   void go(Widget page)=>Navigator.of(context).push<void>(
     MaterialPageRoute(builder:(_)=>page));
@@ -359,7 +362,7 @@ class _FirebaseSoveraHomeState extends State<FirebaseSoveraHome>{
       if(staffRole!=null)(Icons.admin_panel_settings_outlined,'Community admin',
         ()=>go(FirebaseStaffPage(api:api,role:staffRole!))),
       (Icons.settings_outlined,'Settings',
-        ()=>feature('Settings','The original UI designs are preserved. Additional settings still need server APIs.')),
+        ()=>go(SoveraSettingsPage(support:()=>go(FirebaseCommunity(api:api,section:'support',title:'Official support')),blocked:()=>go(FirebaseCommunity(api:api,section:'blocks',title:'Blocked users'))))),
     ])ListTile(leading:Icon(item.$1,color:gold),title:Text(item.$2),
       trailing:const Icon(Icons.chevron_right_rounded),onTap:item.$3),
     const SizedBox(height:12),

@@ -38,6 +38,21 @@ class CatalogTests(unittest.TestCase):
         self.assertEqual(result.status_code,200,result.text);self.assertEqual(result.json()['frames'],2)
         image=self.client.get('/sovera/account/media/'+result.json()['id'])
         self.assertEqual(image.headers['content-type'],'image/gif');self.assertEqual(image.content,data.getvalue())
+    def test_low_data_preview_is_one_small_frame_and_private_data_is_not_cached(self):
+        self.setup_catalog()
+        data=io.BytesIO()
+        Image.new('RGB',(800,400),'red').save(data,format='GIF',save_all=True,
+            append_images=[Image.new('RGB',(800,400),'blue')],duration=100,loop=0)
+        media=self.catalog.upload('owner',data.getvalue())
+        response=self.client.get('/sovera/account/media/'+media['id']+'?still=true')
+        self.assertEqual(response.status_code,200)
+        self.assertIn('immutable',response.headers['cache-control'])
+        with Image.open(io.BytesIO(response.content)) as image:
+            self.assertEqual(image.size,(384,192))
+            self.assertEqual(getattr(image,'n_frames',1),1)
+        private=self.client.get('/sovera/account',headers={'Authorization':'Bearer alice'})
+        self.assertEqual(private.headers['cache-control'],'no-store')
+
     def test_grants_fit_equipment_hide_and_revoke(self):
         self.setup_catalog();item=self.item(price=50)
         with self.assertRaises(HTTPException):self.catalog.select('alice',SelectInput(kind='frame',item_id=item['id']))

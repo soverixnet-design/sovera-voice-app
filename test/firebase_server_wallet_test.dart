@@ -7,6 +7,19 @@ import 'package:sovera/firebase_profile.dart';
 import 'package:sovera/firebase_server_wallet.dart';
 
 void main(){
+  test('history cursor stays in query and bearer token stays on trusted host',()async{
+    final client=MockClient((request)async{
+      expect(request.url.host,'voice.soverixnet.com');
+      expect(request.url.path,'/sovera/account/wallet/history');
+      expect(request.url.queryParameters,{'before_time':'1000','before_ref':'win/a+b'});
+      expect(request.headers['Authorization'],'Bearer verified');
+      return http.Response('{"entries":[],"has_more":false}',200);
+    });
+    final api=FirebaseProfileApi(uid:'alice',token:()async=>'verified',client:client);
+    await api.call('GET',suffix:'/wallet/history?before_time=1000&before_ref=win%2Fa%2Bb');
+    client.close();
+  });
+
   testWidgets('Firebase only authenticates; unavailable server wallet never fakes zero',
     (tester)async{
       final calls=<String>[];

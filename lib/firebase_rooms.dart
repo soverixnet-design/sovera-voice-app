@@ -2,6 +2,8 @@ import 'dart:async';
 import 'dart:math';
 import 'package:flutter/material.dart';
 import 'firebase_profile.dart';
+import 'firebase_safety.dart';
+import 'app_preferences.dart';
 import 'firebase_catalog.dart';
 import 'firebase_voice.dart';
 import 'room_card_art.dart';
@@ -152,21 +154,26 @@ class _FirebaseRoomChatState extends State<FirebaseRoomChat> with WidgetsBinding
   List<Map<String,dynamic>> roomEffects=[],catalogEvents=[],roomPeople=[];
   int catalogServerNow=0;
   Map<String,dynamic>? pendingGift;
+  Set<String> blocked={};
 
   late String roomName;late int seatCount;late String roomFrame;
   bool get isOwner=>widget.room['owner_uid']==widget.api.uid;
   DateTime? heartbeat;
   String get path=>'/rooms/${Uri.encodeComponent(widget.room['id'] as String)}';
-  @override void initState(){super.initState();roomName=widget.room['name'] as String;roomFrame=(widget.room['room_frame']??'none') as String;seatCount=widget.room['seats'] as int? ?? 9;WidgetsBinding.instance.addObserver(this);start();}
-  void start(){timer?.cancel();sync();timer=Timer.periodic(const Duration(seconds:5),(_)=>sync());}
+  @override void initState(){super.initState();roomName=widget.room['name'] as String;roomFrame=(widget.room['room_frame']??'none') as String;seatCount=widget.room['seats'] as int? ?? 9;WidgetsBinding.instance.addObserver(this);SoveraPreferences.lowData.addListener(start);start();}
+  void start(){timer?.cancel();sync();timer=Timer.periodic(Duration(seconds:SoveraPreferences.lowData.value?15:5),(_)=>sync());}
   @override void didChangeAppLifecycleState(AppLifecycleState state){if(state==AppLifecycleState.resumed){heartbeat=null;start();}else{timer?.cancel();}}
-  @override void dispose(){WidgetsBinding.instance.removeObserver(this);timer?.cancel();input.dispose();unawaited(widget.api.call('DELETE',suffix:'$path/presence').then<void>((_){}).catchError((Object _){}));super.dispose();}
+  @override void dispose(){SoveraPreferences.lowData.removeListener(start);WidgetsBinding.instance.removeObserver(this);timer?.cancel();input.dispose();unawaited(widget.api.call('DELETE',suffix:'$path/presence').then<void>((_){}).catchError((Object _){}));super.dispose();}
   Future<void> sync()async{
     if(syncing)return;syncing=true;
     try{
       if(heartbeat==null||DateTime.now().difference(heartbeat!)>=const Duration(seconds:30)){
         await widget.api.call('PUT',suffix:'$path/presence');heartbeat=DateTime.now();
       }
+      try{
+        final list=await widget.api.call('GET',suffix:'/community/blocks');
+        if(mounted)setState(()=>blocked=(list['items'] as List).whereType<Map>().map((r)=>r['uid'].toString()).toSet());
+      }catch(_){}
       final data=await widget.api.call('GET',suffix:'$path/messages');
       if(mounted)setState((){messages..clear()..addAll((data['messages'] as List).map((r)=>Map<String,dynamic>.from(r as Map)));error=null;});
       try{
@@ -272,9 +279,23 @@ class _FirebaseRoomChatState extends State<FirebaseRoomChat> with WidgetsBinding
         child:FirebaseGreedyWheelPage(api:widget.api,inRoom:true))),
       icon:const Icon(Icons.casino_rounded)),
 
-    IconButton(tooltip:'Free room effects',onPressed:sendingEffect?null:()=>chooseEffect(legacy:true),icon:const Icon(Icons.auto_awesome_rounded)),
+
     IconButton(tooltip:'Gift effects',onPressed:sendingEffect?null:chooseEffect,icon:const Icon(Icons.card_giftcard_rounded)),
-    if(isOwner)IconButton(tooltip:'Room settings',onPressed:savingRoom?null:editRoom,icon:const Icon(Icons.tune_rounded))]),
+    PopupMenuButton<String>(tooltip:'Room options',onSelected:(value){
+      if(value=='settings')editRoom();
+      if(value=='effects')chooseEffect(legacy:true);
+      if(value=='report')reportSovera(context,widget.api,'room',widget.room['id'].toString());
+      if(value=='members')showModalBottomSheet<void>(context:context,builder:(context)=>SafeArea(
+        child:ListView(children:[for(final person in roomPeople)ListTile(
+          title:Text(person['name'].toString()),trailing:SoveraSafetyMenu(api:widget.api,
+            uid:person['uid'].toString(),name:person['name'].toString(),
+            changed:(){setState(()=>blocked.add(person['uid'].toString()));sync();}))])));
+    },itemBuilder:(_)=>[
+      const PopupMenuItem(value:'members',child:Text('Room members')),
+      const PopupMenuItem(value:'effects',child:Text('Free room effects')),
+      if(isOwner)const PopupMenuItem(value:'settings',child:Text('Room settings')),
+      const PopupMenuItem(value:'report',child:Text('Report room')),
+    ])]),
     body:Container(
       decoration:const BoxDecoration(gradient:LinearGradient(
         begin:Alignment.topLeft,end:Alignment.bottomRight,
@@ -298,7 +319,7 @@ class _FirebaseRoomChatState extends State<FirebaseRoomChat> with WidgetsBinding
       ])),
 
     if(isOwner)Padding(padding:const EdgeInsets.symmetric(vertical:3),child:Text('$seatCount seats · Owner settings',style:const TextStyle(fontSize:12,color:Colors.white70))),
-    FirebaseVoicePanel(api:widget.api,roomId:widget.room['id'] as String,seatCount:seatCount,people:roomPeople),
+    FirebaseVoicePanel(api:widget.api,roomId:widget.room['id'] as String,seatCount:seatCount,people:roomPeople,blockedUids:blocked),
     if(catalogEvents.isNotEmpty)CatalogRoomAnimation(key:ValueKey(catalogEvents.first['event_id']),event:catalogEvents.first,serverNow:catalogServerNow,recipients:catalogEvents.where((r)=>r['id']==catalogEvents.first['id']&&r['sender_uid']==catalogEvents.first['sender_uid']&&r['created_at']==catalogEvents.first['created_at']).toList()),
     if(roomEffects.isNotEmpty)AnimatedSwitcher(
       duration:const Duration(milliseconds:300),
@@ -319,7 +340,10 @@ class _FirebaseRoomChatState extends State<FirebaseRoomChat> with WidgetsBinding
       Padding(padding:const EdgeInsets.symmetric(horizontal:12),
         child:Card(child:ListTile(
           title:Text('${message['name']} ${_flag(message['country'].toString())}'),
-          subtitle:Text(message['text'] as String)))),
+          subtitle:Text(message['text'] as String),
+          trailing:message['uid'] is String?SoveraSafetyMenu(
+            api:widget.api,uid:message['uid'] as String,name:message['name'].toString(),
+            changed:(){setState(()=>blocked.add(message['uid'] as String));sync();}):null))),
     ]))),
     Padding(padding:const EdgeInsets.fromLTRB(12,6,12,4),child:Row(mainAxisAlignment:MainAxisAlignment.end,children:[
       RoomActionButton(icon:Icons.sports_esports_rounded,label:'Room games',color:const Color(0xFF7550DA),onPressed:openGame),
