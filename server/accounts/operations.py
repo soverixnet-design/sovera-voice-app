@@ -140,6 +140,24 @@ class Operations:
             if kind=='ledger':return [dict(r) for r in db.execute('SELECT rowid AS id,* FROM account_wallet_ledger WHERE (?=0 OR rowid<?) AND (?=\'\' OR firebase_uid=?) AND created_at>=? AND created_at<? ORDER BY rowid DESC LIMIT 1000',(before,before,target,target,start,end))]
             if kind=='members':return self.control.users(uid,target)
             raise HTTPException(404)
+    def members(self,uid,q='',country='',status='',minimum=0,offset=0):
+        with self.control.db() as db:
+            self.owner(db,uid)
+            return [dict(r) for r in db.execute("""SELECT * FROM (
+              SELECT p.firebase_uid AS uid,p.display_name AS name,p.country,
+              COALESCE(i.public_id,n.public_id) AS public_id,
+              CASE WHEN b.uid IS NOT NULL THEN 'banned' ELSE 'active' END AS status,
+              COALESCE(s.role,'member') AS role,COALESCE(l.status,'unlinked') AS wallet_status,
+              COALESCE(c.coins,0) AS coins,COALESCE(c.diamonds,0) AS diamonds,m.created_at
+              FROM account_profiles p LEFT JOIN account_public_ids n ON n.uid=p.firebase_uid
+              LEFT JOIN account_wallet_imports i ON i.firebase_uid=p.firebase_uid
+              LEFT JOIN account_bans b ON b.uid=p.firebase_uid LEFT JOIN account_staff s ON s.uid=p.firebase_uid
+              LEFT JOIN account_wallet_links l ON l.firebase_uid=p.firebase_uid
+              LEFT JOIN account_member_created m ON m.uid=p.firebase_uid
+              LEFT JOIN (SELECT firebase_uid,SUM(coin_delta) AS coins,SUM(diamond_delta) AS diamonds FROM account_wallet_ledger GROUP BY firebase_uid) c ON c.firebase_uid=p.firebase_uid
+             ) WHERE (length(?)=0 OR name LIKE ? OR uid=? OR public_id=?)
+              AND (length(?)=0 OR country=?) AND (length(?)=0 OR status=?) AND coins>=?
+              ORDER BY name,uid LIMIT 100 OFFSET ?""",(q,'%'+q+'%',q,q,country,country,status,status,minimum,offset))]
     def schedules(self,uid,data=None):
         with self.control.db() as db:
             if self.control.role(db,uid) not in ('owner','admin'):raise HTTPException(403)
@@ -193,6 +211,11 @@ def attach_operations(app,profiles,staff):
         rows=await asyncio.to_thread(service.records,await staff(request),kind,before,target,start,end)
         if csv_export:return Response(csv_content(rows),media_type='text/csv',headers={'Content-Disposition':f'attachment; filename="sovera-{kind}.csv"','X-Content-Type-Options':'nosniff'})
         return {'items':rows}
+    @app.get('/sovera/control/operations/members')
+    async def members(request:Request,q:str=Query(default='',max_length=128),country:str=Query(default='',max_length=3),status:str=Query(default='',pattern='^(active|banned)?$'),minimum:int=Query(default=0,ge=0,le=9007199254740991),offset:int=Query(default=0,ge=0,le=1000000),csv_export:bool=False):
+        rows=await asyncio.to_thread(service.members,await staff(request),q,country,status,minimum,offset)
+        if csv_export:return Response(csv_content(rows),media_type='text/csv',headers={'Content-Disposition':'attachment; filename="sovera-members.csv"','X-Content-Type-Options':'nosniff'})
+        return {'items':rows,'next_offset':offset+100 if len(rows)==100 else None}
     @app.get('/sovera/control/operations/schedules')
     async def schedules(request:Request):return await asyncio.to_thread(service.schedules,await staff(request))
     @app.post('/sovera/control/operations/schedules')

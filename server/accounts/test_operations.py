@@ -102,6 +102,15 @@ class MaintenanceTests(unittest.TestCase):
         key=uuid.uuid4();self.assertFalse(p.cancel_request('alice',str(key))['applied'])
         with self.assertRaises(HTTPException):p.buy('alice',Buy(item_id=pack.id,request_id=key,expected_coins=5))
         self.assertEqual(self.control.users('owner','alice')[0]['coins'],10)
+    def test_filtered_members_and_maintenance_routes_require_owner(self):
+        ops=Operations(self.path)
+        self.assertEqual([r['uid'] for r in ops.members('owner',q='alice',minimum=10)],['alice'])
+        self.assertEqual(ops.members('owner',q='alice',minimum=11),[])
+        # Direct service and worker share the same schema without altering balances.
+        from .maintenance import tick
+        tick(self.path)
+        state=ops.maintenance_status('owner');self.assertEqual(state['jobs'][0]['ok'],1)
+        with self.assertRaises(HTTPException):ops.members('support')
     def test_native_staff_routes_obey_restrictions(self):
         c=Community(self.path);ops=Operations(self.path)
         ops.policy('owner','support',PolicyInput(expires_at=0,denied=['support']))

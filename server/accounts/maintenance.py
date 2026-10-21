@@ -40,7 +40,10 @@ def backup(directory='/var/backups/sovera',databases=None):
         manifest['verified']=True;(dest/'manifest.json').write_text(json.dumps(manifest,indent=2));os.chmod(dest/'manifest.json',0o600)
         # Delete only this worker's recognizable verified backup directories.
         for old in sorted(root.glob('????????T??????Z'))[:-14]:
-            if old.is_dir() and not old.is_symlink() and (old/'manifest.json').is_file():shutil.rmtree(old)
+            if old.is_dir() and not old.is_symlink() and (old/'manifest.json').is_file():
+                try:
+                    if json.loads((old/'manifest.json').read_text()).get('verified') is True:shutil.rmtree(old)
+                except (OSError,ValueError):pass
         return manifest
     except Exception:
         shutil.rmtree(dest);raise

@@ -10,6 +10,10 @@ w.fetch=async(url,options)=>{
  const name=url.replace('/sovera/control/','');
  let data;
  if(name==='session')data={role,name:'Shakil',uid:'owner',users:2,rooms:1,open_tickets:0,quota_remaining:null};
+ else if(name==='security')data={enabled:false,recovery_remaining:0,sessions:[]};
+ else if(name==='operations')data={daily:[],active_24h:1,online:0,coins_outstanding:'50',diamonds_outstanding:'0',currency_note:'Virtual currency only',database_bytes:4096,disk_free:10000,load_average:[]};
+ else if(name==='operations/maintenance')data={jobs:[],backups:[],restore_note:'Verified copies only'};
+ else if(name==='programs')data={items:[],referral_policy:{enabled:false,recharge_target:100,reward_coins:10,inviter_limit:5,join_days:7}};
  else if(name==='sellers'){if(options.method==='POST'){sellerSaves.push(JSON.parse(options.body));data={saved:true};}else data={items:[{uid:'alice',name:'Seller',coins:'120',public_id:'10000002'}]};}
  else if(name.startsWith('users?q='))data={items:[{uid:'alice',name:'Seller',public_id:'10000002'}]};
  else if(name==='rewards'){if(options.method==='POST'){rewardSaves.push(JSON.parse(options.body));if(rewardSaves.length===1)return {ok:false,status:503,json:async()=>({detail:'Retry reward connection'})};data={saved:true};}else data={items:[],server_now:Math.floor(Date.now()/1000)};}
@@ -75,6 +79,7 @@ assert.equal(rewardSaves.length,2);assert.equal(rewardSaves[0].id,rewardSaves[1]
 assert.equal(rewardSaves[0].prizes[0].coins,500);
 assert.equal(rewardSaves[0].starts_at,Date.parse('2026-12-01T00:00Z')/1000);
 assert.match(w.document.querySelector('#reward-receipt').textContent,/published/);
+for(const page of ['security','operations','programs','payments','rooms','schedules','agencyfinance']){w.controlTest.setView(page);await w.controlTest.render();assert.equal(w.document.querySelector('#error').textContent,'',page+' renders without an API shape error');}
 role='support';await w.controlTest.start();
 assert.equal(w.document.querySelector('[data-view="recharge"]'),null);
 assert.equal(w.document.querySelector('[data-view="staff"]'),null);

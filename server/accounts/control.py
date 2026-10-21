@@ -122,11 +122,14 @@ class Control:
             role=self.role(db,uid)
             profile=db.execute('SELECT display_name FROM account_profiles WHERE firebase_uid=?',(uid,)).fetchone()
             agent=db.execute('SELECT quota,used FROM account_control_agents WHERE uid=?',(uid,)).fetchone()
+            open_tickets=db.execute("SELECT COUNT(*) FROM account_support WHERE reply=''").fetchone()[0]
+            if db.execute("SELECT 1 FROM sqlite_master WHERE name='account_ticket_state'").fetchone():
+                open_tickets=db.execute("SELECT COUNT(*) FROM account_support t LEFT JOIN account_ticket_state s ON s.ticket=t.id WHERE COALESCE(s.status,CASE WHEN t.reply='' THEN 'open' ELSE 'resolved' END)<>'resolved'").fetchone()[0]
             return {'role':role,'name':profile['display_name'] if profile else 'Staff','uid':uid,
                 'quota_remaining':agent['quota']-agent['used'] if agent else None,
                 'users':db.execute('SELECT COUNT(*) FROM account_profiles').fetchone()[0],
                 'rooms':db.execute('SELECT COUNT(*) FROM account_rooms').fetchone()[0],
-                'open_tickets':db.execute("SELECT COUNT(*) FROM account_support WHERE reply='' ").fetchone()[0]}
+                'open_tickets':open_tickets}
 
     def users(self,uid,q='',offset=0):
         with self.db() as db:
