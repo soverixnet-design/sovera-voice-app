@@ -1,3 +1,4 @@
+import 'firebase_community.dart' show FirebaseCommunity;
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'firebase_profile.dart';
@@ -42,6 +43,7 @@ class _FirebaseRewardsPageState extends State<FirebaseRewardsPage>{
       const SizedBox(height:18),SingleChildScrollView(scrollDirection:Axis.horizontal,child:Row(children:[for(final x in const [('ranking','Rankings',Icons.emoji_events_rounded),('event','Event Rewards',Icons.celebration_rounded),('recharge','Recharge Rewards',Icons.savings_rounded)])Padding(padding:const EdgeInsets.only(right:8),child:ChoiceChip(avatar:Icon(x.$3,size:17),label:Text(x.$2),selected:tab==x.$1,onSelected:(_)=>setState(()=>tab=x.$1)))])),
       if(loading)const LinearProgressIndicator(),
       if(error!=null)Padding(padding:const EdgeInsets.symmetric(vertical:14),child:Text(error!,style:const TextStyle(color:Colors.orangeAccent))),
+      if(tab=='event')TextButton.icon(onPressed:()=>Navigator.push(context,MaterialPageRoute<void>(builder:(_)=>FirebaseCommunity(api:widget.api,section:'events',title:'Community events'))),icon:const Icon(Icons.campaign_rounded),label:const Text('Event announcements')),
       if(tab=='ranking')...[
         const SizedBox(height:14),Wrap(spacing:6,children:[for(final x in const [('rich','Rich'),('charm','Charm'),('play','Game Wins'),('recharge','Recharge')])ChoiceChip(label:Text(x.$2),selected:metric==x.$1,onSelected:loading?null:(_){setState(()=>metric=x.$1);load();})]),
         Wrap(spacing:8,children:[for(final p in const ['daily','weekly','monthly'])ChoiceChip(label:Text('${p[0].toUpperCase()}${p.substring(1)}'),selected:period==p,onSelected:loading?null:(_){setState(()=>period=p);load();})]),
@@ -65,7 +67,7 @@ class _FirebaseRewardsPageState extends State<FirebaseRewardsPage>{
       Text('${DateTime.fromMillisecondsSinceEpoch(start*1000,isUtc:true).toIso8601String().substring(0,16)} → ${DateTime.fromMillisecondsSinceEpoch(end*1000,isUtc:true).toIso8601String().substring(0,16)} UTC',style:const TextStyle(color:Colors.white54,fontSize:10)),
       const SizedBox(height:10),Text(c['category']=='recharge'?'Recharge ${c['threshold']} Coins • Your progress: ${c['score']}':'${c['metric']} ranking • Minimum score ${c['threshold']}'),
       for(final raw in c['prizes'] as List)prizeCard(Map<String,dynamic>.from(raw as Map)),
-      for(final w in (c['winners'] as List))ListTile(onTap:()=>member(Map<String,dynamic>.from(w as Map)),contentPadding:EdgeInsets.zero,leading:RewardAvatar(person:Map<String,dynamic>.from(w as Map),size:38),title:Text('#${w['rank']}  ${w['name']}'),subtitle:Text('ID ${w['public_id']} · ${w['score']}')),
+      for(final w in (c['winners'] as List).cast<Map>())ListTile(onTap:()=>member(Map<String,dynamic>.from(w)),contentPadding:EdgeInsets.zero,leading:RewardAvatar(person:Map<String,dynamic>.from(w),size:38),title:Text('#${w['rank']}  ${w['name']}'),subtitle:Text('ID ${w['public_id']} · ${w['score']}')),
       const SizedBox(height:12),if(c['claimed']==true)const Text('✓ Reward received',style:TextStyle(color:cyan,fontWeight:FontWeight.bold))else FilledButton.icon(onPressed:c['eligible']==true&&claiming==null?()=>claim(c):null,icon:const Icon(Icons.redeem_rounded),label:Text(claiming=='${c['id']}'?'Receiving…':c['eligible']==true?'Claim reward':ended?'Not eligible':'Reward unlocks after qualification')),
     ])));
   }
