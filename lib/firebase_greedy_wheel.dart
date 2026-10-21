@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:webview_flutter/webview_flutter.dart';
 import 'firebase_profile.dart';
+import 'firebase_server_wallet.dart';
 
 /// Original user-supplied Greedy UI is hosted by the isolated Greedy service.
 /// It MUST be fetched from the configured verified HTTPS game endpoint; no
@@ -18,6 +19,17 @@ class _FirebaseGreedyWheelPageState extends State<FirebaseGreedyWheelPage>{
   bool loading=true;
   String? error;
   bool refreshingGameAccess=false;
+  bool walletOpen=false;
+
+  Future<void> openWallet()async{
+    if(walletOpen||!mounted)return;
+    walletOpen=true;
+    try{
+      await Navigator.of(context).push<void>(MaterialPageRoute(
+        builder:(_)=>FirebaseServerWalletPage(api:widget.api)));
+      if(mounted)await refreshGameAccess();
+    }finally{walletOpen=false;}
+  }
 
   /// Short-lived game JWTs are refreshed through the authenticated Firebase
   /// account API, never with a game-host password or a coin balance from JS.
@@ -98,8 +110,7 @@ class _FirebaseGreedyWheelPageState extends State<FirebaseGreedyWheelPage>{
               refreshGameAccess();
             }
             if(message is Map&&message['type']=='topup'&&mounted){
-              ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-                content:Text('Coin recharge is not available inside Greedy yet.')));
+              openWallet();
             }
           }catch(_){}
         });

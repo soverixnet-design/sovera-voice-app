@@ -23,6 +23,10 @@ class _FirebaseServerWalletPageState extends State<FirebaseServerWalletPage>{
   Map<String,dynamic>? wallet;
   List<Map<String,dynamic>> entries=[];
   @override void initState(){super.initState();refresh();}
+  Future<void> openPage(Widget page)async{
+    await Navigator.of(context).push<void>(MaterialPageRoute(builder:(_)=>page));
+    if(mounted)await refresh();
+  }
   Future<void> refresh()async{
     setState(()=>loading=true);
     try{
@@ -208,11 +212,11 @@ class _FirebaseServerWalletPageState extends State<FirebaseServerWalletPage>{
             style:TextStyle(color:Colors.orangeAccent)),
       ])),
       const SizedBox(height:16),
-      FilledButton.icon(onPressed:()=>Navigator.push(context,MaterialPageRoute<void>(builder:(_)=>FirebaseProgramsPage(api:widget.api,initialSection:'recharge'))),icon:const Icon(Icons.payments_rounded),label:const Text('Recharge offers & payment status')),
+      FilledButton.icon(onPressed:()=>openPage(FirebaseProgramsPage(api:widget.api,initialSection:'recharge')),icon:const Icon(Icons.payments_rounded),label:const Text('Recharge offers & payment status')),
       const SizedBox(height:12),
-      FilledButton.icon(onPressed:()=>Navigator.push(context,MaterialPageRoute<void>(builder:(_)=>FirebaseRewardsPage(api:widget.api,initialTab:'recharge'))),icon:const Icon(Icons.redeem_rounded),label:const Text('Recharge Rewards')),
+      FilledButton.icon(onPressed:()=>openPage(FirebaseRewardsPage(api:widget.api,initialTab:'recharge')),icon:const Icon(Icons.redeem_rounded),label:const Text('Recharge Rewards')),
       const SizedBox(height:12),
-      FilledButton.icon(onPressed:()=>Navigator.push(context,MaterialPageRoute<void>(builder:(_)=>FirebaseOriginalCoinSellers(api:widget.api))),icon:const Icon(Icons.storefront_rounded),label:const Text('Coin seller list')),
+      FilledButton.icon(onPressed:()=>openPage(FirebaseOriginalCoinSellers(api:widget.api)),icon:const Icon(Icons.storefront_rounded),label:const Text('Coin seller list')),
       if(entries.isNotEmpty)...[
         const SizedBox(height:20),
         const Text('Server transaction history',style:TextStyle(fontSize:18,fontWeight:FontWeight.bold)),

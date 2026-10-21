@@ -66,8 +66,10 @@ class _FirebaseSoveraHomeState extends State<FirebaseSoveraHome>{
   void resetRefreshTimer(){refreshTimer?.cancel();refreshTimer=Timer.periodic(Duration(seconds:SoveraPreferences.lowData.value?60:30),(_)=>refresh(silent:true));}
   @override void dispose(){SoveraPreferences.lowData.removeListener(resetRefreshTimer);refreshTimer?.cancel();search.dispose();client.close();super.dispose();}
   void say(String text){if(mounted)ScaffoldMessenger.of(context).showSnackBar(SnackBar(content:Text(text)));}
-  void go(Widget page)=>Navigator.of(context).push<void>(
-    MaterialPageRoute(builder:(_)=>page));
+  Future<void> go(Widget page)async{
+    await Navigator.of(context).push<void>(MaterialPageRoute(builder:(_)=>page));
+    if(mounted)await refresh(silent:true);
+  }
   Future<void> refresh({bool silent=false})async{
     if(loading)return;
     if(!silent&&mounted)setState((){loading=true;error=null;});
