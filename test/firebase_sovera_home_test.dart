@@ -66,7 +66,8 @@ void main(){
     await tester.tap(find.text('Me'));await tester.pumpAndSettle();
     expect(find.text('My profile'),findsOneWidget);
     expect(find.text('Edit Profile'),findsOneWidget);
-    expect(find.text('Medals'),findsOneWidget);
+    expect(find.text('Style preview'),findsNothing);
+    expect(find.text('Not active'),findsOneWidget);
     expect(find.text('My connections'),findsOneWidget);
     expect(find.text('Your profile'),findsNothing);
     expect(find.text('Country'),findsNothing);

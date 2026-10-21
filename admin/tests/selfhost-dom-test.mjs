@@ -3,13 +3,16 @@ import {readFileSync} from 'node:fs';
 import assert from 'node:assert/strict';
 const w=new Window({url:'https://admin.soverixnet.com',width:390,height:844});
 w.document.body.innerHTML='<div id="app"></div>';
-let role='owner',attempts=[],catalogSaves=[];
+let role='owner',attempts=[],catalogSaves=[],sellerSaves=[],notices=[];
 const frame={id:'11111111-1111-4111-8111-111111111111',kind:'frame',title:'Violet frame',media_id:'a'.repeat(64),price:20,active:true,position:0,avatar_scale:.46,avatar_x:.5,avatar_y:.5};
 w.confirm=()=>true;
 w.fetch=async(url,options)=>{
  const name=url.replace('/sovera/control/','');
  let data;
  if(name==='session')data={role,name:'Shakil',uid:'owner',users:2,rooms:1,open_tickets:0,quota_remaining:null};
+ else if(name==='sellers'){if(options.method==='POST'){sellerSaves.push(JSON.parse(options.body));data={saved:true};}else data={items:[{uid:'alice',name:'Seller',coins:'120',public_id:'10000002'}]};}
+ else if(name.startsWith('users?q='))data={items:[{uid:'alice',name:'Seller',public_id:'10000002'}]};
+ else if(name==='official-messages'){notices.push(JSON.parse(options.body));data={saved:true};}
  else if(name==='users')data={items:[{uid:'alice',name:'<img id="attack" src=x>',country:'BD',wallet_status:'active',coins:50,diamonds:5}]};
  else if(name==='catalog'){if(options.method==='POST'){catalogSaves.push(JSON.parse(options.body));data=frame;}else data={items:[frame]};}
  else if(name==='password-login'){
@@ -23,7 +26,7 @@ w.fetch=async(url,options)=>{
 };
 w.eval('(function(){'+readFileSync(new URL('../selfhost/app.js',import.meta.url),'utf8')+'\nwindow.controlTest={start,render,login,assets,setView(value){view=value;},getPending(){return rechargeRequest;}};})();');
 await new Promise(r=>setTimeout(r,25));
-assert.equal(w.document.querySelectorAll('[data-view]').length,14);
+assert.equal(w.document.querySelectorAll('[data-view]').length,16);
 w.controlTest.setView('users');await w.controlTest.render();
 assert.equal(w.document.querySelector('#attack'),null,'Names are rendered as text');
 assert.match(w.document.querySelector('#results').textContent,/<img id=/);
@@ -46,6 +49,19 @@ assert.equal(w.document.querySelector('#fit-avatar').style.width,'46%');
 w.document.querySelector('#asset-price').value='25';
 await w.document.querySelector('#asset-form').onsubmit({preventDefault(){}});
 assert.equal(catalogSaves.length,1);assert.equal(catalogSaves[0].price,25);assert.equal(catalogSaves[0].id,frame.id);
+w.controlTest.setView('sellers');await w.controlTest.render();
+assert.match(w.document.querySelector('#panel').textContent,/120/);
+w.document.querySelector('#seller-query').value='10000002';
+await w.document.querySelector('#seller-search').onsubmit({preventDefault(){}});
+await w.document.querySelector('[data-add-seller]').onclick();
+assert.deepEqual(sellerSaves.at(-1),{target_uid:'alice',enabled:true});
+w.controlTest.setView('official');await w.controlTest.render();
+w.document.querySelector('#notice-query').value='10000002';
+await w.document.querySelector('#notice-search').onsubmit({preventDefault(){}});
+w.document.querySelector('#notice-title').value='Hello';w.document.querySelector('#notice-text').value='Private update';
+await w.document.querySelector('#official-form').onsubmit({preventDefault(){}});
+assert.equal(notices.at(-1).target_uid,'alice');
+assert.equal(notices.at(-1).text,'Private update');
 role='support';await w.controlTest.start();
 assert.equal(w.document.querySelector('[data-view="recharge"]'),null);
 assert.equal(w.document.querySelector('[data-view="staff"]'),null);

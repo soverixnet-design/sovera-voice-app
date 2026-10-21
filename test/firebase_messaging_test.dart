@@ -6,8 +6,21 @@ import 'package:http/testing.dart';
 import 'package:sovera/firebase_profile.dart';
 import 'package:sovera/firebase_original_coin_sellers.dart';
 import 'package:sovera/firebase_messaging.dart';
+import 'package:sovera/firebase_original_profile_card.dart';
 
 void main(){
+ testWidgets('Compact profile shows real numeric ID and optional gender without invented VIP',(tester)async{
+  tester.view.physicalSize=const Size(320,740);tester.view.devicePixelRatio=1;
+  addTearDown(tester.view.resetPhysicalSize);addTearDown(tester.view.resetDevicePixelRatio);
+  await tester.pumpWidget(MaterialApp(theme:ThemeData.dark(),home:Scaffold(body:SingleChildScrollView(child:FirebaseOriginalProfileCard(profile:const {'public_id':'10000001','country':'BD','gender':'female'},name:'Sovera member',onEdit:(){})))));
+  await tester.pumpAndSettle();
+  expect(find.text('ID · 10000001'),findsOneWidget);
+  expect(find.byTooltip('Copy user ID'),findsOneWidget);
+  expect(find.text('Not active'),findsOneWidget);
+  expect(find.text('VIP1'),findsNothing);
+  expect(tester.takeException(),isNull);
+ });
+
  testWidgets('Approved seller shows real balance and opens authenticated private chat',(tester)async{
   final api=FirebaseProfileApi(uid:'buyer',token:()async=>'fresh-token',client:MockClient((request)async{
    expect(request.headers['Authorization'],'Bearer fresh-token');
