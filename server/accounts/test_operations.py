@@ -7,7 +7,7 @@ from . import test_control
 from .control import Control
 from .control_password import Passwords
 from .control_security import Security,FactorInput,totp
-from .operations import Operations,RoomModeration,PolicyInput,TicketInput,csv_content
+from .operations import Operations,RoomPresentation,RoomModeration,PolicyInput,TicketInput,csv_content
 from .rooms import Rooms,RoomInput
 from .community import Community,CommunityText
 from .programs import Programs,Pack,Buy,ReferralPolicy,PaymentOrder,PaymentDecision,AgencyFinance,AgencyTerms,month_bounds
@@ -29,6 +29,16 @@ class OperationsTests(unittest.TestCase):
         self.assertEqual(state['recovery_remaining'],8);self.assertEqual(len(state['sessions']),2)
         sec.revoke('owner',next(s['id'] for s in state['sessions'] if not s['current']))
         with self.assertRaises(HTTPException):self.control.actor(token)
+    def test_room_presentation_is_staff_authorized_persistent_and_audited(self):
+        rooms=Rooms(self.path);room=rooms.save('owner',RoomInput(name='Room design'))['id']
+        ops=Operations(self.path);settings=RoomPresentation(theme='ocean',chat_enabled=False,photo_min_level=3)
+        with self.assertRaises(HTTPException):ops.presentation('agent',room,settings)
+        self.assertTrue(ops.presentation('owner',room,settings)['saved'])
+        row=next(r for r in ops.rooms('owner') if r['id']==room)
+        self.assertEqual(row['theme'],'ocean');self.assertEqual(row['chat_enabled'],0);self.assertEqual(row['photo_min_level'],3)
+        with self.control.db() as db:
+            self.assertIsNotNone(db.execute("SELECT 1 FROM account_control_audit WHERE action='room.presentation'").fetchone())
+
     def test_room_close_enforced_and_report_is_owner_only(self):
         rooms=Rooms(self.path);room=rooms.save('owner',RoomInput(name='A room'))['id'];rooms.presence('alice',room)
         ops=Operations(self.path)

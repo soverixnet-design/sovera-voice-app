@@ -16,6 +16,12 @@ from pydantic import BaseModel, ConfigDict, Field
 from .control import Control
 from .control_security import CAPS
 
+class RoomPresentation(BaseModel):
+    model_config=ConfigDict(extra='forbid')
+    theme:Literal['mid','gold','ocean','rose','forest','sunset']
+    chat_enabled:bool
+    photo_min_level:int=Field(strict=True,ge=0,le=10000)
+
 class RoomModeration(BaseModel):
     model_config=ConfigDict(extra='forbid',str_strip_whitespace=True)
     status:Literal['open','closed','banned']
@@ -98,10 +104,19 @@ class Operations:
     def rooms(self,uid,q=''):
         with self.control.db() as db:
             self.staff(db,uid)
-            return [dict(r) for r in db.execute('''SELECT r.id,r.name,r.owner_uid,p.display_name AS owner_name,r.seats,COALESCE(m.status,'open') AS status,m.reason,
+            return [dict(r) for r in db.execute('''SELECT r.id,r.name,r.owner_uid,p.display_name AS owner_name,r.seats,r.theme,r.chat_enabled,r.photo_min_level,COALESCE(m.status,'open') AS status,m.reason,
              (SELECT COUNT(*) FROM account_presence a WHERE a.room_id=r.id AND a.seen_at>?) AS occupants
              FROM account_rooms r JOIN account_profiles p ON p.firebase_uid=r.owner_uid LEFT JOIN account_room_moderation m ON m.room=r.id
              WHERE r.name LIKE ? OR r.id LIKE ? ORDER BY r.created_at DESC LIMIT 200''',(time.time()-90,'%'+q+'%','%'+q+'%'))]
+    def presentation(self,uid,room,data):
+        with self.control.db() as db:
+            db.execute('BEGIN IMMEDIATE')
+            if self.control.role(db,uid) not in ('owner','admin'):raise HTTPException(403,'Room moderation permission required')
+            row=db.execute('SELECT 1 FROM account_rooms WHERE id=?',(room,)).fetchone()
+            if not row:raise HTTPException(404,'Room not found')
+            db.execute('UPDATE account_rooms SET theme=?,chat_enabled=?,photo_min_level=? WHERE id=?',(data.theme,data.chat_enabled,data.photo_min_level,room))
+            self.control.audit(db,uid,'room.presentation',room,data.model_dump())
+            return {'saved':True}
     def moderate(self,uid,room,data):
         with self.control.db() as db:
             db.execute('BEGIN IMMEDIATE')
@@ -188,6 +203,8 @@ def attach_operations(app,profiles,staff):
     async def maintenance(request:Request):return await asyncio.to_thread(service.maintenance_status,await staff(request))
     @app.get('/sovera/control/rooms')
     async def rooms(request:Request,q:str=Query(default='',max_length=128)):return {'items':await asyncio.to_thread(service.rooms,await staff(request),q)}
+    @app.put('/sovera/control/rooms/{room}/presentation')
+    async def presentation(room:str,data:RoomPresentation,request:Request):return await asyncio.to_thread(service.presentation,await staff(request),room,data)
     @app.put('/sovera/control/rooms/{room}')
     async def moderate(room:str,data:RoomModeration,request:Request):
         result=await asyncio.to_thread(service.moderate,await staff(request),room,data)
