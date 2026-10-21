@@ -13,6 +13,12 @@ class PasswordInput(BaseModel):
     password:str=Field(min_length=1,max_length=128)
     otp:str=Field(default='',max_length=32)
 
+class StaffPasswordInput(BaseModel):
+    model_config=ConfigDict(extra='forbid')
+    target_uid:str=Field(min_length=1,max_length=128)
+    username:str=Field(min_length=3,max_length=64)
+    password:str=Field(min_length=12,max_length=128,repr=False)
+
 def username_key(value):
     value=value.strip().lower()
     if not re.fullmatch(r'[a-z0-9_.-]{3,64}',value):
@@ -32,7 +38,7 @@ class Passwords:
             CREATE INDEX IF NOT EXISTS control_login_attempt_time ON account_control_login_attempts(created_at);
             ''')
 
-    def set(self,uid,username,password):
+    def set(self,uid,username,password,actor=None):
         username=username_key(username)
         if len(password)<12 or len(password)>128:
             raise ValueError('Password must contain 12–128 characters')
@@ -40,7 +46,10 @@ class Passwords:
         hashed=password_hash(password,salt)
         with self.control.db() as db:
             db.execute('BEGIN IMMEDIATE')
-            self.control.role(db,uid)
+            target_role=self.control.role(db,uid)
+            if actor is not None:
+                if self.control.role(db,actor)!='owner':raise HTTPException(403,'Only the owner can manage staff passwords')
+                if target_role=='owner' or actor==uid:raise HTTPException(403,'Owner credentials require the existing console recovery process')
             other=db.execute('SELECT uid FROM account_control_passwords WHERE username=?',(username,)).fetchone()
             if other and other['uid']!=uid:raise ValueError('Username already assigned')
             db.execute('DELETE FROM account_control_passwords WHERE uid=?',(uid,))
@@ -48,7 +57,17 @@ class Passwords:
             db.execute('DELETE FROM account_control_sessions WHERE uid=?',(uid,))
             db.execute('DELETE FROM account_control_codes WHERE uid=?',(uid,))
             db.execute('DELETE FROM account_control_login_attempts WHERE username=?',(username,))
-            self.control.audit(db,uid,'password.set',uid,{'username':username})
+            self.control.audit(db,actor or uid,'password.set',uid,{'username':username})
+
+    def credentials(self,actor):
+        with self.control.db() as db:
+            if self.control.role(db,actor)!='owner':raise HTTPException(403,'Owner required')
+            return [dict(r) for r in db.execute("SELECT s.uid,s.role,p.username FROM (SELECT uid,role FROM account_staff UNION ALL SELECT uid,'agent' AS role FROM account_control_agents) s LEFT JOIN account_control_passwords p ON p.uid=s.uid WHERE s.role<>'owner' ORDER BY s.uid")]
+
+    def provision(self,actor,data):
+        try:self.set(data.target_uid,data.username,data.password,actor=actor)
+        except ValueError as error:raise HTTPException(422,str(error)) from None
+        return {'saved':True,'sessions_revoked':True}
 
     def login(self,username,password,otp=''):
         try:username=username_key(username)

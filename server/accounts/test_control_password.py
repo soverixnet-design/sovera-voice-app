@@ -2,7 +2,7 @@ import sqlite3
 import unittest
 from fastapi import HTTPException
 from . import test_control
-from .control_password import Passwords
+from .control_password import Passwords,StaffPasswordInput
 
 class PasswordTests(unittest.TestCase):
     setUp=test_control.ControlTests.setUp
@@ -50,5 +50,27 @@ class PasswordTests(unittest.TestCase):
         with self.control.db() as db:db.execute("DELETE FROM account_staff WHERE uid='owner'")
         with self.assertRaises(HTTPException):self.passwords.login('soverix','correct-password-2026')
         with self.assertRaises(HTTPException):self.control.actor(token)
+
+    def test_owner_provisions_other_staff_without_exposing_passwords(self):
+        self.setup_password()
+        data=StaffPasswordInput(target_uid='agent',username='recharge.agent',password='staff-password-2026')
+        with self.assertRaises(HTTPException):self.passwords.provision('support',data)
+        self.assertTrue(self.passwords.provision('owner',data)['saved'])
+        token=self.passwords.login(data.username,data.password)
+        self.assertEqual(self.control.actor(token),'agent')
+        visible=self.passwords.credentials('owner')
+        account=next(r for r in visible if r['uid']=='agent')
+        self.assertEqual(account['username'],'recharge.agent')
+        self.assertEqual(set(account),{'uid','role','username'})
+        changed=data.model_copy(update={'password':'new-staff-password-2026'})
+        self.passwords.provision('owner',changed)
+        with self.assertRaises(HTTPException):self.control.actor(token)
+        self.assertEqual(self.control.actor(self.passwords.login(changed.username,changed.password)),'agent')
+        for target in ('owner','alice'):
+            with self.assertRaises(HTTPException):self.passwords.provision('owner',data.model_copy(update={'target_uid':target}))
+        with self.control.db() as db:
+            audit=db.execute("SELECT actor,target,payload FROM account_control_audit WHERE action='password.set' AND target='agent' ORDER BY id DESC LIMIT 1").fetchone()
+            self.assertEqual(audit['actor'],'owner')
+            self.assertNotIn(changed.password,audit['payload'])
 
 if __name__=='__main__':unittest.main()

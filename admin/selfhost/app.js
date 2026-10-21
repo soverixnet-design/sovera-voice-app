@@ -79,8 +79,24 @@ async function recharge(){
 }
 async function staff(){
  const rows=(await api('staff')).items;
+ const credentials=(await api('staff/credentials')).items;
  const people=(await api('users')).items;
  $('panel').innerHTML=`<section class="card"><h2>Assigned staff</h2>${table(['Account','Role','Quota','Issued'],rows.map(r=>`<tr><td class="details">${esc(r.uid)}</td><td>${esc(r.role)}</td><td>${r.quota===null?'—':num(r.quota)}</td><td>${r.used===null?'—':num(r.used)}</td></tr>`))}</section><section class="card space"><h2>Assign permissions</h2><form id="staff"><label>Member<select id="target" required>${people.filter(u=>u.uid!==identity.uid).map(u=>`<option value="${esc(u.uid)}">${esc(u.name)} · ${esc(u.uid)}</option>`).join('')}</select></label><label>Role<select id="role"><option value="support">Support replies only</option><option value="admin">Support and publications</option><option value="agent">Recharge within quota</option><option value="none">Revoke access</option></select></label><label>Total recharge quota<input id="quota" type="number" min="0" max="1000000000" value="0" required></label><p class="help">Quota is the lifetime total permitted for this agent; previously issued coins remain counted. Owner access can only be provisioned on the server console.</p><button id="submit">Save staff access</button></form></section>`;
+ const credentialPanel=document.createElement('section');credentialPanel.className='card space';
+ credentialPanel.innerHTML='<h2>Staff username & password</h2><p>First assign a role above, then create a login here. Setting a new password signs this staff member out of existing sessions. Existing Authenticator protection stays enabled. Owner login is managed separately.</p><form id="staff-password"><label>Assigned staff<select id="credential-target" required>'+credentials.map(r=>'<option value="'+esc(r.uid)+'">'+esc(r.uid)+' · '+esc(r.role)+' · '+esc(r.username||'No username yet')+'</option>').join('')+'</select></label><label>Username<input id="credential-username" autocomplete="off" autocapitalize="none" minlength="3" maxlength="64" pattern="[a-zA-Z0-9_.-]{3,64}" required></label><label>New password<input id="credential-password" type="password" autocomplete="new-password" minlength="12" maxlength="128" required></label><button id="credential-save" '+(credentials.length?'':'disabled')+'>Create / reset staff login</button></form><p id="credential-result" role="status"></p>';
+ $('panel').append(credentialPanel);
+ const fillCredential=()=>{$('credential-username').value=credentials.find(r=>r.uid===$('credential-target').value)?.username||'';$('credential-password').value='';};
+ $('credential-target').onchange=fillCredential;fillCredential();
+ $('staff-password').onsubmit=async event=>{
+   event.preventDefault();const target=$('credential-target').value;
+   if(!confirm('Create or reset login for '+target+'? Existing sessions for this staff account will be signed out.'))return;
+   $('credential-save').disabled=true;
+   try{
+     await api('staff/credentials','POST',{target_uid:target,username:$('credential-username').value.trim(),password:$('credential-password').value});
+     $('credential-password').value='';$('credential-result').textContent='Staff login saved. Share the admin panel link and credentials privately with this staff member. Previous sessions were signed out.';
+   }catch(error){$('credential-password').value='';$('error').textContent=error.message;}
+   finally{if($('credential-save'))$('credential-save').disabled=false;}
+ };
  $('staff').onsubmit=async event=>{event.preventDefault();$('submit').disabled=true;try{await api('staff','POST',{target_uid:$('target').value,role:$('role').value,quota:Number($('quota').value)});await staff();}catch(e){$('error').textContent=e.message;$('submit').disabled=false;}};
 }
 function publications(){

@@ -263,6 +263,12 @@ def attach_control(app,profiles,actor):
     @app.get('/sovera/control/staff')
     async def staff(request:Request):return {'items':await asyncio.to_thread(service.staff,await staff_actor(request))}
 
+    from .control_password import StaffPasswordInput
+    @app.get('/sovera/control/staff/credentials')
+    async def staff_credentials(request:Request):return {'items':await asyncio.to_thread(passwords.credentials,await staff_actor(request))}
+    @app.post('/sovera/control/staff/credentials')
+    async def staff_password(data:StaffPasswordInput,request:Request):return await asyncio.to_thread(passwords.provision,await staff_actor(request),data)
+
     @app.post('/sovera/control/staff')
     async def staff_save(data:StaffInput,request:Request):return {'items':await asyncio.to_thread(service.staff,await staff_actor(request),data)}
 
