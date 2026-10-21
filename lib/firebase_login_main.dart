@@ -11,7 +11,6 @@ import 'app_preferences.dart';
 import 'firebase_rooms.dart';
 import 'firebase_greedy_wheel.dart';
 import 'firebase_sovera_home.dart';
-import 'sovera_visuals.dart' show BrandLogo;
 
 const _webClient = '486331346860-trjijmpedgurb05npsvao3d3v327b6ii.apps.googleusercontent.com';
 
@@ -185,14 +184,11 @@ class _FirebaseLoginPageState extends State<FirebaseLoginPage> {
         padding:const EdgeInsets.symmetric(horizontal:20,vertical:24),
         child:Center(child:ConstrainedBox(constraints:const BoxConstraints(maxWidth:440),
           child:AutofillGroup(child:Column(crossAxisAlignment:CrossAxisAlignment.stretch,children:[
-            Container(padding:const EdgeInsets.all(14),
-              decoration:const BoxDecoration(shape:BoxShape.circle,
-                gradient:RadialGradient(colors:[Color(0x5541d7ff),Color(0x226e27c8),Colors.transparent])),
-              child:BrandLogo(size:constraints.maxHeight<700?110:155)),
-            const SizedBox(height:4),
-            const Text('Your Voice. Your World.',textAlign:TextAlign.center,
-              style:TextStyle(color:Color(0xffbfeaff),fontSize:17,fontStyle:FontStyle.italic,letterSpacing:1)),
-            const SizedBox(height:26),
+            ClipRRect(borderRadius:BorderRadius.circular(28),child:AspectRatio(
+              aspectRatio:1.25,
+              child:Image.asset('assets/login-reference-art.png',
+                fit:BoxFit.cover,alignment:Alignment.topCenter,excludeFromSemantics:true))),
+            const SizedBox(height:18),
             Container(padding:const EdgeInsets.fromLTRB(20,24,20,18),
               decoration:BoxDecoration(borderRadius:BorderRadius.circular(34),
                 gradient:const LinearGradient(begin:Alignment.topLeft,end:Alignment.bottomRight,colors:[Color(0xff20123f),Color(0xff071735),Color(0xff22113d)]),
