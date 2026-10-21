@@ -20,7 +20,7 @@ class _FirebaseRewardsPageState extends State<FirebaseRewardsPage>{
   @override void initState(){super.initState();tab=widget.initialTab;load();ticker=Timer.periodic(const Duration(seconds:1),(_){if(mounted)setState(()=>clock++);});}
   @override void dispose(){ticker?.cancel();super.dispose();}
   Future<void> load()async{
-    final version=++generation;setState((){loading=true;error=null;});
+    final version=++generation;setState((){loading=true;error=null;board=null;});
     try{
       final results=await Future.wait([widget.api.call('GET',suffix:'/rankings?metric=$metric&period=$period'),widget.api.call('GET',suffix:'/rewards')]);
       if(mounted&&version==generation)setState((){board=results[0];campaigns=(results[1]['items'] as List).map((e)=>Map<String,dynamic>.from(e as Map)).toList();clock=0;});

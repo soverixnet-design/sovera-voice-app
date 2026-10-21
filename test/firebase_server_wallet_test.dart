@@ -68,6 +68,7 @@ void main(){
       expect(find.text('70'),findsOneWidget);
       expect(find.textContaining('Wallet verified'),findsOneWidget);
       expect(find.textContaining('Coin games are not yet enabled'),findsOneWidget);
+      await tester.scrollUntilVisible(find.text('Server transaction history'),200);
       expect(find.text('Server transaction history'),findsOneWidget);
       expect(calls,['/sovera/account/wallet','/sovera/account/wallet/history']);
       await tester.pumpWidget(const SizedBox());
