@@ -21,7 +21,7 @@ class _FirebaseMessageInboxState extends State<FirebaseMessageInbox> {
       final result=await widget.api.call('GET',suffix:widget.official?'/official-inbox':'/messages');
       if(mounted){
         setState((){rows=(result['items'] as List).map((x)=>Map<String,dynamic>.from(x as Map)).toList();error=null;});
-        if(widget.official&&ModalRoute.of(context)?.isCurrent==true&&rows.isNotEmpty){
+        if(widget.official&&ModalRoute.of(context)?.isCurrent==true&&WidgetsBinding.instance.lifecycleState==AppLifecycleState.resumed&&rows.isNotEmpty){
           await widget.api.call('POST',suffix:'/message-read',fields:{'ids':rows.map((x)=>x['id'].toString()).toList()});
         }
       }
@@ -55,6 +55,7 @@ class _FirebaseDirectChatState extends State<FirebaseDirectChat> {
   Timer? timer;bool busy=false,loading=false,blocked=false;String? error;
   Map<String,dynamic>? pending;
   final List<Map<String,dynamic>> rows=[];
+  final acknowledged=<String>{};
   @override void initState(){super.initState();load();timer=Timer.periodic(const Duration(seconds:5),(_)=>load());}
   @override void dispose(){timer?.cancel();input.dispose();scroll.dispose();super.dispose();}
   Future<void> load()async{
@@ -67,9 +68,13 @@ class _FirebaseDirectChatState extends State<FirebaseDirectChat> {
         if(!mounted)return;
         setState((){blocked=result['blocked']==true;error=null;rows.addAll((result['items'] as List).map((x)=>Map<String,dynamic>.from(x as Map)));});
         more=result['has_more']==true;
-        final incoming=(result['items'] as List).whereType<Map>().where((x)=>x['sender']!=widget.api.uid).map((x)=>'dm:${x['id']}').toList();
-        if(incoming.isNotEmpty&&ModalRoute.of(context)?.isCurrent==true){
-          await widget.api.call('POST',suffix:'/message-read',fields:{'ids':incoming});
+        final incoming=rows.where((x)=>x['sender']!=widget.api.uid).map((x)=>'dm:${x['id']}').where((id)=>!acknowledged.contains(id)).toList();
+        if(incoming.isNotEmpty&&ModalRoute.of(context)?.isCurrent==true&&WidgetsBinding.instance.lifecycleState==AppLifecycleState.resumed){
+          for(var offset=0;offset<incoming.length;offset+=100){
+            final batch=incoming.skip(offset).take(100).toList();
+            await widget.api.call('POST',suffix:'/message-read',fields:{'ids':batch});
+            acknowledged.addAll(batch);
+          }
         }
       }
     }catch(e){if(mounted)setState(()=>error=e is ProfileApiError?e.message:'Could not load chat.');}
