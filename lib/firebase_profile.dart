@@ -45,18 +45,19 @@ class FirebaseProfileApi {
     }
     return Map<String, dynamic>.from(row);
   }
-  Future<String> uploadAvatar(XFile image) async {
+  Future<String> uploadAvatar(XFile image) => uploadPhoto(image);
+  Future<String> uploadPhoto(XFile image,{String suffix='/avatar'}) async {
     final access = await token();
     if (access == null || access.isEmpty) throw const ProfileApiError('Please sign in again.');
     if (await image.length() > 8 * 1024 * 1024) throw const ProfileApiError('Choose a photo smaller than 8 MB.');
-    final request = http.Request('POST', endpoint.replace(path:'${endpoint.path}/avatar'))..followRedirects=false;
+    final request = http.Request('POST', endpoint.replace(path:'${endpoint.path}$suffix'))..followRedirects=false;
     request.headers.addAll({'Authorization':'Bearer $access','Content-Type':'application/octet-stream'});
     request.bodyBytes = await image.readAsBytes();
     final response = await http.Response.fromStream(await client.send(request).timeout(const Duration(seconds:30))).timeout(const Duration(seconds:30));
     if (response.statusCode != 200) throw const ProfileApiError('Photo could not be uploaded. Please retry.');
     final data = jsonDecode(response.body);
     final url = data is Map ? data['avatar_url'] : null;
-    if (url is! String || !url.startsWith('${endpoint.toString()}/avatar/')) throw const ProfileApiError('Invalid photo response.');
+    if (url is! String || !(url.startsWith('${endpoint.toString()}/avatar/')||url.startsWith('${endpoint.toString()}/room-photo/'))) throw const ProfileApiError('Invalid photo response.');
     return url;
   }
   Future<Map<String, dynamic>?> load() => request('GET');

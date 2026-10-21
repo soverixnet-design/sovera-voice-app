@@ -11,9 +11,8 @@ import 'firebase_original_social.dart';
 import 'firebase_original_coin_sellers.dart';
 import 'firebase_server_wallet.dart';
 import 'firebase_community.dart';
-import 'country_picker.dart' show soveraCountries;
 import 'firebase_rooms.dart';
-import 'room_card_art.dart';
+import 'sovera_room_card.dart';
 import 'firebase_greedy_wheel.dart';
 import 'sovera_visuals.dart' show BrandLogo, Glass, Jewel, violet, gold, pink, cyan;
 
@@ -92,10 +91,6 @@ class _FirebaseSoveraHomeState extends State<FirebaseSoveraHome>{
   String get displayName => profile?['display_name'] as String? ??
       widget.user.displayName??'Sovera user';
   bool get hasProfile=>profile!=null;
-  static String flag(String country){
-    if(!RegExp(r'^[A-Z]{2}$').hasMatch(country))return '';
-    return String.fromCharCodes(country.codeUnits.map((c)=>c+127397));
-  }
   Future<void> editProfile()async{
     await Navigator.of(context).push<void>(MaterialPageRoute(
       builder:(_)=>Scaffold(
@@ -167,63 +162,7 @@ class _FirebaseSoveraHomeState extends State<FirebaseSoveraHome>{
   void rankings()=>feature('Rankings',
     'Greedy game rankings will show only server-verified results after the live game wallet is enabled.');
   void events()=>community('events','Community events');
-  Widget roomCard(Map<String,dynamic> room,int index){
-    const tones=[violet,cyan,gold,pink];
-    final color=tones[index%tones.length];
-    // Country belongs to the ROOM OWNER's saved profile, not the viewer's
-    // phone location. No GPS, device locale, or fabricated flag is used.
-    final country=(room['country']??'').toString().toUpperCase();
-    final countryFlag=soveraCountries.containsKey(country)?flag(country):'';
-    final id=(room['id']??'').toString();
-    final roomName=(room['name']??'Voice room').toString();
-    final avatar=(room['avatar_url']??'').toString();
-    final count=room['occupants'] as int? ?? 0;
-    final isFollowed=followed.contains(id);
-    return Material(color:Colors.transparent,borderRadius:BorderRadius.circular(24),
-      clipBehavior:Clip.antiAlias,child:InkWell(onTap:()=>openRoom(room),
-        child:Ink(decoration:BoxDecoration(
-          gradient:LinearGradient(begin:Alignment.topLeft,end:Alignment.bottomRight,
-            colors:[color.withValues(alpha:.42),const Color(0xFF1A1534),const Color(0xFF121327)]),
-          border:Border.all(color:color.withValues(alpha:.4)),
-          borderRadius:BorderRadius.circular(24)),
-          child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
-            Expanded(child:Stack(fit:StackFit.expand,children:[
-              if(catalogAsset(room['equipped'],'room_frame')!=null)Center(child:LayoutBuilder(builder:(context,c)=>CatalogPortrait(asset:catalogAsset(room['equipped'],'room_frame'),avatarUrl:avatar,size:c.maxHeight)))else RoomCardArt(frame:(room['room_frame']??'none') as String,portrait:
-                avatar.startsWith('https://')
-                  ?Image.network(avatar,fit:BoxFit.cover,errorBuilder:(_,__,___)=>const Center(child:BrandLogo(size:80)))
-                  :const Center(child:BrandLogo(size:80))),
-              Positioned(left:10,top:10,child:Container(
-                padding:const EdgeInsets.symmetric(horizontal:9,vertical:6),
-                decoration:BoxDecoration(color:Colors.black54,borderRadius:BorderRadius.circular(15)),
-                child:const Text('VOICE ROOM',style:TextStyle(fontSize:10,color:Colors.white)))),
-              Positioned(right:0,top:0,child:IconButton(
-                tooltip:isFollowed?'Unfollow room':'Follow room',
-                onPressed:followBusy?null:()=>toggleFollow(id),
-                icon:Icon(isFollowed?Icons.favorite:Icons.favorite_border,
-                  color:isFollowed?pink:Colors.white))),
-              Positioned(right:9,bottom:8,child:Container(
-                padding:const EdgeInsets.symmetric(horizontal:8,vertical:5),
-                decoration:BoxDecoration(color:Colors.black54,borderRadius:BorderRadius.circular(12)),
-                child:Row(mainAxisSize:MainAxisSize.min,children:[
-                  const Icon(Icons.people_alt_rounded,size:14),
-                  const SizedBox(width:4),Text('$count'),
-                ]))),
-            ])),
-            Container(width:double.infinity,padding:const EdgeInsets.all(12),
-              color:Colors.black12,child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
-                Text('${countryFlag.isEmpty?'': '$countryFlag '}$roomName',
-                  maxLines:1,overflow:TextOverflow.ellipsis,
-                  style:const TextStyle(fontSize:14,fontWeight:FontWeight.w700)),
-                const SizedBox(height:6),
-                Text('${room['owner_name']??'Room owner'} · ${room['seats']??9} seats',
-                  maxLines:1,overflow:TextOverflow.ellipsis,
-                  style:const TextStyle(fontSize:11,color:Colors.white60)),
-                const SizedBox(height:9),
-                Row(children:[Text('Explore room',style:TextStyle(fontSize:11,color:color)),
-                  const Spacer(),Icon(Icons.arrow_forward_rounded,size:16,color:color)]),
-              ])),
-          ]))));
-  }
+  Widget roomCard(Map<String,dynamic> room,int index)=>SoveraRoomCard(room:room,onTap:()=>openRoom(room),followed:followed.contains(room['id']),onFollow:followBusy?null:()=>toggleFollow(room['id'].toString()));
   Widget directory(){
     final visible=rooms.where((r){
       final name=(r['name']??'').toString().toLowerCase();

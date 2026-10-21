@@ -6,9 +6,9 @@ import 'firebase_safety.dart';
 import 'app_preferences.dart';
 import 'firebase_catalog.dart';
 import 'firebase_voice.dart';
-import 'room_card_art.dart';
+import 'sovera_room_card.dart';
+import 'package:image_picker/image_picker.dart';
 import 'firebase_greedy_wheel.dart';
-import 'country_picker.dart' show soveraCountries;
 
 String _flag(String code) => RegExp(r'^[A-Z]{2}$').hasMatch(code)
     ? String.fromCharCodes(code.codeUnits.map((c)=>c+127397)) : '';
@@ -57,11 +57,9 @@ class _FirebaseRoomsPageState extends State<FirebaseRoomsPage> {
     const Padding(padding:EdgeInsets.symmetric(vertical:12),child:Text('Public rooms, saved text chat and live audio.')),
     if(busy)const LinearProgressIndicator(),if(error!=null)Text(error!),
     if(!busy&&rows.isEmpty&&error==null)const Text('No rooms yet. Create the first room.'),
-    for(final room in rows)Card(child:ListTile(
-      leading:SizedBox(width:62,height:64,child:RoomCardArt(frame:(room['room_frame']??'none') as String,portrait:CircleAvatar(backgroundImage:room['avatar_url'] is String?NetworkImage(room['avatar_url'] as String):null,child:room['avatar_url']==null?const Icon(Icons.meeting_room):null))),
-      title:Text('${room['name']} ${_flag((room['country']??'').toString())}'),
-      subtitle:Text('${room['owner_name']} · ${soveraCountries[room['country']]??room['country']}\n${room['occupants']} members with a recent room heartbeat'),
-      isThreeLine:true,trailing:const Icon(Icons.chevron_right),onTap:()=>open(room))),
+    GridView.builder(shrinkWrap:true,physics:const NeverScrollableScrollPhysics(),itemCount:rows.length,
+      gridDelegate:const SliverGridDelegateWithFixedCrossAxisCount(crossAxisCount:2,mainAxisExtent:235,crossAxisSpacing:12,mainAxisSpacing:16),
+      itemBuilder:(context,index)=>SoveraRoomCard(room:rows[index],onTap:()=>open(rows[index]))),
   ]));
 }
 
@@ -70,18 +68,38 @@ class FirebaseRoomSettingsDialog extends StatefulWidget {
   final String name;
   final int seats;
   final String frame;
-  const FirebaseRoomSettingsDialog({super.key,required this.name,required this.seats,this.frame='none'});
+  final FirebaseProfileApi? api;
+  final String? roomId,imageUrl;
+  const FirebaseRoomSettingsDialog({super.key,required this.name,required this.seats,this.frame='none',this.api,this.roomId,this.imageUrl});
   @override State<FirebaseRoomSettingsDialog> createState()=>_FirebaseRoomSettingsDialogState();
 }
 class _FirebaseRoomSettingsDialogState extends State<FirebaseRoomSettingsDialog>{
   late final TextEditingController name;
   late int seats;
   late String frame;
-  @override void initState(){super.initState();name=TextEditingController(text:widget.name);seats=widget.seats;frame=widget.frame;}
+  String? imageUrl,photoError;
+  bool uploading=false;
+  @override void initState(){super.initState();name=TextEditingController(text:widget.name);seats=widget.seats;frame=widget.frame;imageUrl=widget.imageUrl;}
   @override void dispose(){name.dispose();super.dispose();}
+  Future<void> choosePhoto()async{
+    if(uploading||widget.api==null||widget.roomId==null)return;
+    try{
+      final photo=await ImagePicker().pickImage(source:ImageSource.gallery,maxWidth:1024,maxHeight:1024,imageQuality:85);
+      if(photo==null||!mounted)return;
+      setState((){uploading=true;photoError=null;});
+      final url=await widget.api!.uploadPhoto(photo,suffix:'/rooms/${widget.roomId}/photo');
+      if(mounted)setState(()=>imageUrl=url);
+    }catch(_){if(mounted)setState(()=>photoError='Photo upload failed. Please retry.');}
+    finally{if(mounted)setState(()=>uploading=false);}
+  }
   @override Widget build(BuildContext context)=>AlertDialog(
     title:const Text('Room settings'),
     content:SingleChildScrollView(child:Column(mainAxisSize:MainAxisSize.min,crossAxisAlignment:CrossAxisAlignment.start,children:[
+      if(widget.api!=null)...[
+        SizedBox(height:120,width:double.infinity,child:ClipRRect(borderRadius:BorderRadius.circular(18),child:SoveraRoomPhoto(room:{'image_url':imageUrl}))),
+        TextButton.icon(onPressed:uploading?null:choosePhoto,icon:const Icon(Icons.photo_library_outlined),label:Text(uploading?'Uploading…':'Change room picture')),
+        if(photoError!=null)Text(photoError!,style:const TextStyle(color:Colors.orange)),
+      ],
       TextField(controller:name,maxLength:40,onChanged:(_)=>setState((){}),decoration:const InputDecoration(labelText:'Room name')),
       const SizedBox(height:8),
       const Text('Room card frame'),
@@ -97,7 +115,7 @@ class _FirebaseRoomSettingsDialogState extends State<FirebaseRoomSettingsDialog>
     ])),
     actions:[
       TextButton(onPressed:()=>Navigator.pop(context),child:const Text('Cancel')),
-      FilledButton(onPressed:name.text.trim().isEmpty?null:()=>Navigator.pop(context,{'name':name.text.trim(),'seats':seats,if(frame!=widget.frame)'room_frame':frame}),child:const Text('Save changes')),
+      FilledButton(onPressed:uploading||name.text.trim().isEmpty?null:()=>Navigator.pop(context,{'name':name.text.trim(),'seats':seats,if(imageUrl!=widget.imageUrl)'image_url':imageUrl,if(frame!=widget.frame)'room_frame':frame}),child:const Text('Save changes')),
     ],
   );
 }
@@ -159,11 +177,11 @@ class _FirebaseRoomChatState extends State<FirebaseRoomChat> with WidgetsBinding
   String roomRole='member';
   List<Map<String,dynamic>> roomAdmins=[];
 
-  late String roomName;late int seatCount;late String roomFrame;
+  late String roomName;late int seatCount;late String roomFrame;String? roomImage;
   bool get isOwner=>widget.room['owner_uid']==widget.api.uid;
   DateTime? heartbeat;
   String get path=>'/rooms/${Uri.encodeComponent(widget.room['id'] as String)}';
-  @override void initState(){super.initState();roomName=widget.room['name'] as String;roomFrame=(widget.room['room_frame']??'none') as String;seatCount=widget.room['seats'] as int? ?? 9;WidgetsBinding.instance.addObserver(this);SoveraPreferences.lowData.addListener(start);start();}
+  @override void initState(){super.initState();roomName=widget.room['name'] as String;roomFrame=(widget.room['room_frame']??'none') as String;roomImage=widget.room['image_url'] as String?;seatCount=widget.room['seats'] as int? ?? 9;WidgetsBinding.instance.addObserver(this);SoveraPreferences.lowData.addListener(start);start();}
   void start(){timer?.cancel();sync();timer=Timer.periodic(Duration(seconds:SoveraPreferences.lowData.value?15:5),(_)=>sync());}
   @override void didChangeAppLifecycleState(AppLifecycleState state){if(state==AppLifecycleState.resumed){heartbeat=null;start();}else{timer?.cancel();}}
   @override void dispose(){SoveraPreferences.lowData.removeListener(start);WidgetsBinding.instance.removeObserver(this);timer?.cancel();input.dispose();unawaited(widget.api.call('DELETE',suffix:'$path/presence').then<void>((_){}).catchError((Object _){}));super.dispose();}
@@ -200,14 +218,14 @@ class _FirebaseRoomChatState extends State<FirebaseRoomChat> with WidgetsBinding
   Future<void> editRoom()async{
     if(!isOwner||savingRoom)return;
     final selected=await showDialog<Map<String,dynamic>>(context:context,builder:(_)=>
-      FirebaseRoomSettingsDialog(name:roomName,seats:seatCount,frame:roomFrame));
+      FirebaseRoomSettingsDialog(name:roomName,seats:seatCount,frame:roomFrame,api:widget.api,roomId:widget.room['id'] as String,imageUrl:roomImage));
     if(!mounted||selected==null)return;
     setState(()=>savingRoom=true);
     try{
       final response=await widget.api.call('PUT',suffix:path,fields:selected);
       final saved=response['room'];
       if(saved is! Map||saved['name'] is! String||saved['seats'] is! int)throw const ProfileApiError('Invalid room response.');
-      if(mounted)setState((){roomName=saved['name'] as String;seatCount=saved['seats'] as int;roomFrame=(saved['room_frame']??roomFrame) as String;error=null;});
+      if(mounted)setState((){roomImage=saved['image_url'] as String? ?? roomImage;roomName=saved['name'] as String;seatCount=saved['seats'] as int;roomFrame=(saved['room_frame']??roomFrame) as String;error=null;});
     }catch(e){if(mounted)setState(()=>error=_error(e));}
     finally{if(mounted)setState(()=>savingRoom=false);}
   }
@@ -308,9 +326,11 @@ class _FirebaseRoomChatState extends State<FirebaseRoomChat> with WidgetsBinding
   }
   @override Widget build(BuildContext context)=>Scaffold(
     backgroundColor:const Color(0xFF0C0D0F),
-    appBar:AppBar(backgroundColor:const Color(0xFF28183D),title:Text(
-      '${_flag((widget.room['country']??'').toString())} $roomName'.trim(),
-      maxLines:1,overflow:TextOverflow.ellipsis),actions:[
+    appBar:AppBar(backgroundColor:const Color(0xFF101C32),leadingWidth:38,titleSpacing:0,
+      title:Row(children:[InkWell(onTap:isOwner?editRoom:null,child:ClipRRect(borderRadius:BorderRadius.circular(12),child:SizedBox(width:42,height:42,child:SoveraRoomPhoto(room:{...widget.room,'image_url':roomImage})))),const SizedBox(width:8),
+        Expanded(child:Text('${_flag((widget.room['country']??'').toString())} $roomName'.trim(),maxLines:1,overflow:TextOverflow.ellipsis,style:const TextStyle(fontSize:15,fontWeight:FontWeight.w800))),
+      ]),actions:[
+      Padding(padding:const EdgeInsets.symmetric(horizontal:4),child:Center(child:Row(children:[const Icon(Icons.people_outline,size:16,color:Color(0xFF8EE3DC)),const SizedBox(width:3),Text('${roomPeople.length}',style:const TextStyle(fontSize:12))]))),
     PopupMenuButton<String>(tooltip:'Room options',onSelected:(value){
       if(value=='settings')editRoom();
       if(value=='admins')manageAdmins();
@@ -331,20 +351,11 @@ class _FirebaseRoomChatState extends State<FirebaseRoomChat> with WidgetsBinding
     body:Container(
       decoration:const BoxDecoration(gradient:LinearGradient(
         begin:Alignment.topLeft,end:Alignment.bottomRight,
-        colors:[Color(0xFF33205D),Color(0xFF17284C),Color(0xFF0C0D0F)])),
+        colors:[Color(0xFF173C48),Color(0xFF1B2243),Color(0xFF090F1F)])),
       child:SafeArea(child:Column(children:[
     // Original full-size seat artwork stays scrollable on short displays;
     // input stays fixed and accessible without layout overflow.
     Expanded(child:SingleChildScrollView(child:Column(children:[
-    Padding(padding:const EdgeInsets.fromLTRB(14,8,14,8),child:Row(children:[
-      const CircleAvatar(radius:18,child:Icon(Icons.mic_rounded,size:20)),
-      const SizedBox(width:8),
-      Expanded(child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
-        Text(roomName,maxLines:1,overflow:TextOverflow.ellipsis,style:const TextStyle(fontWeight:FontWeight.bold)),
-        Text(widget.room['owner_name']?.toString()??'Room host',style:const TextStyle(fontSize:11,color:Colors.white70)),
-      ])),
-      Chip(avatar:const Icon(Icons.people_outline,size:14),label:Text('${roomPeople.length}')),
-    ])),
     FirebaseVoicePanel(api:widget.api,roomId:widget.room['id'] as String,seatCount:seatCount,people:roomPeople,blockedUids:blocked,autoConnect:true,roomRole:isOwner?'owner':roomRole,lockedSeats:lockedSeats,onControlsChanged:sync),
     if(catalogEvents.isNotEmpty)CatalogRoomAnimation(key:ValueKey(catalogEvents.first['event_id']),event:catalogEvents.first,serverNow:catalogServerNow,recipients:catalogEvents.where((r)=>r['id']==catalogEvents.first['id']&&r['sender_uid']==catalogEvents.first['sender_uid']&&r['created_at']==catalogEvents.first['created_at']).toList()),
     if(roomEffects.isNotEmpty)AnimatedSwitcher(
@@ -364,7 +375,7 @@ class _FirebaseRoomChatState extends State<FirebaseRoomChat> with WidgetsBinding
     if(error!=null)Padding(padding:const EdgeInsets.all(8),child:Text(error!)),
     for(final message in messages)
       Padding(padding:const EdgeInsets.symmetric(horizontal:12),
-        child:Card(child:ListTile(
+        child:Card(elevation:6,shadowColor:Colors.black54,color:const Color(0xFF1A2A40),shape:RoundedRectangleBorder(borderRadius:BorderRadius.circular(18),side:const BorderSide(color:Color(0xFF365667))),child:ListTile(
           title:Text('${message['name']} ${_flag(message['country'].toString())}'),
           subtitle:Text(message['text'] as String),
           trailing:message['uid'] is String?SoveraSafetyMenu(

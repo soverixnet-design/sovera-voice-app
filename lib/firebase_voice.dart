@@ -92,9 +92,9 @@ class _FirebaseSeatPortraitState extends State<FirebaseSeatPortrait> {
       Container(key:ValueKey('${widget.uid}:default'),width:widget.size,height:widget.size,
         padding:const EdgeInsets.all(5),
         decoration:const BoxDecoration(shape:BoxShape.circle,
-          color:Color(0x2638CFC4)),
+          color:Color(0x4838CFC4)),
         child:Container(decoration:BoxDecoration(shape:BoxShape.circle,
-          color:const Color(0xFF19263B),
+          color:const Color(0xFF20364A),
           border:Border.all(color:Colors.white38,width:1.5)),
           child:widget.uid==null?const Icon(Icons.chair_rounded,color:Colors.white54,size:28):
             portrait('avatar',null)));
@@ -252,13 +252,22 @@ class _FirebaseVoicePanelState extends State<FirebaseVoicePanel> with WidgetsBin
   }
   Future<void> seatMenu(int index) async {
     final locked=widget.lockedSeats.contains(index);
-    final action=await showModalBottomSheet<String>(context:context,builder:(context)=>SafeArea(child:Column(mainAxisSize:MainAxisSize.min,children:[
-      ListTile(title:Text('Mic ${index+1}'),subtitle:const Text('Room microphone controls')),
-      if(!seats.occupants.containsKey(index))ListTile(leading:const Icon(Icons.mic),title:const Text('Take mic'),onTap:()=>Navigator.pop(context,'take')),
-      ListTile(leading:Icon(locked?Icons.lock_open:Icons.lock),title:Text(locked?'Unlock seat':'Lock seat'),onTap:()=>Navigator.pop(context,locked?'unlock':'lock')),
-      ListTile(leading:const Icon(Icons.lock_outline),title:const Text('Lock all seats'),onTap:()=>Navigator.pop(context,'lockAll')),
-      ListTile(leading:const Icon(Icons.lock_open),title:const Text('Unlock all seats'),onTap:()=>Navigator.pop(context,'unlockAll')),
-    ])));
+    final action=await showDialog<String>(context:context,builder:(dialogContext){
+      Widget choice(IconData icon,String label,String value)=>Padding(padding:const EdgeInsets.only(top:12),child:FilledButton.icon(
+        style:FilledButton.styleFrom(minimumSize:const Size(double.infinity,48),backgroundColor:const Color(0xEAF3F7FF),foregroundColor:const Color(0xFF214E68),elevation:4,shadowColor:Colors.black54),
+        onPressed:()=>Navigator.pop(dialogContext,value),icon:Icon(icon),label:Text(label)));
+      return Dialog(backgroundColor:Colors.transparent,child:SingleChildScrollView(child:Container(padding:const EdgeInsets.all(22),decoration:BoxDecoration(
+        borderRadius:BorderRadius.circular(28),border:Border.all(color:const Color(0xFF8EE7DD)),
+        gradient:const LinearGradient(begin:Alignment.topLeft,end:Alignment.bottomRight,colors:[Color(0xFF226B78),Color(0xFF34315E),Color(0xFF171D37)]),
+        boxShadow:const [BoxShadow(color:Colors.black54,blurRadius:24,offset:Offset(0,10))]),child:Column(mainAxisSize:MainAxisSize.min,children:[
+        Text('Mic ${index+1}',style:const TextStyle(fontSize:23,fontWeight:FontWeight.w800,color:Colors.white)),
+        if(!seats.occupants.containsKey(index))choice(Icons.mic_rounded,'Take mic','take'),
+        choice(locked?Icons.lock_open:Icons.lock_rounded,locked?'Unlock seat':'Lock seat',locked?'unlock':'lock'),
+        choice(Icons.lock_outline,'Lock all seats','lockAll'),
+        choice(Icons.lock_open,'Unlock all seats','unlockAll'),
+        const SizedBox(height:12),TextButton(onPressed:()=>Navigator.pop(dialogContext),child:const Text('Cancel',style:TextStyle(color:Colors.white70))),
+      ]))));
+    });
     if(action==null||!mounted)return;
     if(action=='take'){await seatTap(index);return;}
     try{
@@ -300,7 +309,8 @@ class _FirebaseVoicePanelState extends State<FirebaseVoicePanel> with WidgetsBin
     Row(children:[
       Icon(connected?Icons.graphic_eq:Icons.wifi_tethering,color:connected?cyan:Colors.white38,size:17),
       const SizedBox(width:6),
-      Expanded(child:Text(connected?(muted?'Listening · Tap a mic to join':'Microphone on'):busy?'Joining room audio…':'Tap a mic to join',style:const TextStyle(fontSize:11,color:Colors.white60))),
+      const Spacer(),
+      if(busy)const SizedBox(width:14,height:14,child:CircularProgressIndicator(strokeWidth:2)),
       IconButton(tooltip:listeningMuted?'Enable room sound':'Mute room sound',onPressed:()=>setState((){listeningMuted=!listeningMuted;applyBlocks();}),icon:Icon(listeningMuted?Icons.volume_off_rounded:Icons.volume_up_rounded,size:20)),
       if(error!=null&&!connected)TextButton(onPressed:busy?null:connect,child:const Text('Retry audio')),
     ]),

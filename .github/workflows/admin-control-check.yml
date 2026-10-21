@@ -32,7 +32,7 @@ jobs:
       - run: python -m unittest server.accounts.test_control server.accounts.test_catalog server.accounts.test_legacy_wallet -v
       - run: python -m unittest server.accounts.test_control_password server.accounts.test_control_installer -v
       - run: node --check admin/selfhost/app.js
-      - run: python -m unittest server.food.test_food server.food.test_identity server.accounts.test_accounts server.accounts.test_profile_media server.accounts.test_room_controls server.accounts.test_voice server.accounts.test_duel server.accounts.test_global_games server.accounts.test_food_wheel server.accounts.test_greedy_access server.accounts.test_wallet -v
+      - run: python -m unittest server.food.test_food server.food.test_identity server.accounts.test_accounts server.accounts.test_profile_media server.accounts.test_room_photos server.accounts.test_room_controls server.accounts.test_voice server.accounts.test_duel server.accounts.test_global_games server.accounts.test_food_wheel server.accounts.test_greedy_access server.accounts.test_wallet -v
   admin:
     runs-on: ubuntu-latest
     steps:
@@ -103,14 +103,16 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           RELEASE_COMMIT: ${{ github.sha }}
         run: |
-          cp release/arm64/app-arm64-v8a-release.apk release/Sovera-0.18.7-arm64.apk
-          cp release/armv7/app-armeabi-v7a-release.apk release/Sovera-0.18.7-armv7.apk
+          cp release/arm64/app-arm64-v8a-release.apk release/Sovera-0.18.8-arm64.apk
+          cp release/armv7/app-armeabi-v7a-release.apk release/Sovera-0.18.8-armv7.apk
           sed "s/__ROOM_SOURCE_COMMIT__/$RELEASE_COMMIT/g" server/accounts/update_room.sh > release/update_room.sh
           sha256sum release/*.apk > release/SHA256SUMS.txt
-          tag="v0.18.7-rc.${GITHUB_RUN_NUMBER}"
+          tag="v0.18.8-rc.${GITHUB_RUN_NUMBER}"
           cat > release/notes.md <<'NOTES'
-          Sovera 0.18.7 release candidate
+          Sovera 0.18.8 release candidate
 
+          - Independent gallery-uploaded room covers, raised room cards and a single compact room identity.
+          - Sovera teal/navy seat action dialog with server-enforced owner and admin permissions.
           - App-wide ten-second right-to-left winner and gift celebration banners, driven by confirmed server transactions.
           - Gift box shows your verified server wallet Coins, refreshes while open and never substitutes a dummy balance.
           - Persistent per-seat/all-seat locks enforced by the voice server.
@@ -130,4 +132,4 @@ jobs:
           Real two-device audio and installation/Google sign-in still need device verification.
           Existing VPS needs the attached update_room.sh for new API features.
           NOTES
-          gh release create "$tag" release/Sovera-0.18.7-arm64.apk release/Sovera-0.18.7-armv7.apk release/SHA256SUMS.txt release/update_room.sh --target "$RELEASE_COMMIT" --title "Sovera 0.18.7 - Global Win & Gift Banners" --prerelease --notes-file release/notes.md
+          gh release create "$tag" release/Sovera-0.18.8-arm64.apk release/Sovera-0.18.8-armv7.apk release/SHA256SUMS.txt release/update_room.sh --target "$RELEASE_COMMIT" --title "Sovera 0.18.8 - Room Cards & Gallery Covers" --prerelease --notes-file release/notes.md

@@ -95,11 +95,12 @@ void main(){
     await tester.tap(find.byTooltip('Room options'));await tester.pumpAndSettle();
     await tester.tap(find.text('Room settings'));await tester.pumpAndSettle();
     await tester.enterText(find.byType(TextField).last,'Renamed room');
+    await tester.ensureVisible(find.text('12 seats'));
     await tester.tap(find.text('12 seats'));await tester.pumpAndSettle();
     await tester.tap(find.text('Save changes'));await tester.pumpAndSettle();
     expect(sent,{'name':'Renamed room','seats':12});
-    // The restored room header shows the name in both the title and room card.
-    expect(find.text('Renamed room'),findsNWidgets(2));
+    // Room identity is shown once in the compact header.
+    expect(find.text('Renamed room'),findsOneWidget);
     expect(find.text('12 seats · Owner settings'),findsNothing);
     expect(find.text('Mic 12'),findsOneWidget);
     await tester.pumpWidget(const SizedBox());await tester.pumpAndSettle();
@@ -155,7 +156,7 @@ void main(){
   testWidgets('directory uses server country and participant count',(tester)async{
     final api=FirebaseProfileApi(uid:'alice',token:()async=>'token',client:MockClient((r)async=>http.Response(jsonEncode({'rooms':[{'id':'room-1','name':'My room','owner_uid':'alice','owner_name':'Shakil','country':'BD','avatar_url':null,'occupants':2,'seats':9}]}),200)));
     await tester.pumpWidget(MaterialApp(home:FirebaseRoomsPage(api:api)));await tester.pumpAndSettle();
-    expect(find.textContaining('My room'),findsOneWidget);expect(find.textContaining('2 members'),findsOneWidget);expect(find.textContaining('Bangladesh'),findsOneWidget);
+    expect(find.textContaining('My room'),findsOneWidget);expect(find.text('2'),findsOneWidget);expect(find.textContaining('Bangladesh'),findsOneWidget);
     expect(find.text('Greedy Wheel · One server round'),findsOneWidget);
     expect(find.byTooltip('Greedy Wheel'),findsOneWidget);
     await tester.pumpWidget(const SizedBox());

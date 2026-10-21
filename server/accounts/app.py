@@ -89,7 +89,7 @@ def create_app(profiles, verify, *, voice=False):
     async def private_responses(request, call_next):
         if request.method in ('PUT', 'POST'):
             length = request.headers.get('content-length')
-            if length is None or not length.isdecimal() or int(length)>(8*1024*1024 if request.url.path in ('/sovera/control/media','/sovera/account/avatar') else 8192):
+            if length is None or not length.isdecimal() or int(length)>(8*1024*1024 if (request.url.path in ('/sovera/control/media','/sovera/account/avatar') or (request.url.path.startswith('/sovera/account/rooms/') and request.url.path.endswith('/photo'))) else 8192):
                 from fastapi.responses import JSONResponse
                 return JSONResponse({'detail':'Invalid request size'}, status_code=413)
         response = await call_next(request)
@@ -127,6 +127,8 @@ def create_app(profiles, verify, *, voice=False):
     from .profile_media import attach_profile_media
     attach_profile_media(app, profiles, actor)
     rooms = Rooms(profiles.path)
+    from .room_photos import attach_room_photos
+    attach_room_photos(app, rooms, actor)
     from .room_controls import attach_room_controls
     attach_room_controls(app, rooms, actor)
     wallets = WalletStore(profiles.path)

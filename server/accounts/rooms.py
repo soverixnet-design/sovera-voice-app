@@ -11,6 +11,7 @@ class RoomInput(BaseModel):
     model_config=ConfigDict(extra='forbid',str_strip_whitespace=True)
     name:str=Field(min_length=1,max_length=40)
     seats:int=Field(default=9,strict=True)
+    image_url:str|None=Field(default=None,max_length=2000)
     room_frame:Literal["none","coins_seller","official"]|None=None
 
 class MessageInput(BaseModel):
@@ -54,6 +55,9 @@ class Rooms:
               ON account_room_effects(room_id,created_at DESC,id DESC);
             ''')
             columns={r['name'] for r in db.execute('PRAGMA table_info(account_rooms)')}
+            if 'image_url' not in columns:
+                db.execute('ALTER TABLE account_rooms ADD COLUMN image_url TEXT')
+            db.execute('CREATE TABLE IF NOT EXISTS account_room_photos(room TEXT NOT NULL,key TEXT PRIMARY KEY,data BLOB NOT NULL)')
             if 'room_frame' not in columns:
                 db.execute("ALTER TABLE account_rooms ADD COLUMN room_frame TEXT NOT NULL DEFAULT 'none'")
     @contextmanager
@@ -89,6 +93,12 @@ class Rooms:
             if room:
                 self.exists(db,room)
                 if not existing or existing['id']!=room: raise HTTPException(403,'Only the room owner can edit it')
+                if 'image_url' in data.model_fields_set:
+                    if data.image_url is not None:
+                        from .room_photos import PUBLIC
+                        if not data.image_url.startswith(PUBLIC) or not db.execute('SELECT 1 FROM account_room_photos WHERE room=? AND key=?',(room,data.image_url.removeprefix(PUBLIC))).fetchone():
+                            raise HTTPException(422,'Upload a picture for this room first')
+                    db.execute('UPDATE account_rooms SET image_url=? WHERE id=?',(data.image_url,room))
                 db.execute('UPDATE account_rooms SET name=?,seats=?,room_frame=? WHERE id=?',(data.name,data.seats,data.room_frame if data.room_frame is not None else existing['room_frame'],room))
             elif existing:
                 return dict(existing)
