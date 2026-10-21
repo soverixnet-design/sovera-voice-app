@@ -1,3 +1,4 @@
+import 'firebase_members.dart';
 import 'voice_background.dart';
 import 'dart:async';
 import 'dart:math';
@@ -56,55 +57,12 @@ class FirebaseVoicePanel extends StatefulWidget {
 }
 /// Seat artwork owns the full available square; it is never nested inside
 /// another cropped portrait. Entry playback is cosmetic and keyed to occupant.
-class FirebaseSeatPortrait extends StatefulWidget {
-  final String? uid;
-  final Map<String,dynamic>? person;
-  final double size;
+class FirebaseSeatPortrait extends StatelessWidget {
+  final String? uid;final Map<String,dynamic>? person;final double size;
   const FirebaseSeatPortrait({super.key,this.uid,this.person,this.size=80});
-  @override State<FirebaseSeatPortrait> createState()=>_FirebaseSeatPortraitState();
-}
-class _FirebaseSeatPortraitState extends State<FirebaseSeatPortrait> {
-  Timer? timer;
-  bool pending=false,playing=false;
-  @override void initState(){super.initState();pending=widget.uid!=null;startEntry();}
-  void startEntry(){
-    if(pending&&widget.person?['uid']==widget.uid&&
-        catalogAsset(widget.person?['equipped'],'entry')!=null){
-      pending=false;playing=true;
-      timer?.cancel();
-      timer=Timer(const Duration(milliseconds:3200),(){
-        if(mounted)setState(()=>playing=false);
-      });
-    }
-  }
-  @override void didUpdateWidget(covariant FirebaseSeatPortrait oldWidget){
-    super.didUpdateWidget(oldWidget);
-    if(oldWidget.uid!=widget.uid){timer?.cancel();playing=false;pending=widget.uid!=null;}
-    startEntry();
-  }
-  @override void dispose(){timer?.cancel();super.dispose();}
   @override Widget build(BuildContext context){
-    final frame=catalogAsset(widget.person?['equipped'],'frame');
-    final entry=catalogAsset(widget.person?['equipped'],'entry');
-    final showingEntry=playing&&entry!=null&&!SoveraPreferences.lowData.value&&!MediaQuery.disableAnimationsOf(context);
-    Widget portrait(String mode,Map<String,dynamic>? art)=>CatalogPortrait(
-      key:ValueKey('${widget.uid}:$mode'),asset:art,
-      avatarUrl:widget.person?['avatar_url'] as String?,size:widget.size);
-    final content=showingEntry?portrait('entry',entry):
-      widget.uid!=null&&frame!=null?portrait('frame',frame):
-      Container(key:ValueKey('${widget.uid}:default'),width:widget.size,height:widget.size,
-        padding:const EdgeInsets.all(5),
-        decoration:const BoxDecoration(shape:BoxShape.circle,
-          color:Color(0x4838CFC4)),
-        child:Container(decoration:BoxDecoration(shape:BoxShape.circle,
-          color:const Color(0xFF20364A),
-          border:Border.all(color:Colors.white38,width:1.5)),
-          child:widget.uid==null?const Icon(Icons.chair_rounded,color:Colors.white54,size:28):
-            portrait('avatar',null)));
-    return SizedBox(width:widget.size,height:widget.size,child:AnimatedSwitcher(
-      duration:MediaQuery.disableAnimationsOf(context)?Duration.zero:
-        const Duration(milliseconds:180),
-      child:content));
+    if(uid!=null)return SizedBox(width:size,height:size,child:CatalogPortrait(asset:catalogAsset(person?['equipped'],'frame'),avatarUrl:person?['avatar_url'] as String?,size:size));
+    return Container(width:size,height:size,decoration:BoxDecoration(shape:BoxShape.circle,color:const Color(0xff20364a),border:Border.all(color:const Color(0xff45cfc4),width:2)),child:const Icon(Icons.chair_rounded,color:Colors.white60));
   }
 }
 class _FirebaseVoicePanelState extends State<FirebaseVoicePanel> with WidgetsBindingObserver {
@@ -196,7 +154,7 @@ class _FirebaseVoicePanelState extends State<FirebaseVoicePanel> with WidgetsBin
     if(busy||!connected||!active||closing)return;
     busy=true;
     try{seats=VoiceSeatState.parse(await request(seats.mine==null?'state':'renew'));if(seats.mine==null)await mute();error=null;}
-    catch(_){await mute();seats=VoiceSeatState(seats.count,null,seats.occupants);error='Seat connection lost. Take a seat again.';}
+    catch(e){if(e is ProfileApiError&&e.status==403){await closeAudio();widget.onLeaveRoom?.call();return;}await mute();seats=VoiceSeatState(seats.count,null,seats.occupants);error='Seat connection lost. Take a seat again.';}
     finally{busy=false;if(mounted&&!closing)setState((){});}
   }
   bool get canUseMicrophone=>mounted&&active&&!closing&&connected;
@@ -327,6 +285,7 @@ class _FirebaseVoicePanelState extends State<FirebaseVoicePanel> with WidgetsBin
   }
   @override void dispose(){VoiceBackground.channel.setMethodCallHandler(null);closing=true;retryTimer?.cancel();WidgetsBinding.instance.removeObserver(this);unawaited(closeAudio().catchError((Object _){}));unawaited(request('leave').then<void>((_){}).catchError((Object _){}));super.dispose();}
   @override Widget build(BuildContext context)=>Padding(padding:const EdgeInsets.all(8),child:Column(mainAxisSize:MainAxisSize.min,children:[
+    ValueListenableBuilder<bool>(valueListenable:SoveraPreferences.lowData,builder:(context,low,child)=>low?TextButton.icon(onPressed:()=>SoveraPreferences.setLowData(false),icon:const Icon(Icons.animation),label:const Text('Enable animated frames & entries')):const SizedBox.shrink()),
     Row(children:[
       Icon(connected?Icons.graphic_eq:Icons.wifi_tethering,color:connected?cyan:Colors.white38,size:17),
       const SizedBox(width:6),
@@ -351,7 +310,7 @@ class _FirebaseVoicePanelState extends State<FirebaseVoicePanel> with WidgetsBin
         for(var i=0;i<count;i++)SizedBox(width:tileWidth,
           child:InkWell(
             borderRadius:BorderRadius.circular(52),
-            onTap:busy?null:widget.roomRole!='member'?()=>seatMenu(i):seats.occupants.containsKey(i)?null:()=>seatTap(i),
+            onTap:busy?null:seats.occupants.containsKey(i)?()=>Navigator.push(context,MaterialPageRoute<void>(builder:(_)=>FirebaseMemberProfile(api:widget.api,uid:seats.occupants[i]!))):widget.roomRole!='member'?()=>seatMenu(i):()=>seatTap(i),
             onLongPress:busy||widget.roomRole=='member'?null:()=>seatMenu(i),
             child:Column(mainAxisSize:MainAxisSize.min,children:[
               Stack(alignment:Alignment.center,children:[FirebaseSeatPortrait(

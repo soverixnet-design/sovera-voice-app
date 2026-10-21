@@ -27,6 +27,7 @@ class FirebaseProfileApi {
     final response = await http.Response.fromStream(await client.send(req).timeout(const Duration(seconds: 15)))
         .timeout(const Duration(seconds: 15));
     if (response.statusCode == 401) throw const ProfileApiError('Your session expired. Sign out and sign in again.');
+    if(response.statusCode==403){String detail='Access is unavailable.';try{final body=jsonDecode(response.body);if(body is Map&&body['detail'] is String)detail=body['detail'] as String;}catch(_){}throw ProfileApiError(detail,status:403);}
     if(response.statusCode==429) throw const ProfileApiError('Please wait a moment before sending again.');
     if(response.statusCode==409 && response.body.contains('Save your profile first')) throw const ProfileApiError('Save your profile before opening a room.');
     if(response.statusCode==409){String detail='Request could not be completed.';try{final body=jsonDecode(response.body);if(body is Map&&body['detail'] is String)detail=body['detail'] as String;}catch(_){}throw ProfileApiError(detail,status:409);}

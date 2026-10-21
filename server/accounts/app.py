@@ -54,6 +54,9 @@ class Profiles:
                 firebase_uid TEXT PRIMARY KEY, display_name TEXT NOT NULL,
                 country TEXT NOT NULL, bio TEXT NOT NULL, avatar_url TEXT,
                 updated_at INTEGER NOT NULL)''')
+            from .members import initialize,public_id
+            initialize(db)
+            for uid, in db.execute('SELECT firebase_uid FROM account_profiles').fetchall():public_id(db,uid)
             columns = {r[1] for r in db.execute('PRAGMA table_info(account_profiles)')}
             for column in ('gender', 'birthday'):
                 if column not in columns:
@@ -107,9 +110,11 @@ def create_app(profiles, verify, *, voice=False):
             uid = await verify(token)
             if not isinstance(uid, str) or not 1 <= len(uid) <= 128:
                 raise ValueError()
-            return uid
         except Exception:
             raise HTTPException(401, 'Invalid session') from None
+        with sqlite3.connect(profiles.path) as db:
+            if db.execute('SELECT 1 FROM account_bans WHERE uid=?',(uid,)).fetchone():raise HTTPException(403,'This account has been banned. Contact official support.')
+        return uid
 
     @app.get('/sovera/account/health')
     def health():
@@ -119,7 +124,11 @@ def create_app(profiles, verify, *, voice=False):
     async def get_profile(authorization: str | None = Header(default=None)):
         uid = await actor(authorization)
         await asyncio.to_thread(wallets.provision,uid)
-        return {'profile':await asyncio.to_thread(profiles.get, uid)}
+        profile=await asyncio.to_thread(profiles.get,uid)
+        if profile:
+            from .members import Members
+            profile|=await asyncio.to_thread(Members(profiles.path).profile,uid,uid)
+        return {'profile':profile}
 
     @app.put('/sovera/account')
     async def save_profile(data:ProfileInput, authorization: str | None = Header(default=None)):

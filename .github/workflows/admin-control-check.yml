@@ -29,7 +29,7 @@ jobs:
       - run: python server/voice/test_firebase_auth.py
       - run: python -m unittest server.accounts.test_greedy_wallet server.accounts.test_broadcasts -v
       - run: python -m unittest server.accounts.test_community -v
-      - run: python -m unittest server.accounts.test_auto_wallet server.accounts.test_messaging server.accounts.test_control server.accounts.test_catalog server.accounts.test_legacy_wallet -v
+      - run: python -m unittest server.accounts.test_members server.accounts.test_auto_wallet server.accounts.test_messaging server.accounts.test_control server.accounts.test_catalog server.accounts.test_legacy_wallet -v
       - run: python -m unittest server.accounts.test_control_password server.accounts.test_control_installer -v
       - run: node --check admin/selfhost/app.js
       - run: python -m unittest server.food.test_food server.food.test_identity server.accounts.test_accounts server.accounts.test_profile_media server.accounts.test_room_photos server.accounts.test_room_controls server.accounts.test_voice server.accounts.test_duel server.accounts.test_global_games server.accounts.test_food_wheel server.accounts.test_greedy_access server.accounts.test_wallet -v
@@ -103,14 +103,18 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           RELEASE_COMMIT: ${{ github.sha }}
         run: |
-          cp release/arm64/app-arm64-v8a-release.apk release/Sovera-0.18.11-arm64.apk
-          cp release/armv7/app-armeabi-v7a-release.apk release/Sovera-0.18.11-armv7.apk
+          cp release/arm64/app-arm64-v8a-release.apk release/Sovera-0.18.12-arm64.apk
+          cp release/armv7/app-armeabi-v7a-release.apk release/Sovera-0.18.12-armv7.apk
           sed "s/__ROOM_SOURCE_COMMIT__/$RELEASE_COMMIT/g" server/accounts/update_room.sh > release/update_room.sh
           sha256sum release/*.apk > release/SHA256SUMS.txt
-          tag="v0.18.11-rc.${GITHUB_RUN_NUMBER}"
+          tag="v0.18.12-rc.${GITHUB_RUN_NUMBER}"
           cat > release/notes.md <<'NOTES'
-          Sovera 0.18.11 release candidate
+          Sovera 0.18.12 release candidate
 
+          - Permanent public member IDs, real follow/friend/visitor counts and tappable room member profiles.
+          - Owner account moderation, audited Coin additions/removals, paginated wallet/gift history and profile edits.
+          - Agency directory, join requests and manager approvals without global staff privileges.
+          - Full-room entry scenes with independently rendered seat frames.
           - Opt-in automatic native server wallets for authenticated accounts, with imported balances and frozen status preserved.
           - Android microphone/media playback foreground service with ongoing mute/leave notification.
           - Persistent in-app room session: minimizing or navigating back keeps the same voice and seat subtree alive.
@@ -139,4 +143,4 @@ jobs:
           Real two-device audio and installation/Google sign-in still need device verification.
           Existing VPS needs the attached update_room.sh for new API features.
           NOTES
-          gh release create "$tag" release/Sovera-0.18.11-arm64.apk release/Sovera-0.18.11-armv7.apk release/SHA256SUMS.txt release/update_room.sh --target "$RELEASE_COMMIT" --title "Sovera 0.18.11 - Automatic Wallets & Background Voice" --prerelease --notes-file release/notes.md
+          gh release create "$tag" release/Sovera-0.18.12-arm64.apk release/Sovera-0.18.12-armv7.apk release/SHA256SUMS.txt release/update_room.sh --target "$RELEASE_COMMIT" --title "Sovera 0.18.12 - Member IDs, Social & Agency Control" --prerelease --notes-file release/notes.md

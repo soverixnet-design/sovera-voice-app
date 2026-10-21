@@ -78,6 +78,9 @@ def import_wallet(database,manifest,*,target_uid=None,owner=False,apply=False):
             if target_uid and target_uid!=owners[0]['uid']:reject('Owner and selected UID differ')
             target_uid=owners[0]['uid']
         if not target_uid or not db.execute('SELECT 1 FROM account_profiles WHERE firebase_uid=?',(target_uid,)).fetchone():reject('Select the confirmed existing Firebase profile')
+        if db.execute("SELECT 1 FROM sqlite_master WHERE name='account_public_ids'").fetchone():
+            conflict=db.execute('SELECT uid FROM account_public_ids WHERE public_id=? AND uid<>?',(plan['public_id'],target_uid)).fetchone()
+            if conflict:reject('Public ID belongs to another server account')
         prior=db.execute('SELECT * FROM account_wallet_imports WHERE source_ref=? OR firebase_uid=? OR public_id=? OR snapshot_id=?',(plan['source_ref'],target_uid,plan['public_id'],plan['snapshot_id'])).fetchall()
         link=db.execute('SELECT * FROM account_wallet_links WHERE firebase_uid=? OR source_ref=?',(target_uid,plan['source_ref'])).fetchall()
         def totals():

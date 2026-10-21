@@ -9,9 +9,9 @@ import 'country_picker.dart' show countryFlag;
 class FirebaseOriginalProfileCard extends StatelessWidget {
   final Map<String,dynamic>? profile;
   final String name;
-  final VoidCallback onEdit;
+  final VoidCallback onEdit;final bool editable;
   const FirebaseOriginalProfileCard({
-    super.key,required this.profile,required this.name,required this.onEdit,
+    super.key,required this.profile,required this.name,required this.onEdit,this.editable=true,
   });
 
   Widget portrait(){
@@ -29,7 +29,7 @@ class FirebaseOriginalProfileCard extends StatelessWidget {
       boxShadow:[BoxShadow(color:Colors.black.withValues(alpha:.3),blurRadius:14,offset:const Offset(0,7))]),
     child:Column(children:[
       Icon(icon,color:color,size:25),const SizedBox(height:8),
-      Text(label=='VIP'?'Not active':'Lv. —',style:TextStyle(fontSize:15,fontWeight:FontWeight.w800,color:color)),
+      Text(label=='VIP'?'Not active':'Lv. ${profile?[label=='Wealth'?'wealth_level':'charm_level']??'—'}',style:TextStyle(fontSize:15,fontWeight:FontWeight.w800,color:color)),
       const SizedBox(height:5),Text(label,style:const TextStyle(fontSize:11,color:Colors.white70)),
     ]));
 
@@ -61,7 +61,7 @@ class FirebaseOriginalProfileCard extends StatelessWidget {
         rank('VIP',Icons.workspace_premium_rounded,gold),
       ]),
       const SizedBox(height:14),
-      const Text('Levels appear when verified activity is available.',
+      const Text('Wealth & Charm: one level per 10,000 gift Coins / Diamonds.',
         textAlign:TextAlign.center,
         style:TextStyle(fontSize:11,color:Colors.white54)),
       const SizedBox(height:19),
@@ -74,7 +74,7 @@ class FirebaseOriginalProfileCard extends StatelessWidget {
         child:Text(bio,textAlign:TextAlign.center,
           style:const TextStyle(color:Colors.white70,height:1.45))),
       const SizedBox(height:12),
-      TextButton.icon(onPressed:onEdit,
+      if(editable)TextButton.icon(onPressed:onEdit,
         icon:const Icon(Icons.edit_outlined),label:const Text('Edit Profile')),
     ]));
   }

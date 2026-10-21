@@ -210,6 +210,7 @@ class Catalog:
                 for index,person in enumerate(recipients):db.execute('INSERT INTO account_wallet_ledger VALUES(?,?,?,?,?,?)',('catalog:'+request+':'+str(index),person,0,item['price'],'gift',now))
             if room:
                 for target in recipients:
+                    db.execute('INSERT INTO account_gift_receipts VALUES(?,?,?,?,?,?,?,?)',(request,uid,target,str(data.item_id),item['title'],item['price'],room,now))
                     db.execute('INSERT INTO account_catalog_events(room_id,sender_uid,recipient_uid,item_id,created_at) VALUES(?,?,?,?,?)',(room,uid,target,str(data.item_id),now))
                     from .broadcasts import person as public_person, emit
                     sender,recipient=public_person(db,uid),public_person(db,target)
@@ -230,7 +231,11 @@ class Catalog:
             if not profile:raise HTTPException(404,'User not found')
             presence=db.execute('''SELECT a.seen_at,a.room_id,r.name AS room_name FROM account_presence a LEFT JOIN account_rooms r ON r.id=a.room_id WHERE a.uid=?''',(target,)).fetchone()
             wallet=db.execute('SELECT status,source_ref,verified_at FROM account_wallet_links WHERE firebase_uid=?',(target,)).fetchone()
-            return {'profile':dict(profile),'presence':dict(presence) if presence else None,'online':bool(presence and presence['seen_at']>time.time()-90),'wallet':dict(wallet) if wallet else None,
+            from .wallet import legacy_identity
+            coins,diamonds=db.execute('SELECT COALESCE(SUM(coin_delta),0),COALESCE(SUM(diamond_delta),0) FROM account_wallet_ledger WHERE firebase_uid=?',(target,)).fetchone()
+            banned=db.execute('SELECT reason,created_at FROM account_bans WHERE uid=?',(target,)).fetchone()
+            social={key:db.execute(sql,(target,)).fetchone()[0] for key,sql in {'followers':'SELECT count(*) FROM account_user_follows WHERE target=?','following':'SELECT count(*) FROM account_user_follows WHERE uid=?','visitors':'SELECT count(DISTINCT visitor) FROM account_profile_visits WHERE target=?'}.items()}
+            return {'social':social,'banned':dict(banned) if banned else None,'coins':str(coins),'diamonds':str(diamonds),'profile':dict(profile)|legacy_identity(db,target),'presence':dict(presence) if presence else None,'online':bool(presence and presence['seen_at']>time.time()-90),'wallet':dict(wallet) if wallet else None,
              'equipped':self.equipped(db,target),'owned':[r[0] for r in db.execute('SELECT item_id FROM account_asset_ownership WHERE uid=?',(target,))],
              'rooms':[dict(r) for r in db.execute('SELECT id,name,seats FROM account_rooms WHERE owner_uid=?',(target,))]}
 

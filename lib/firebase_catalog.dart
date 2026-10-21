@@ -69,13 +69,13 @@ class CatalogPortrait extends StatelessWidget {
   }
 }
 class FirebaseCatalogPage extends StatefulWidget{
-  final FirebaseProfileApi api;
-  const FirebaseCatalogPage({super.key,required this.api});
+  final FirebaseProfileApi api;final String initialKind;
+  const FirebaseCatalogPage({super.key,required this.api,this.initialKind='frame'});
   @override State<FirebaseCatalogPage> createState()=>_FirebaseCatalogPageState();
 }
 class _FirebaseCatalogPageState extends State<FirebaseCatalogPage>{
   Map<String,dynamic>? data;String kind='frame';String? error;bool busy=false;Map<String,dynamic>? pending;
-  @override void initState(){super.initState();load();}
+  @override void initState(){super.initState();kind=widget.initialKind;load();}
   Future<void> load()async{try{final value=await widget.api.call('GET',suffix:'/catalog');if(mounted)setState(()=>data=value);}catch(e){if(mounted)setState(()=>error=e is ProfileApiError?e.message:'Could not load catalog.');}}
   Future<void> choose(Map<String,dynamic> item,bool owned)async{
     if(busy)return;

@@ -54,6 +54,7 @@ class GreedyLedger:
                     if previous[0] != fingerprint:
                         raise HTTPException(409, 'Transaction payload conflict')
                     return json.loads(previous[1])
+            if action=='debit' and db.execute("SELECT 1 FROM sqlite_master WHERE name='account_bans'").fetchone() and db.execute('SELECT 1 FROM account_bans WHERE uid=?',(uid,)).fetchone():return {'ok':False,'error':'ACCOUNT_BANNED'}
             link = db.execute('SELECT status FROM account_wallet_links WHERE firebase_uid=?', (uid,)).fetchone()
             if not link:
                 return {'ok': False, 'error': 'WALLET_NOT_VERIFIED'}

@@ -68,7 +68,8 @@ void main(){
     expect(find.text('Edit Profile'),findsOneWidget);
     expect(find.text('Style preview'),findsNothing);
     expect(find.text('Not active'),findsOneWidget);
-    expect(find.text('My connections'),findsOneWidget);
+    expect(find.text('Followers'),findsOneWidget);
+    expect(find.text('Agency'),findsOneWidget);
     expect(find.text('Your profile'),findsNothing);
     expect(find.text('Country'),findsNothing);
     expect(find.text('Save profile'),findsNothing);

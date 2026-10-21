@@ -15,8 +15,8 @@ def initialize(db): db.executescript(SCHEMA)
 def person(db,uid):
     row=db.execute('SELECT display_name,avatar_url FROM account_profiles WHERE firebase_uid=?',(uid,)).fetchone()
     if row is None: return None
-    identity=db.execute('SELECT public_id FROM account_wallet_imports WHERE firebase_uid=?',(uid,)).fetchone()
-    return {'name':row[0],'avatar_url':row[1],'public_id':str(identity[0]) if identity else None}
+    from .wallet import legacy_identity
+    return {'name':row[0],'avatar_url':row[1]}|legacy_identity(db,uid)
 
 def emit(db,key,kind,payload):
     now=int(time.time())

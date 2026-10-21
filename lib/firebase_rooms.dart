@@ -1,3 +1,5 @@
+import 'room_entry_scene.dart';
+import 'firebase_members.dart';
 import 'firebase_room_session.dart';
 import 'dart:async';
 import 'dart:math';
@@ -345,7 +347,7 @@ class _FirebaseRoomChatState extends State<FirebaseRoomChat> with WidgetsBinding
       if(value=='report')reportSovera(context,widget.api,'room',widget.room['id'].toString());
       if(value=='members')showModalBottomSheet<void>(context:context,builder:(context)=>SafeArea(
         child:ListView(children:[for(final person in roomPeople)ListTile(
-          title:Text(person['name'].toString()),trailing:SoveraSafetyMenu(api:widget.api,
+          onTap:()=>Navigator.push(context,MaterialPageRoute<void>(builder:(_)=>FirebaseMemberProfile(api:widget.api,uid:person['uid'].toString()))),title:Text(person['name'].toString()),trailing:SoveraSafetyMenu(api:widget.api,
             uid:person['uid'].toString(),name:person['name'].toString(),
             changed:(){setState(()=>blocked.add(person['uid'].toString()));sync();}))])));
     },itemBuilder:(_)=>[
@@ -355,7 +357,7 @@ class _FirebaseRoomChatState extends State<FirebaseRoomChat> with WidgetsBinding
       if(isOwner)const PopupMenuItem(value:'admins',child:Text('Room admins')),
       const PopupMenuItem(value:'report',child:Text('Report room')),
     ])]),
-    body:Container(
+    body:Stack(children:[Container(
       decoration:const BoxDecoration(gradient:LinearGradient(
         begin:Alignment.topLeft,end:Alignment.bottomRight,
         colors:[Color(0xFF173C48),Color(0xFF1B2243),Color(0xFF090F1F)])),
@@ -364,7 +366,7 @@ class _FirebaseRoomChatState extends State<FirebaseRoomChat> with WidgetsBinding
     // input stays fixed and accessible without layout overflow.
     Expanded(child:SingleChildScrollView(child:Column(children:[
     FirebaseVoicePanel(onLeaveRoom:widget.onLeave,api:widget.api,roomId:widget.room['id'] as String,seatCount:seatCount,people:roomPeople,blockedUids:blocked,autoConnect:true,roomRole:isOwner?'owner':roomRole,lockedSeats:lockedSeats,onControlsChanged:sync),
-    if(catalogEvents.isNotEmpty)CatalogRoomAnimation(key:ValueKey(catalogEvents.first['event_id']),event:catalogEvents.first,serverNow:catalogServerNow,recipients:catalogEvents.where((r)=>r['id']==catalogEvents.first['id']&&r['sender_uid']==catalogEvents.first['sender_uid']&&r['created_at']==catalogEvents.first['created_at']).toList()),
+    if(catalogEvents.isNotEmpty&&(catalogEvents.first['asset'] as Map?)?['kind']!='entry')CatalogRoomAnimation(key:ValueKey(catalogEvents.first['event_id']),event:catalogEvents.first,serverNow:catalogServerNow,recipients:catalogEvents.where((r)=>r['id']==catalogEvents.first['id']&&r['sender_uid']==catalogEvents.first['sender_uid']&&r['created_at']==catalogEvents.first['created_at']).toList()),
     if(roomEffects.isNotEmpty)AnimatedSwitcher(
       duration:const Duration(milliseconds:300),
       child:Card(
@@ -383,6 +385,7 @@ class _FirebaseRoomChatState extends State<FirebaseRoomChat> with WidgetsBinding
     for(final message in messages)
       Padding(padding:const EdgeInsets.symmetric(horizontal:12),
         child:Card(elevation:6,shadowColor:Colors.black54,color:const Color(0xFF1A2A40),shape:RoundedRectangleBorder(borderRadius:BorderRadius.circular(18),side:const BorderSide(color:Color(0xFF365667))),child:ListTile(
+          onTap:message['uid'] is String?()=>Navigator.push(context,MaterialPageRoute<void>(builder:(_)=>FirebaseMemberProfile(api:widget.api,uid:message['uid'] as String))):null,
           title:Text('${message['name']} ${_flag(message['country'].toString())}'),
           subtitle:Text(message['text'] as String),
           trailing:message['uid'] is String?SoveraSafetyMenu(
@@ -398,5 +401,5 @@ class _FirebaseRoomChatState extends State<FirebaseRoomChat> with WidgetsBinding
       IconButton(tooltip:'Room games',onPressed:openGame,icon:const Icon(Icons.sports_esports_rounded,color:Color(0xFFA28BFF))),
       IconButton(tooltip:'Gift box',onPressed:sendingEffect?null:chooseEffect,icon:const Icon(Icons.card_giftcard_rounded,color:Color(0xFFFF74BD),size:30)),
     ])),
-  ]))));
+  ]))),Positioned.fill(child:RoomEntryScene(events:catalogEvents,serverNow:catalogServerNow))]));
 }

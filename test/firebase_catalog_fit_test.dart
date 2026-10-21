@@ -41,11 +41,12 @@ void main(){
     expect(avatar.center.dy,closeTo(canvas.center.dy,.01));
     expect(tester.takeException(),isNull);
   });
-  testWidgets('seat frame uses the full seat canvas and entry does not replay on heartbeat',(tester)async{
+  testWidgets('seat frame remains visible and arrivals do not shrink into mic portraits',(tester)async{
     Future<void> show(String uid)=>tester.pumpWidget(MaterialApp(home:Scaffold(body:Center(
       child:FirebaseSeatPortrait(uid:uid,person:person(uid),size:72)))));
     await show('alice');
-    expect(artwork('entry'),findsOneWidget);
+    expect(artwork('entry'),findsNothing);
+    expect(artwork('frame'),findsOneWidget);
     await tester.pump(const Duration(milliseconds:3201));
     await tester.pumpAndSettle();
     expect(artwork('entry'),findsNothing);
@@ -55,18 +56,20 @@ void main(){
     await tester.pump(const Duration(milliseconds:500));
     expect(artwork('entry'),findsNothing);
     await show('bob');
-    expect(artwork('entry'),findsOneWidget);
+    expect(artwork('entry'),findsNothing);
+    expect(artwork('frame'),findsOneWidget);
     await tester.pumpWidget(const MaterialApp(home:SizedBox.shrink()));
     await tester.pump(const Duration(seconds:5));
     expect(tester.takeException(),isNull);
   });
-  testWidgets('late member details play entry once after an occupied seat is identified',(tester)async{
+  testWidgets('late member details update the frame without a cropped seat entry',(tester)async{
     Widget tile(Map<String,dynamic>? value)=>MaterialApp(home:Scaffold(body:Center(
       child:FirebaseSeatPortrait(uid:'alice',person:value,size:58))));
     await tester.pumpWidget(tile(null));
     expect(artwork('entry'),findsNothing);
     await tester.pumpWidget(tile(person('alice')));
-    expect(artwork('entry'),findsOneWidget);
+    expect(artwork('entry'),findsNothing);
+    expect(artwork('frame'),findsOneWidget);
     await tester.pump(const Duration(milliseconds:3201));
     await tester.pumpAndSettle();
     await tester.pumpWidget(tile(person('alice')));

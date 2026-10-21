@@ -60,6 +60,8 @@ class WalletStore:
         with sqlite3.connect(self.database_path,timeout=10) as db:
             db.execute('BEGIN IMMEDIATE')
             db.execute("INSERT OR IGNORE INTO account_profiles(firebase_uid,display_name,country,bio,updated_at) VALUES(?,'Sovera member','','',?)",(uid,int(time.time())))
+            from .members import public_id
+            public_id(db,uid)
             if db.execute('SELECT 1 FROM account_wallet_links WHERE firebase_uid=?',(uid,)).fetchone():return
             if db.execute('SELECT 1 FROM account_wallet_ledger WHERE firebase_uid=?',(uid,)).fetchone():raise HTTPException(409,'Wallet reconciliation required')
             db.execute('INSERT INTO account_wallet_links VALUES(?,?,?,?)',(uid,'sovera-native:'+uid,int(time.time()),'active'))
@@ -130,6 +132,5 @@ class WalletStore:
             return db.execute("SELECT EXISTS(SELECT 1 FROM account_wallet_links WHERE status='active' AND verified_at>0)").fetchone()[0]==1
 
 def legacy_identity(db,uid):
-    if not db.execute("SELECT 1 FROM sqlite_master WHERE type='table' AND name='account_wallet_imports'").fetchone():return {}
-    row=db.execute('SELECT public_id FROM account_wallet_imports WHERE firebase_uid=?',(uid,)).fetchone()
-    return {'public_id':str(row[0])} if row else {}
+    from .members import public_id
+    return {'public_id':public_id(db,uid)}

@@ -26,7 +26,7 @@ w.fetch=async(url,options)=>{
 };
 w.eval('(function(){'+readFileSync(new URL('../selfhost/app.js',import.meta.url),'utf8')+'\nwindow.controlTest={start,render,login,assets,setView(value){view=value;},getPending(){return rechargeRequest;}};})();');
 await new Promise(r=>setTimeout(r,25));
-assert.equal(w.document.querySelectorAll('[data-view]').length,16);
+assert.equal(w.document.querySelectorAll('[data-view]').length,17);
 w.controlTest.setView('users');await w.controlTest.render();
 assert.equal(w.document.querySelector('#attack'),null,'Names are rendered as text');
 assert.match(w.document.querySelector('#results').textContent,/<img id=/);
