@@ -1,7 +1,7 @@
 name: Admin control integration checks
 on:
   push:
-    branches: [admin-control-preview]
+    branches: [admin-control-preview, wallet-navigation-refresh]
   workflow_dispatch:
 permissions:
   contents: read
