@@ -9,6 +9,9 @@ import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.plugin.common.MethodChannel
 
 class MainActivity: FlutterActivity() {
+    override fun setFrameworkHandlesBack(frameworkHandlesBack: Boolean) {
+        super.setFrameworkHandlesBack(frameworkHandlesBack || SoveraVoiceService.running)
+    }
     override fun popSystemNavigator(): Boolean {
         if (SoveraVoiceService.running) { moveTaskToBack(true); return true }
         return super.popSystemNavigator()
@@ -29,7 +32,7 @@ class MainActivity: FlutterActivity() {
         channel.setMethodCallHandler { call, result ->
             when (call.method) {
                 "start" -> {
-                    SoveraVoiceService.started = { ready -> runOnUiThread { result.success(ready); if (ready) offerVoiceNotificationPermission() } }
+                    SoveraVoiceService.started = { ready -> runOnUiThread { result.success(ready); if (ready) { setFrameworkHandlesBack(true); offerVoiceNotificationPermission() } } }
                     try {
                         val intent = Intent(this, SoveraVoiceService::class.java).putExtra("microphone", call.argument<Boolean>("microphone") == true)
                         if (Build.VERSION.SDK_INT >= 26) startForegroundService(intent) else startService(intent)
