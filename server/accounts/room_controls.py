@@ -27,7 +27,7 @@ class RoomControls:
     def state(self,uid,room):
         with self.rooms.db() as db:
             role,count=self.role(db,uid,room)
-            return {'room':dict(db.execute('SELECT name,seats,image_url,theme,chat_enabled,photo_min_level FROM account_rooms WHERE id=?',(room,)).fetchone()),'role':role,'locked_seats':[r[0] for r in db.execute('SELECT seat FROM account_seat_locks WHERE room=? AND seat<? ORDER BY seat',(room,count))],
+            return {'room':dict(db.execute('SELECT name,seats,image_url,background_url,theme,chat_enabled,photo_min_level FROM account_rooms WHERE id=?',(room,)).fetchone()),'role':role,'locked_seats':[r[0] for r in db.execute('SELECT seat FROM account_seat_locks WHERE room=? AND seat<? ORDER BY seat',(room,count))],
                     'admins':[dict(r) for r in db.execute('SELECT a.uid,p.display_name AS name FROM account_room_admins a JOIN account_profiles p ON p.firebase_uid=a.uid WHERE a.room=?',(room,))]}
     def lock(self,uid,room,data):
         with self.rooms.db() as db:

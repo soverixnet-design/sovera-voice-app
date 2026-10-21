@@ -63,3 +63,18 @@ class RoomPhotoTests(unittest.TestCase):
         self.assertEqual(self.client.post(root+'/chat-photo',headers=self.headers,content=image.getvalue()).status_code,403)
         # An already committed send can safely be retried after settings change.
         self.assertEqual(self.client.post(root+'/messages',headers=self.headers,json=payload).json(),first.json())
+
+    def test_background_picture_is_owned_and_survives_cover_replacement(self):
+        self.profiles.save('alice',ProfileInput(display_name='Alice',country='BD'))
+        room=self.client.post('/sovera/account/rooms',headers=self.headers,json={'name':'Background','seats':9}).json()['room']['id']
+        root=f'/sovera/account/rooms/{room}'
+        image=io.BytesIO();Image.new('RGB',(50,50),'red').save(image,'PNG')
+        url=self.client.post(root+'/photo',headers=self.headers,content=image.getvalue()).json()['avatar_url']
+        self.assertEqual(self.client.put(root,headers=self.headers,json={'name':'Background','seats':9,'background_url':url}).status_code,200)
+        image=io.BytesIO();Image.new('RGB',(50,50),'blue').save(image,'PNG')
+        cover=self.client.post(root+'/photo',headers=self.headers,content=image.getvalue()).json()['avatar_url']
+        self.client.put(root,headers=self.headers,json={'name':'Background','seats':9,'image_url':cover})
+        self.assertEqual(self.client.get(url.replace('https://voice.soverixnet.com','')).status_code,200)
+        state=self.client.get(root+'/controls',headers=self.headers).json()['room']
+        self.assertEqual(state['background_url'],url)
+        self.assertEqual(self.client.put(root,headers=self.headers,json={'name':'Background','seats':9,'background_url':'https://example.com/unowned.webp'}).status_code,422)

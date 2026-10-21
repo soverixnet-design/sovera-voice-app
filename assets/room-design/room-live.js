@@ -27,6 +27,9 @@ window.SoveraLive={update(next){
  const themes={mid:['#171040','#0a0820','#8b5cf6','#ec4899'],gold:['#2e1f06','#0d0803','#f59e0b','#ef4444'],ocean:['#06284a','#030f20','#06b6d4','#3b82f6'],rose:['#3b0a2a','#14040f','#f43f5e','#f472b6'],forest:['#08301f','#03130c','#10b981','#84cc16'],sunset:['#3a1448','#150820','#fb923c','#e879f9']};
  const colors=themes[state.theme]||themes.mid;
  ['--bg1','--bg2','--a','--b'].forEach((k,i)=>$('app').style.setProperty(k,colors[i]));
+ const background=typeof state.backgroundUrl==='string'&&state.backgroundUrl.startsWith('https://voice.soverixnet.com/sovera/account/room-photo/')?state.backgroundUrl:null;
+ $('app').style.backgroundImage=background?'linear-gradient(rgba(5,3,20,.4),rgba(5,3,20,.82)),url('+JSON.stringify(background)+')':'';
+ $('app').style.backgroundSize='cover';
  $('txt').disabled=state.chatEnabled===false;
  $('imgBtn').classList.toggle('locked',state.chatEnabled===false);
  const picture=typeof state.imageUrl==='string'&&state.imageUrl.startsWith('https://')?state.imageUrl:null;
@@ -75,9 +78,9 @@ if(window.visualViewport)visualViewport.addEventListener('resize',()=>{$('app').
 
 function roomSettings(){
  if(state.role!=='owner'){sheet('<h3>'+esc(state.name)+'</h3><p>রুমের সেটিংস শুধু মালিক পরিবর্তন করতে পারেন।</p>');return;}
- sheet('<h3>⚙️ রুম সেটিংস</h3><div class="pic"><button class="act" id="changeCover">📷 রুমের ছবি</button></div><label class="lbl">রুমের নাম</label><input class="field" id="editName" maxlength="40"><label class="lbl">সিট</label><select class="field" id="editSeats">'+[5,6,9,12,15].map(n=>'<option value="'+n+'">'+n+'</option>').join('')+'</select><label class="lbl">🎨 থিম</label><select class="field" id="editTheme">'+[['mid','মিডনাইট'],['gold','রয়্যাল গোল্ড'],['ocean','ওশান'],['rose','রোজ'],['forest','ফরেস্ট'],['sunset','সানসেট']].map(t=>'<option value="'+t[0]+'">'+t[1]+'</option>').join('')+'</select><label class="lbl"><input type="checkbox" id="editChat"> টেক্সট চ্যাট চালু</label><label class="lbl">ছবি পাঠাতে ন্যূনতম Wealth Level</label><input class="field" type="number" min="0" max="10000" id="editPhotoLevel"><div class="gbar"><button class="send" id="saveRoom">সংরক্ষণ করুন</button></div>');
+ sheet('<h3>⚙️ রুম সেটিংস</h3><div class="pic"><button class="act" id="changeCover">📷 রুমের ছবি</button><button class="act" id="changeBackground">🖼️ ব্যাকগ্রাউন্ড</button></div><label class="lbl">রুমের নাম</label><input class="field" id="editName" maxlength="40"><label class="lbl">সিট</label><select class="field" id="editSeats">'+[5,6,9,12,15].map(n=>'<option value="'+n+'">'+n+'</option>').join('')+'</select><label class="lbl">🎨 থিম</label><select class="field" id="editTheme">'+[['mid','মিডনাইট'],['gold','রয়্যাল গোল্ড'],['ocean','ওশান'],['rose','রোজ'],['forest','ফরেস্ট'],['sunset','সানসেট']].map(t=>'<option value="'+t[0]+'">'+t[1]+'</option>').join('')+'</select><label class="lbl"><input type="checkbox" id="editChat"> টেক্সট চ্যাট চালু</label><label class="lbl">ছবি পাঠাতে ন্যূনতম Wealth Level</label><input class="field" type="number" min="0" max="10000" id="editPhotoLevel"><div class="gbar"><button class="send" id="saveRoom">সংরক্ষণ করুন</button></div>');
  $('editName').value=state.name;$('editSeats').value=String(state.seats.length);$('editTheme').value=state.theme||'mid';$('editChat').checked=state.chatEnabled!==false;$('editPhotoLevel').value=String(state.photoLevel||0);
- $('changeCover').onclick=()=>send('roomPhoto');
+ $('changeCover').onclick=()=>send('roomPhoto');$('changeBackground').onclick=()=>send('roomBackground');
  $('saveRoom').onclick=()=>{send('saveSettings',{name:$('editName').value.trim(),seats:Number($('editSeats').value),theme:$('editTheme').value,chatEnabled:$('editChat').checked,photoLevel:Number($('editPhotoLevel').value)});close();};
 }
 function adminSheet(){

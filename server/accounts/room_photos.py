@@ -20,11 +20,12 @@ def attach_room_photos(app,rooms,actor):
         photo=sanitize(data);key=hashlib.sha256(room.encode()+photo).hexdigest()
         with rooms.db() as db:
             db.execute('BEGIN IMMEDIATE')
-            current=db.execute('SELECT image_url FROM account_rooms WHERE id=?',(room,)).fetchone()[0]
-            keep=current.removeprefix(PUBLIC) if current else ''
+            current=db.execute('SELECT image_url,background_url FROM account_rooms WHERE id=?',(room,)).fetchone()
+            keep=current[0].removeprefix(PUBLIC) if current[0] else ''
+            background=current[1].removeprefix(PUBLIC) if current[1] else ''
             total=db.execute('SELECT COALESCE(SUM(length(data)),0) FROM account_room_photos WHERE room<>?',(room,)).fetchone()[0]
             if total+len(photo)>256*1024*1024: raise HTTPException(507,'Photo storage is full')
-            db.execute('DELETE FROM account_room_photos WHERE room=? AND key<>?',(room,keep))
+            db.execute('DELETE FROM account_room_photos WHERE room=? AND key<>? AND key<>?',(room,keep,background))
             db.execute('INSERT OR IGNORE INTO account_room_photos VALUES(?,?,?)',(room,key,photo))
         return {'avatar_url':PUBLIC+key}
     @app.post('/sovera/account/rooms/{room}/photo')

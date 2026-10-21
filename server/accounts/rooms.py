@@ -13,6 +13,7 @@ class RoomInput(BaseModel):
     seats:int=Field(default=9,strict=True)
     image_url:str|None=Field(default=None,max_length=2000)
     room_frame:Literal["none","coins_seller","official"]|None=None
+    background_url:str|None=Field(default=None,max_length=2000)
     theme:Literal["mid","gold","ocean","rose","forest","sunset"]|None=None
     chat_enabled:bool|None=None
     photo_min_level:int|None=Field(default=None,strict=True,ge=0,le=10000)
@@ -63,7 +64,7 @@ class Rooms:
             if 'image_url' not in columns:
                 db.execute('ALTER TABLE account_rooms ADD COLUMN image_url TEXT')
             db.execute('CREATE TABLE IF NOT EXISTS account_room_photos(room TEXT NOT NULL,key TEXT PRIMARY KEY,data BLOB NOT NULL)')
-            for column,declaration in [('theme',"TEXT NOT NULL DEFAULT 'mid'"),('chat_enabled','INTEGER NOT NULL DEFAULT 1'),('photo_min_level','INTEGER NOT NULL DEFAULT 0')]:
+            for column,declaration in [('background_url','TEXT'),('theme',"TEXT NOT NULL DEFAULT 'mid'"),('chat_enabled','INTEGER NOT NULL DEFAULT 1'),('photo_min_level','INTEGER NOT NULL DEFAULT 0')]:
                 if column not in columns:db.execute('ALTER TABLE account_rooms ADD COLUMN '+column+' '+declaration)
             db.execute('CREATE TABLE IF NOT EXISTS account_chat_photos(key TEXT PRIMARY KEY,room TEXT NOT NULL,uid TEXT NOT NULL,data BLOB NOT NULL,created_at INTEGER NOT NULL)')
             message_columns={r['name'] for r in db.execute('PRAGMA table_info(account_messages)')}
@@ -111,6 +112,11 @@ class Rooms:
                         if not data.image_url.startswith(PUBLIC) or not db.execute('SELECT 1 FROM account_room_photos WHERE room=? AND key=?',(room,data.image_url.removeprefix(PUBLIC))).fetchone():
                             raise HTTPException(422,'Upload a picture for this room first')
                     db.execute('UPDATE account_rooms SET image_url=? WHERE id=?',(data.image_url,room))
+                if 'background_url' in data.model_fields_set:
+                    from .room_photos import PUBLIC
+                    url=data.background_url
+                    if url is not None and (not url.startswith(PUBLIC) or not db.execute('SELECT 1 FROM account_room_photos WHERE room=? AND key=?',(room,url.removeprefix(PUBLIC))).fetchone()):raise HTTPException(422,'Upload a background for this room first')
+                    db.execute('UPDATE account_rooms SET background_url=? WHERE id=?',(url,room))
                 for key in ('theme','chat_enabled','photo_min_level'):
                     value=getattr(data,key)
                     if value is not None:db.execute('UPDATE account_rooms SET '+key+'=? WHERE id=?',(value,room))

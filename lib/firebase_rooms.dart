@@ -180,7 +180,7 @@ class _FirebaseRoomChatState extends State<FirebaseRoomChat> with WidgetsBinding
   Timer? timer;bool syncing=false,sending=false,savingRoom=false,sendingEffect=false;String? error,pendingId,pendingText;
   String? pendingEffectId,pendingEffectKey;
   String? designCoins,designWins;
-  String designTheme="mid";bool designChat=true;int designPhotoLevel=0;
+  String? designBackground;String designTheme="mid";bool designChat=true;int designPhotoLevel=0;
   Map<String,dynamic>? pendingPhoto;
   List<Map<String,dynamic>> roomEffects=[],catalogEvents=[],roomPeople=[];
   int catalogServerNow=0;
@@ -213,6 +213,7 @@ class _FirebaseRoomChatState extends State<FirebaseRoomChat> with WidgetsBinding
         if(mounted)setState((){
           final metadata=controls['room'];
           if(metadata is Map&&metadata['name'] is String&&metadata['seats'] is int){roomName=metadata['name'] as String;seatCount=metadata['seats'] as int;roomImage=metadata['image_url'] as String?;}
+          designBackground=metadata is Map?metadata['background_url'] as String?:null;
           designTheme=metadata is Map?(metadata['theme']?.toString()??'mid'):'mid';designChat=metadata is Map?metadata['chat_enabled']!=0:true;designPhotoLevel=metadata is Map?(metadata['photo_min_level'] as num?)?.toInt()??0:0;
           roomRole=controls['role'] as String;lockedSeats=(controls['locked_seats'] as List).cast<int>().toSet();roomAdmins=(controls['admins'] as List).whereType<Map>().map((r)=>Map<String,dynamic>.from(r)).toList();});
       }catch(_){}
@@ -371,11 +372,11 @@ class _FirebaseRoomChatState extends State<FirebaseRoomChat> with WidgetsBinding
       if(name is! String||count is! int||theme is! String||level is! int)return;
       await widget.api.call('PUT',suffix:path,fields:{'name':name,'seats':count,'theme':theme,'photo_min_level':level,'chat_enabled':event['chatEnabled']==true});await sync();return;
     }
-    if(action=='roomPhoto'&&isOwner){
+    if((action=='roomPhoto'||action=='roomBackground')&&isOwner){
       final photo=await ImagePicker().pickImage(source:ImageSource.gallery,maxWidth:1024,maxHeight:1024,imageQuality:85);
       if(photo==null)return;
       final url=await widget.api.uploadPhoto(photo,suffix:'$path/photo');
-      await widget.api.call('PUT',suffix:path,fields:{'name':roomName,'seats':seatCount,'image_url':url});await sync();return;
+      await widget.api.call('PUT',suffix:path,fields:{'name':roomName,'seats':seatCount,if(action=='roomPhoto')'image_url':url else 'background_url':url});await sync();return;
     }
     if(action=='settings'){await editRoom();return;}
     if(action=='setAdmin'&&isOwner&&event['uid'] is String&&event['enabled'] is bool){
@@ -407,7 +408,7 @@ class _FirebaseRoomChatState extends State<FirebaseRoomChat> with WidgetsBinding
     body:SafeArea(child:Stack(children:[
       Positioned.fill(child:FirebaseVoicePanel(onLeaveRoom:widget.onLeave,api:widget.api,roomId:widget.room['id'] as String,seatCount:seatCount,people:roomPeople,blockedUids:blocked,autoConnect:true,roomRole:isOwner?'owner':roomRole,lockedSeats:lockedSeats,onControlsChanged:sync,
         presentation:(context,voice,action)=>RoomDesignView(
-          snapshot:{...voice,'uid':widget.api.uid,'roomId':widget.room['id'],'name':roomName,'imageUrl':roomImage,'sendPending':pendingId!=null,'people':roomPeople,'messages':messages,'coins':designCoins,'dailyWins':designWins,'admins':roomAdmins,'role':isOwner?'owner':roomRole,'theme':designTheme,'chatEnabled':designChat,'photoLevel':designPhotoLevel,'error':error??voice['error']},
+          snapshot:{...voice,'uid':widget.api.uid,'roomId':widget.room['id'],'name':roomName,'imageUrl':roomImage,'sendPending':pendingId!=null,'people':roomPeople,'messages':messages,'coins':designCoins,'dailyWins':designWins,'admins':roomAdmins,'role':isOwner?'owner':roomRole,'backgroundUrl':designBackground,'theme':designTheme,'chatEnabled':designChat,'photoLevel':designPhotoLevel,'error':error??voice['error']},
           onAction:(event)=>designAction(event,action)))),
       if(catalogEvents.isNotEmpty&&(catalogEvents.first['asset'] as Map?)?['kind']!='entry')
         IgnorePointer(child:CatalogRoomAnimation(key:ValueKey(catalogEvents.first['event_id']),event:catalogEvents.first,serverNow:catalogServerNow,recipients:catalogEvents.where((r)=>r['id']==catalogEvents.first['id']&&r['sender_uid']==catalogEvents.first['sender_uid']&&r['created_at']==catalogEvents.first['created_at']).toList())),
