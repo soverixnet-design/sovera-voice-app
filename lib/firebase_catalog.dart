@@ -173,7 +173,7 @@ class _FirebaseCatalogGiftPickerState extends State<FirebaseCatalogGiftPicker> w
   @override void dispose(){walletTimer?.cancel();WidgetsBinding.instance.removeObserver(this);super.dispose();}
   @override void initState(){super.initState();WidgetsBinding.instance.addObserver(this);refreshWallet();walletTimer=Timer.periodic(const Duration(seconds:15),(_)=>refreshWallet());if(widget.people.isNotEmpty)selected.add(widget.people.first['uid'].toString());if(widget.gifts.isNotEmpty)gift=widget.gifts.first;}
   @override Widget build(BuildContext context)=>SizedBox(
-    height:MediaQuery.sizeOf(context).height*.62,
+    height:MediaQuery.sizeOf(context).height*.78,
     child:Padding(padding:const EdgeInsets.all(16),child:Column(children:[
       Row(children:[const Expanded(child:Text('Gifts',style:TextStyle(fontSize:22,fontWeight:FontWeight.bold))),
         TextButton(onPressed:()=>setState((){if(selected.length==widget.people.length){selected.clear();}else{selected.addAll(widget.people.map((p)=>p['uid'].toString()));}}),child:const Text('Select / clear all')),
