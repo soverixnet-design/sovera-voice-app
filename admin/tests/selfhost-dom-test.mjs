@@ -3,7 +3,7 @@ import {readFileSync} from 'node:fs';
 import assert from 'node:assert/strict';
 const w=new Window({url:'https://admin.soverixnet.com',width:390,height:844});
 w.document.body.innerHTML='<div id="app"></div>';
-let role='owner',attempts=[],catalogSaves=[],sellerSaves=[],notices=[];
+let role='owner',attempts=[],catalogSaves=[],sellerSaves=[],notices=[],rewardSaves=[];
 const frame={id:'11111111-1111-4111-8111-111111111111',kind:'frame',title:'Violet frame',media_id:'a'.repeat(64),price:20,active:true,position:0,avatar_scale:.46,avatar_x:.5,avatar_y:.5};
 w.confirm=()=>true;
 w.fetch=async(url,options)=>{
@@ -12,6 +12,7 @@ w.fetch=async(url,options)=>{
  if(name==='session')data={role,name:'Shakil',uid:'owner',users:2,rooms:1,open_tickets:0,quota_remaining:null};
  else if(name==='sellers'){if(options.method==='POST'){sellerSaves.push(JSON.parse(options.body));data={saved:true};}else data={items:[{uid:'alice',name:'Seller',coins:'120',public_id:'10000002'}]};}
  else if(name.startsWith('users?q='))data={items:[{uid:'alice',name:'Seller',public_id:'10000002'}]};
+ else if(name==='rewards'){if(options.method==='POST'){rewardSaves.push(JSON.parse(options.body));if(rewardSaves.length===1)return {ok:false,status:503,json:async()=>({detail:'Retry reward connection'})};data={saved:true};}else data={items:[],server_now:Math.floor(Date.now()/1000)};}
  else if(name==='official-messages'){notices.push(JSON.parse(options.body));data={saved:true};}
  else if(name==='users')data={items:[{uid:'alice',name:'<img id="attack" src=x>',country:'BD',wallet_status:'active',coins:50,diamonds:5}]};
  else if(name==='catalog'){if(options.method==='POST'){catalogSaves.push(JSON.parse(options.body));data=frame;}else data={items:[frame]};}
@@ -62,6 +63,18 @@ w.document.querySelector('#notice-title').value='Hello';w.document.querySelector
 await w.document.querySelector('#official-form').onsubmit({preventDefault(){}});
 assert.equal(notices.at(-1).target_uid,'alice');
 assert.equal(notices.at(-1).text,'Private update');
+w.controlTest.setView('rewards');await w.controlTest.render();
+w.document.querySelector('#reward-title').value='Weekly prize';
+w.document.querySelector('#reward-start').value='2026-12-01T00:00';
+w.document.querySelector('#reward-end').value='2026-12-08T00:00';
+w.document.querySelector('#reward-coins-1').value='500';
+await w.document.querySelector('#reward-form').onsubmit({preventDefault(){}});
+assert.equal(w.document.querySelector('#reward-submit').textContent,'Retry same campaign');
+await w.document.querySelector('#reward-form').onsubmit({preventDefault(){}});
+assert.equal(rewardSaves.length,2);assert.equal(rewardSaves[0].id,rewardSaves[1].id);
+assert.equal(rewardSaves[0].prizes[0].coins,500);
+assert.equal(rewardSaves[0].starts_at,Date.parse('2026-12-01T00:00Z')/1000);
+assert.match(w.document.querySelector('#reward-receipt').textContent,/published/);
 role='support';await w.controlTest.start();
 assert.equal(w.document.querySelector('[data-view="recharge"]'),null);
 assert.equal(w.document.querySelector('[data-view="staff"]'),null);

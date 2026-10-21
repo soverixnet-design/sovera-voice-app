@@ -5,7 +5,7 @@ import time
 import uuid
 from datetime import datetime, timezone, timedelta
 from typing import Literal
-from fastapi import HTTPException, Query, Request
+from fastapi import HTTPException, Request
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 from .control import Control, LIMIT
 
@@ -105,7 +105,8 @@ class Rewards:
     def person(self,db,uid):
         from .wallet import legacy_identity
         p=db.execute('SELECT display_name AS name,avatar_url,country FROM account_profiles WHERE firebase_uid=?',(uid,)).fetchone()
-        return dict(p)|legacy_identity(db,uid)|{'uid':uid} if p else {'uid':uid,'name':'Member'}
+        from .catalog import equipped_assets
+        return dict(p)|legacy_identity(db,uid)|{'uid':uid,'equipped':equipped_assets(db,uid)} if p else {'uid':uid,'name':'Member'}
     def listing(self,uid,admin=False):
         with self.control.db() as db:
             db.execute('BEGIN IMMEDIATE');now=int(time.time());self.finalize(db,now)

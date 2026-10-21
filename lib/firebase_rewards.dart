@@ -74,10 +74,52 @@ class _FirebaseRewardsPageState extends State<FirebaseRewardsPage>{
 class RewardAvatar extends StatelessWidget{
  final Map<String,dynamic> person;final double size;
  const RewardAvatar({super.key,required this.person,this.size=70});
- @override Widget build(BuildContext context){final url=person['avatar_url'];return SizedBox(width:size,height:size,child:ClipOval(child:url is String&&url.startsWith('https://')?Image.network(url,fit:BoxFit.cover,errorBuilder:(_,e,s)=>Icon(Icons.person,color:cyan,size:size*.65)):ColoredBox(color:const Color(0xff234659),child:Icon(Icons.person_rounded,color:cyan,size:size*.65))));}
+ @override Widget build(BuildContext context){final url=person['avatar_url'];final frame=person['equipped'] is Map?(person['equipped'] as Map)['frame']:null;if(frame is Map)return CatalogPortrait(asset:Map<String,dynamic>.from(frame),avatarUrl:url is String?url:null,size:size);return SizedBox(width:size,height:size,child:ClipOval(child:url is String&&url.startsWith('https://')?Image.network(url,fit:BoxFit.cover,errorBuilder:(_,e,s)=>Icon(Icons.person,color:cyan,size:size*.65)):ColoredBox(color:const Color(0xff234659),child:Icon(Icons.person_rounded,color:cyan,size:size*.65))));}
 }
-class RewardPodium extends StatelessWidget{
- final List<Map<String,dynamic>> rows;final void Function(Map<String,dynamic>) onTap;
+class RewardPodium extends StatelessWidget {
+ final List<Map<String,dynamic>> rows;
+ final void Function(Map<String,dynamic>) onTap;
  const RewardPodium({super.key,required this.rows,required this.onTap});
- @override Widget build(BuildContext context)=>Container(padding:const EdgeInsets.fromLTRB(8,20,8,0),decoration:BoxDecoration(borderRadius:BorderRadius.circular(30),gradient:const RadialGradient(colors:[Color(0xff375f70),Color(0xff17233e),Color(0xff14192d)],radius:1)),child:Row(crossAxisAlignment:CrossAxisAlignment.end,children:[for(final rank in const [2,1,3])Expanded(child:rank>rows.length?const SizedBox():InkWell(onTap:()=>onTap(rows[rank-1]),child:Column(children:[if(rank==1)const Icon(Icons.workspace_premium_rounded,color:gold,size:38),Container(padding:const EdgeInsets.all(5),decoration:BoxDecoration(shape:BoxShape.circle,gradient:LinearGradient(colors:rank==1?[const Color(0xfffff3be),gold,const Color(0xff876124)]:rank==2?[Colors.white,cyan,const Color(0xff515a7c)]:[gold,pink,const Color(0xff75423f)]),boxShadow:[BoxShadow(color:gold.withValues(alpha:rank==1?.35:.12),blurRadius:20,offset:const Offset(0,8))]),child:RewardAvatar(person:rows[rank-1],size:rank==1?78:58)),const SizedBox(height:10),Text('${rows[rank-1]['name']}',maxLines:1,overflow:TextOverflow.ellipsis,style:const TextStyle(fontWeight:FontWeight.w900)),Text('ID ${rows[rank-1]['public_id']}',style:const TextStyle(fontSize:10,color:Colors.white60)),Text('${rows[rank-1]['score']}',style:const TextStyle(color:gold,fontWeight:FontWeight.bold)),const SizedBox(height:12),Container(height:rank==1?85:rank==2?58:42,alignment:Alignment.center,decoration:BoxDecoration(borderRadius:const BorderRadius.vertical(top:Radius.circular(18)),gradient:LinearGradient(colors:[gold.withValues(alpha:.8),const Color(0xff79603d),const Color(0xffd8bd79)],begin:Alignment.topLeft,end:Alignment.bottomRight),border:Border.all(color:const Color(0xffffeabd)),boxShadow:const [BoxShadow(color:Colors.black54,blurRadius:10,offset:Offset(0,-3))]),child:Text('$rank',style:const TextStyle(color:Color(0xff453323),fontSize:28,fontWeight:FontWeight.w900)))]))))]));
+ @override Widget build(BuildContext context) => Container(
+  padding: const EdgeInsets.fromLTRB(8,20,8,0),
+  decoration: BoxDecoration(
+   borderRadius: BorderRadius.circular(30),
+   gradient: const RadialGradient(colors:[Color(0xff375f70),Color(0xff17233e),Color(0xff14192d)],radius:1),
+  ),
+  child: Row(crossAxisAlignment:CrossAxisAlignment.end,children:[
+   for(final rank in const [2,1,3]) Expanded(
+    child: rank>rows.length ? const SizedBox() : InkWell(
+     onTap:()=>onTap(rows[rank-1]),
+     child:Column(children:[
+      if(rank==1) const Icon(Icons.workspace_premium_rounded,color:gold,size:38),
+      Container(
+       padding:const EdgeInsets.all(5),
+       decoration:BoxDecoration(
+        shape:BoxShape.circle,
+        gradient:LinearGradient(colors:rank==1 ? [const Color(0xfffff3be),gold,const Color(0xff876124)] : rank==2 ? [Colors.white,cyan,const Color(0xff515a7c)] : [gold,pink,const Color(0xff75423f)]),
+        boxShadow:[BoxShadow(color:gold.withValues(alpha:rank==1 ? .35 : .12),blurRadius:20,offset:const Offset(0,8))],
+       ),
+       child:RewardAvatar(person:rows[rank-1],size:rank==1 ? 78 : 58),
+      ),
+      const SizedBox(height:10),
+      Text('${rows[rank-1]['name']}',maxLines:1,overflow:TextOverflow.ellipsis,style:const TextStyle(fontWeight:FontWeight.w900)),
+      Text('ID ${rows[rank-1]['public_id']}',style:const TextStyle(fontSize:10,color:Colors.white60)),
+      FittedBox(child:Text('${rows[rank-1]['score']}',style:const TextStyle(color:gold,fontWeight:FontWeight.bold))),
+      const SizedBox(height:12),
+      Container(
+       height:rank==1 ? 85 : rank==2 ? 58 : 42,
+       alignment:Alignment.center,
+       decoration:BoxDecoration(
+        borderRadius:const BorderRadius.vertical(top:Radius.circular(18)),
+        gradient:LinearGradient(colors:[gold.withValues(alpha:.8),const Color(0xff79603d),const Color(0xffd8bd79)],begin:Alignment.topLeft,end:Alignment.bottomRight),
+        border:Border.all(color:const Color(0xffffeabd)),
+        boxShadow:const [BoxShadow(color:Colors.black54,blurRadius:10,offset:Offset(0,-3))],
+       ),
+       child:Text('$rank',style:const TextStyle(color:Color(0xff453323),fontSize:28,fontWeight:FontWeight.w900)),
+      ),
+     ]),
+    ),
+   ),
+  ]),
+ );
 }

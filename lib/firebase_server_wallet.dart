@@ -151,7 +151,7 @@ class _FirebaseServerWalletPageState extends State<FirebaseServerWalletPage>{
   }
   void receipt(Map<String,dynamic> item){
     showDialog<void>(context:context,builder:(context)=>AlertDialog(
-      title:Text(label(item['kind'])),
+      title:Text((item['reference']?.toString().startsWith('reward:')==true?'Reward received':label(item['kind']))),
       content:SelectableText('${date(item['created_at'])}\n'
         'Coins: ${signed(item['coin_delta'])}\nDiamonds: ${signed(item['diamond_delta'])}\n\n'
         'Reference: ${item['reference']}'),
@@ -220,7 +220,7 @@ class _FirebaseServerWalletPageState extends State<FirebaseServerWalletPage>{
         for(final item in entries.where((x)=>filter=='All'||category(x['kind'])==filter))
           ListTile(
             onTap:()=>receipt(item),
-            title:Text(label(item['kind'])),
+            title:Text((item['reference']?.toString().startsWith('reward:')==true?'Reward received':label(item['kind']))),
             subtitle:Text(date(item['created_at'])),
             trailing:Text('C ${signed(item['coin_delta'])}  ·  D ${signed(item['diamond_delta'])}'),
           ),
