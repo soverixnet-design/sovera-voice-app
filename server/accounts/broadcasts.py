@@ -37,6 +37,6 @@ class Broadcasts:
 def attach_broadcasts(app,path,actor):
     service=Broadcasts(path)
     @app.get('/sovera/account/broadcasts')
-    async def feed(after:int | None=Query(default=None,ge=0),authorization:str | None=Header(default=None)):
+    async def feed(after:int | None=Query(default=None,ge=0,le=9007199254740991),authorization:str | None=Header(default=None)):
         await actor(authorization)
         return await asyncio.to_thread(service.read,after)

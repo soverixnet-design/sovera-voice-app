@@ -30,7 +30,7 @@ class _GlobalCelebrationLayerState extends State<GlobalCelebrationLayer> with Si
         final event=Map<String,dynamic>.from(raw);
         final id=event['id'],created=event['created_at'];
         if(id is! int||created is! int||(cursor!=null&&id<=cursor!)||now-created>90||!['win','gift'].contains(event['kind']))continue;
-        if(queue.length<8)queue.add(event);
+        if(queue.length<64)queue.add(event);
       }
       cursor=newCursor;
       if(current==null)next();
