@@ -236,7 +236,7 @@ class _FirebaseRoomChatState extends State<FirebaseRoomChat> with WidgetsBinding
           final chosen=await showModalBottomSheet<Map<String,dynamic>>(
             context:context,isScrollControlled:true,useSafeArea:true,
             backgroundColor:const Color(0xFF17162B),
-            builder:(context)=>FirebaseCatalogGiftPicker(people:people,gifts:gifts));
+            builder:(context)=>FirebaseCatalogGiftPicker(api:widget.api,people:people,gifts:gifts));
           if(!mounted||chosen==null)return;
           pendingGift={...chosen,'request_id':_requestId()};
         }

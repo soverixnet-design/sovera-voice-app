@@ -103,14 +103,15 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           RELEASE_COMMIT: ${{ github.sha }}
         run: |
-          cp release/arm64/app-arm64-v8a-release.apk release/Sovera-0.18.5-arm64.apk
-          cp release/armv7/app-armeabi-v7a-release.apk release/Sovera-0.18.5-armv7.apk
+          cp release/arm64/app-arm64-v8a-release.apk release/Sovera-0.18.6-arm64.apk
+          cp release/armv7/app-armeabi-v7a-release.apk release/Sovera-0.18.6-armv7.apk
           sed "s/__ROOM_SOURCE_COMMIT__/$RELEASE_COMMIT/g" server/accounts/update_room.sh > release/update_room.sh
           sha256sum release/*.apk > release/SHA256SUMS.txt
-          tag="v0.18.5-rc.${GITHUB_RUN_NUMBER}"
+          tag="v0.18.6-rc.${GITHUB_RUN_NUMBER}"
           cat > release/notes.md <<'NOTES'
-          Sovera 0.18.5 release candidate
+          Sovera 0.18.6 release candidate
 
+          - Gift box shows your verified server wallet Coins, refreshes while open and never substitutes a dummy balance.
           - Persistent per-seat/all-seat locks enforced by the voice server.
           - Room owners can assign/revoke room admins without granting global admin or wallet access.
           - Simplified room header, game picker and direct gift box.
@@ -128,4 +129,4 @@ jobs:
           Real two-device audio and installation/Google sign-in still need device verification.
           Existing VPS needs the attached update_room.sh for new API features.
           NOTES
-          gh release create "$tag" release/Sovera-0.18.5-arm64.apk release/Sovera-0.18.5-armv7.apk release/SHA256SUMS.txt release/update_room.sh --target "$RELEASE_COMMIT" --title "Sovera 0.18.5 - Room Controls & Profile Update" --prerelease --notes-file release/notes.md
+          gh release create "$tag" release/Sovera-0.18.6-arm64.apk release/Sovera-0.18.6-armv7.apk release/SHA256SUMS.txt release/update_room.sh --target "$RELEASE_COMMIT" --title "Sovera 0.18.6 - Gift Wallet Balance Fix" --prerelease --notes-file release/notes.md

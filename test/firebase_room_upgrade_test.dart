@@ -10,14 +10,16 @@ import 'package:sovera/firebase_server_wallet.dart';
 void main(){
   testWidgets('gift grid shows artwork and price, and returns chosen recipients',(tester)async{
     Map<String,dynamic>? chosen;
+    final api=FirebaseProfileApi(uid:'alice',token:()async=>'token',client:MockClient((_)async=>http.Response('{"source":"sovera-server","verified":true,"status":"active","canGift":true,"coins":"111111111"}',200)));
     await tester.pumpWidget(MaterialApp(home:Builder(builder:(context)=>Scaffold(
       body:TextButton(onPressed:()async{
         chosen=await showModalBottomSheet<Map<String,dynamic>>(context:context,
-          isScrollControlled:true,builder:(_)=>const FirebaseCatalogGiftPicker(
+          isScrollControlled:true,builder:(_)=>FirebaseCatalogGiftPicker(api:api,
             people:[{'uid':'alice','name':'Alice'},{'uid':'bob','name':'Bob'}],
             gifts:[{'id':'heart','title':'Love Heart','price':10,'url':'https://example.invalid/heart.webp'}]));
       },child:const Text('Open gifts'))))));
     await tester.tap(find.text('Open gifts'));await tester.pumpAndSettle();
+    expect(find.text('Your Coins: 111111111'),findsOneWidget);
     expect(find.text('Love Heart'),findsOneWidget);
     expect(find.text('10 Coins'),findsOneWidget);
     expect(find.text('Send room effect'),findsNothing);
@@ -25,6 +27,27 @@ void main(){
     expect(find.text('Total: 20 Coins'),findsOneWidget);
     await tester.tap(find.text('Send · 2'));await tester.pumpAndSettle();
     expect(chosen,{'item_id':'heart','expected_price':10,'recipient_uids':['alice','bob']});
+  });
+  testWidgets('gift Coins refresh uses the wallet, blocks overspending and hides failed balances',(tester)async{
+    var balance='111111111';var failed=false;var reads=0;
+    final api=FirebaseProfileApi(uid:'alice',token:()async=>'token',client:MockClient((request)async{
+      expect(request.url.path,'/sovera/account/wallet');reads++;
+      if(failed)return http.Response('',503);
+      return http.Response(jsonEncode({'source':'sovera-server','verified':true,'status':'active','canGift':true,'coins':balance}),200);
+    }));
+    await tester.pumpWidget(MaterialApp(home:Scaffold(body:FirebaseCatalogGiftPicker(api:api,
+      people:const [{'uid':'alice','name':'Alice'}],gifts:const [{'id':'heart','title':'Heart','price':100,'url':'https://example.invalid/heart.webp'}]))));
+    await tester.pumpAndSettle();
+    expect(find.text('Your Coins: 111111111'),findsOneWidget);
+    expect(tester.widget<FilledButton>(find.byType(FilledButton)).onPressed,isNotNull);
+    balance='99';await tester.tap(find.byTooltip('Refresh Coins'));await tester.pumpAndSettle();
+    expect(find.text('Your Coins: 99'),findsOneWidget);
+    expect(tester.widget<FilledButton>(find.byType(FilledButton)).onPressed,isNull);
+    failed=true;await tester.tap(find.byTooltip('Refresh Coins'));await tester.pumpAndSettle();
+    expect(find.text('Your Coins: 99'),findsNothing);
+    expect(find.text('Coins unavailable'),findsOneWidget);
+    expect(tester.widget<FilledButton>(find.byType(FilledButton)).onPressed,isNull);
+    expect(reads,3);await tester.pumpWidget(const SizedBox());
   });
   testWidgets('exchange confirms fixed rate and refreshes server balances',(tester)async{
     Map<String,dynamic>? sent;
@@ -52,4 +75,3 @@ void main(){
     await tester.pumpWidget(const SizedBox());client.close();
   });
 }
-

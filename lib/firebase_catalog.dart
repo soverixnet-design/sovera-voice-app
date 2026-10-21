@@ -146,18 +146,45 @@ class _CatalogRoomAnimationState extends State<CatalogRoomAnimation>{
 }
 class FirebaseCatalogGiftPicker extends StatefulWidget{
   final List<Map<String,dynamic>> people,gifts;
-  const FirebaseCatalogGiftPicker({super.key,required this.people,required this.gifts});
+  final FirebaseProfileApi api;
+  const FirebaseCatalogGiftPicker({super.key,required this.api,required this.people,required this.gifts});
   @override State<FirebaseCatalogGiftPicker> createState()=>_FirebaseCatalogGiftPickerState();
 }
-class _FirebaseCatalogGiftPickerState extends State<FirebaseCatalogGiftPicker>{
+class _FirebaseCatalogGiftPickerState extends State<FirebaseCatalogGiftPicker> with WidgetsBindingObserver{
   final selected=<String>{};Map<String,dynamic>? gift;
-  @override void initState(){super.initState();if(widget.people.isNotEmpty)selected.add(widget.people.first['uid'].toString());if(widget.gifts.isNotEmpty)gift=widget.gifts.first;}
+  BigInt? coins;
+  bool loadingWallet=false,canGift=false;
+  String? walletError;
+  Timer? walletTimer;
+  BigInt get total=>BigInt.from((gift?['price'] as num?)?.toInt()??0)*BigInt.from(selected.length);
+  bool get canSend=>!loadingWallet&&walletError==null&&canGift&&coins!=null&&selected.isNotEmpty&&coins!>=total;
+  Future<void> refreshWallet()async{
+    if(loadingWallet)return;
+    setState((){loadingWallet=true;coins=null;canGift=false;walletError=null;});
+    try{
+      final row=await widget.api.call('GET',suffix:'/wallet');
+      final amount=row['coins'] is String?BigInt.tryParse(row['coins'] as String):null;
+      if(row['source']!='sovera-server'||row['verified']!=true||amount==null||amount.isNegative)throw const ProfileApiError('Your wallet balance is unavailable.');
+      if(mounted)setState((){coins=amount;canGift=row['status']=='active'&&row['canGift']==true;});
+    }catch(_){if(mounted)setState(()=>walletError='Could not load your real Coins. Tap refresh.');}
+    finally{if(mounted)setState(()=>loadingWallet=false);}
+  }
+  @override void didChangeAppLifecycleState(AppLifecycleState state){if(state==AppLifecycleState.resumed)refreshWallet();}
+  @override void dispose(){walletTimer?.cancel();WidgetsBinding.instance.removeObserver(this);super.dispose();}
+  @override void initState(){super.initState();WidgetsBinding.instance.addObserver(this);refreshWallet();walletTimer=Timer.periodic(const Duration(seconds:15),(_)=>refreshWallet());if(widget.people.isNotEmpty)selected.add(widget.people.first['uid'].toString());if(widget.gifts.isNotEmpty)gift=widget.gifts.first;}
   @override Widget build(BuildContext context)=>SizedBox(
     height:MediaQuery.sizeOf(context).height*.62,
     child:Padding(padding:const EdgeInsets.all(16),child:Column(children:[
       Row(children:[const Expanded(child:Text('Gifts',style:TextStyle(fontSize:22,fontWeight:FontWeight.bold))),
         TextButton(onPressed:()=>setState((){if(selected.length==widget.people.length){selected.clear();}else{selected.addAll(widget.people.map((p)=>p['uid'].toString()));}}),child:const Text('Select / clear all')),
         IconButton(tooltip:'Close gifts',onPressed:()=>Navigator.pop(context),icon:const Icon(Icons.close))]),
+      Row(children:[const Icon(Icons.monetization_on_rounded,color:Colors.amber,size:20),const SizedBox(width:6),
+        Expanded(child:Text(loadingWallet?'Loading your Coins…':coins==null?'Coins unavailable':'Your Coins: $coins',key:const ValueKey('gift-wallet-balance'),style:const TextStyle(fontWeight:FontWeight.bold))),
+        IconButton(tooltip:'Refresh Coins',onPressed:loadingWallet?null:refreshWallet,icon:const Icon(Icons.refresh,size:20)),
+      ]),
+      if(walletError!=null)Text(walletError!,style:const TextStyle(fontSize:11,color:Colors.orange)),
+      if(coins!=null&&!canGift)const Text('Your wallet is not available for gifting.',style:TextStyle(fontSize:11,color:Colors.orange)),
+      if(coins!=null&&canGift&&total>coins!)const Text('Not enough Coins for these recipients.',style:TextStyle(fontSize:11,color:Colors.orange)),
       SizedBox(height:83,child:ListView(scrollDirection:Axis.horizontal,children:[
         for(final person in widget.people)Padding(padding:const EdgeInsets.only(right:8),child:InkWell(
           onTap:()=>setState((){final uid=person['uid'].toString();if(!selected.add(uid))selected.remove(uid);}),
@@ -180,8 +207,8 @@ class _FirebaseCatalogGiftPickerState extends State<FirebaseCatalogGiftPicker>{
               Text('${item['price']} Coins',style:const TextStyle(fontSize:11,color:Colors.amberAccent))])));}),
       ),
       const SizedBox(height:10),
-      if(gift!=null)Row(children:[Expanded(child:Text('Total: ${(gift!['price'] as num)*selected.length} Coins',style:const TextStyle(fontWeight:FontWeight.bold))),
-        FilledButton(onPressed:selected.isEmpty?null:()=>Navigator.pop(context,{'item_id':gift!['id'],'expected_price':gift!['price'],'recipient_uids':selected.toList()..sort()}),child:Text('Send · ${selected.length}'))]),
+      if(gift!=null)Row(children:[Expanded(child:Text('Total: $total Coins',style:const TextStyle(fontWeight:FontWeight.bold))),
+        FilledButton(onPressed:!canSend?null:()=>Navigator.pop(context,{'item_id':gift!['id'],'expected_price':gift!['price'],'recipient_uids':selected.toList()..sort()}),child:Text('Send · ${selected.length}'))]),
       const Text('Each recipient receives Diamonds equal to the gift price.',style:TextStyle(fontSize:10,color:Colors.white54)),
     ])));
 }
