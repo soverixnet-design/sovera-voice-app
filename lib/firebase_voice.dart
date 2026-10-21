@@ -108,6 +108,7 @@ class _FirebaseSeatPortraitState extends State<FirebaseSeatPortrait> {
   }
 }
 class _FirebaseVoicePanelState extends State<FirebaseVoicePanel> with WidgetsBindingObserver {
+  final backgroundOwner=Object();
   rtc.Room? room;
   VoiceSeatState seats=const VoiceSeatState(0,null,{});
   Timer? timer,retryTimer;
@@ -185,7 +186,8 @@ class _FirebaseVoicePanelState extends State<FirebaseVoicePanel> with WidgetsBin
       if(!mounted||closing||!active||generation!=epoch){await candidate.disconnect();await candidate.dispose();candidate=null;return;}
       room=candidate;candidate=null;reconnectAttempts=0;room!.addListener(changed);applyBlocks();
       seats=VoiceSeatState.parse(await request('state'));
-      if(foreground&&mounted)backgroundReady=await VoiceBackground.start();
+      if(foreground&&mounted)backgroundReady=await VoiceBackground.start(owner:backgroundOwner);
+      if(!mounted||closing||generation!=epoch){await VoiceBackground.stop(owner:backgroundOwner);return;}
       timer=Timer.periodic(const Duration(seconds:8),(_)=>sync());
     }catch(_){if(candidate!=null){await candidate.disconnect();await candidate.dispose();}await closeAudio();reconnectAttempts++;error='Voice could not connect. Tap Retry audio or a mic seat.';scheduleReconnect();}
     finally{if(mounted&&!closing)setState(()=>busy=false);}
@@ -230,7 +232,8 @@ class _FirebaseVoicePanelState extends State<FirebaseVoicePanel> with WidgetsBin
       if(!await awaitPublishPermission(generation))throw StateError('Publish permission delayed');
       if(!canUseMicrophone||generation!=epoch)return;
       if(VoiceBackground.supported){
-        backgroundReady=await VoiceBackground.start(microphone:true);
+        backgroundReady=await VoiceBackground.start(owner:backgroundOwner,microphone:true);
+        if(!mounted||closing||generation!=epoch){await VoiceBackground.stop(owner:backgroundOwner);return;}
         if(!backgroundReady)throw StateError('Background microphone service could not start');
       }
       await room!.localParticipant!.setMicrophoneEnabled(true);
@@ -254,7 +257,8 @@ class _FirebaseVoicePanelState extends State<FirebaseVoicePanel> with WidgetsBin
       if(!await awaitPublishPermission(generation))throw StateError('Publish permission delayed');
       if(!canUseMicrophone||generation!=epoch)return;
       if(VoiceBackground.supported){
-        backgroundReady=await VoiceBackground.start(microphone:true);
+        backgroundReady=await VoiceBackground.start(owner:backgroundOwner,microphone:true);
+        if(!mounted||closing||generation!=epoch){await VoiceBackground.stop(owner:backgroundOwner);return;}
         if(!backgroundReady)throw StateError('Background microphone service could not start');
       }
       await room!.localParticipant!.setMicrophoneEnabled(true);
@@ -308,7 +312,7 @@ class _FirebaseVoicePanelState extends State<FirebaseVoicePanel> with WidgetsBin
     finally{busy=false;if(mounted&&!closing)setState((){});}
   }
   Future<void> closeAudio({bool stopBackground=true})async{
-    timer?.cancel();timer=null;suppressed.clear();if(stopBackground){backgroundReady=false;await VoiceBackground.stop();}
+    timer?.cancel();timer=null;suppressed.clear();if(stopBackground){backgroundReady=false;await VoiceBackground.stop(owner:backgroundOwner);}
     final old=room;room=null;
     if(old!=null){old.removeListener(changed);try{await old.localParticipant?.setMicrophoneEnabled(false);await old.disconnect();}finally{await old.dispose();}}
     muted=true;seats=const VoiceSeatState(0,null,{});
