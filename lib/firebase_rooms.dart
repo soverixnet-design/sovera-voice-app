@@ -197,7 +197,10 @@ class _FirebaseRoomChatState extends State<FirebaseRoomChat> with WidgetsBinding
       }catch(_){}
       try {
         final controls=await widget.api.call('GET',suffix:'$path/controls');
-        if(mounted)setState((){roomRole=controls['role'] as String;lockedSeats=(controls['locked_seats'] as List).cast<int>().toSet();roomAdmins=(controls['admins'] as List).whereType<Map>().map((r)=>Map<String,dynamic>.from(r)).toList();});
+        if(mounted)setState((){
+          final metadata=controls['room'];
+          if(metadata is Map&&metadata['name'] is String&&metadata['seats'] is int){roomName=metadata['name'] as String;seatCount=metadata['seats'] as int;roomImage=metadata['image_url'] as String?;}
+          roomRole=controls['role'] as String;lockedSeats=(controls['locked_seats'] as List).cast<int>().toSet();roomAdmins=(controls['admins'] as List).whereType<Map>().map((r)=>Map<String,dynamic>.from(r)).toList();});
       }catch(_){}
       final data=await widget.api.call('GET',suffix:'$path/messages');
       if(mounted)setState((){messages..clear()..addAll((data['messages'] as List).map((r)=>Map<String,dynamic>.from(r as Map)));error=null;});

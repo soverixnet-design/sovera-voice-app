@@ -24,6 +24,8 @@ class RoomPhotoTests(unittest.TestCase):
         saved=self.client.put(f'/sovera/account/rooms/{room}',headers=self.headers,json=payload)
         self.assertEqual(saved.status_code,200)
         self.assertEqual(saved.json()['room']['image_url'],url)
+        visible=self.client.get(f'/sovera/account/rooms/{room}/controls',headers={'Authorization':'Bearer bob'}).json()
+        self.assertEqual(visible['room']['image_url'],url)
         self.assertEqual(self.profiles.get('alice')['avatar_url'],'https://example.com/personal.webp')
         self.assertEqual(self.client.put(f'/sovera/account/rooms/{other}',headers={'Authorization':'Bearer bob'},json=payload).status_code,422)
         self.client.put(f'/sovera/account/rooms/{room}',headers=self.headers,json={'name':'New name','seats':6})
