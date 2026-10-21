@@ -96,18 +96,23 @@ def import_wallet(database,manifest,*,target_uid=None,owner=False,apply=False):
             coins,diamonds=totals()
             db.rollback()
             return {'saved':True,'duplicate':True,'uid':target_uid,'public_id':plan['public_id'],'coins':str(coins),'diamonds':str(diamonds),'opening_coins':str(plan['coins']),'opening_diamonds':str(plan['diamonds'])}
-        if link or db.execute('SELECT 1 FROM account_wallet_ledger WHERE firebase_uid=?',(target_uid,)).fetchone():reject('An existing local wallet must be reconciled; balances were not overwritten')
-        result={'saved':apply,'duplicate':False,'uid':target_uid,'public_id':plan['public_id'],'coins':str(plan['coins']),'diamonds':str(plan['diamonds'])}
+        native=len(link)==1 and link[0]['firebase_uid']==target_uid and link[0]['source_ref']=='sovera-native:'+target_uid and link[0]['status']=='active'
+        if (link or db.execute('SELECT 1 FROM account_wallet_ledger WHERE firebase_uid=?',(target_uid,)).fetchone()) and not native:reject('An existing local wallet must be reconciled; balances were not overwritten')
+        before=totals() if native else (0,0)
+        combined=(before[0]+plan['coins'],before[1]+plan['diamonds'])
+        if max(combined)>LIMIT:reject('Combined wallet exceeds supported range')
+        result={'saved':apply,'duplicate':False,'uid':target_uid,'public_id':plan['public_id'],'coins':str(combined[0]),'diamonds':str(combined[1])}
         if not apply:
             db.rollback();return result
         now=int(time.time())
-        db.execute('INSERT INTO account_wallet_links VALUES(?,?,?,?)',(target_uid,plan['source_ref'],now,'active'))
+        if native:db.execute('UPDATE account_wallet_links SET source_ref=?,verified_at=? WHERE firebase_uid=?',(plan['source_ref'],now,target_uid))
+        else:db.execute('INSERT INTO account_wallet_links VALUES(?,?,?,?)',(target_uid,plan['source_ref'],now,'active'))
         for entry in plan['entries']:
             if entry['coin_delta']==0 and entry['diamond_delta']==0:continue
             db.execute('INSERT INTO account_wallet_ledger VALUES(?,?,?,?,?,?)',(entry['reference'],target_uid,entry['coin_delta'],entry['diamond_delta'],'verified_import',entry['created_at']))
         db.execute('INSERT INTO account_wallet_imports VALUES(?,?,?,?,?,?,?,?,?)',(plan['source_ref'],target_uid,plan['public_id'],plan['snapshot_id'],plan['snapshot_hash'],plan['coins'],plan['diamonds'],plan['proof'],now))
-        if totals()!=(plan['coins'],plan['diamonds']):reject('Import reconciliation failed')
-        db.execute('INSERT INTO account_control_audit(actor,action,target,payload,created_at) VALUES(?,?,?,?,?)',(target_uid,'wallet.legacy_import',target_uid,json.dumps({'source_ref':plan['source_ref'],'snapshot_hash':plan['snapshot_hash'],'coins':str(plan['coins']),'diamonds':str(plan['diamonds'])}),now))
+        if totals()!=combined:reject('Import reconciliation failed')
+        db.execute('INSERT INTO account_control_audit(actor,action,target,payload,created_at) VALUES(?,?,?,?,?)',(target_uid,'wallet.legacy_import',target_uid,json.dumps({'source_ref':plan['source_ref'],'snapshot_hash':plan['snapshot_hash'],'coins':str(combined[0]),'diamonds':str(combined[1])}),now))
         db.commit();return result
     except Exception:
         db.rollback();raise

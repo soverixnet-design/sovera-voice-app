@@ -17,7 +17,7 @@ STAGE=$(mktemp -d /opt/sovera-room-stage.XXXXXX)
 chmod 755 "$STAGE"
 BACKUP=
 CHANGED=0
-FILES=(messaging.py test_messaging.py control.py community.py room_photos.py test_room_photos.py broadcasts.py test_broadcasts.py greedy_wallet.py catalog.py app.py wallet.py rooms.py voice.py room_controls.py test_room_controls.py profile_media.py seed_gifts.py test_profile_media.py test_wallet.py test_catalog.py)
+FILES=(test_legacy_wallet.py import_legacy_wallet.py test_auto_wallet.py messaging.py test_messaging.py control.py community.py room_photos.py test_room_photos.py broadcasts.py test_broadcasts.py greedy_wallet.py catalog.py app.py wallet.py rooms.py voice.py room_controls.py test_room_controls.py profile_media.py seed_gifts.py test_profile_media.py test_wallet.py test_catalog.py)
 GAMEFILES=(start.js limits.js selftest.js)
 ADMIN=/opt/livekit/caddy_data/sovera-control
 [ -d "$ADMIN" ] || { echo "Existing admin installation required"; exit 1; }
@@ -35,6 +35,7 @@ cleanup(){
     for name in "${ADMINFILES[@]}"; do
       if [ -f "$BACKUP/admin/$name" ]; then install -m 644 "$BACKUP/admin/$name" "$ADMIN/$name"; fi
     done
+    if [ -f "$BACKUP/greedy-account.env" ]; then install -m 600 "$BACKUP/greedy-account.env" /etc/sovera-greedy-account.env; fi
     systemctl restart sovera-account || true
     systemctl restart sovera-greedy || true
     echo 'Previous code restored; wallet and game transactions preserved.'
@@ -57,7 +58,7 @@ for name in "${GAMEFILES[@]}"; do
   curl -fLsS --retry 3 --connect-timeout 10 --max-time 60 "$SOURCE/server/greedy/$name" -o "$STAGE/game/src/$name"
   "$NODE" --check "$STAGE/game/src/$name"
 done
-(cd "$STAGE" && "$PYTHON" -m unittest server.accounts.test_messaging server.accounts.test_control server.accounts.test_room_photos server.accounts.test_broadcasts server.accounts.test_wallet server.accounts.test_catalog server.accounts.test_accounts server.accounts.test_profile_media server.accounts.test_room_controls server.accounts.test_voice server.accounts.test_greedy_wallet server.accounts.test_greedy_access -q)
+(cd "$STAGE" && "$PYTHON" -m unittest server.accounts.test_auto_wallet server.accounts.test_legacy_wallet server.accounts.test_messaging server.accounts.test_control server.accounts.test_room_photos server.accounts.test_broadcasts server.accounts.test_wallet server.accounts.test_catalog server.accounts.test_accounts server.accounts.test_profile_media server.accounts.test_room_controls server.accounts.test_voice server.accounts.test_greedy_wallet server.accounts.test_greedy_access -q)
 curl -fLsS --retry 3 --connect-timeout 10 --max-time 60 "$SOURCE/server/voice/app.py" -o "$STAGE/server/voice/app.py"
 (cd "$STAGE" && "$PYTHON" -m unittest server.accounts.test_room_controls server.accounts.test_voice -q)
 echo 'Testing a shared round above one million using isolated test balances...'
@@ -88,7 +89,15 @@ for original,name in [
     os.chmod(dest,0o600)
 PY
 cp -a "$TARGET/server/voice/app.py" "$BACKUP/gateway.py"
+cp -a /etc/sovera-greedy-account.env "$BACKUP/greedy-account.env"
 CHANGED=1
+"$PYTHON" - <<'PYENV'
+from pathlib import Path
+p=Path('/etc/sovera-greedy-account.env')
+lines=[line for line in p.read_text().splitlines() if not line.startswith('SOVERA_AUTO_WALLETS=')]
+p.write_text('\n'.join(lines+['SOVERA_AUTO_WALLETS=1'])+'\n')
+p.chmod(0o600)
+PYENV
 for name in "${ADMINFILES[@]}"; do install -m 644 "$STAGE/admin/$name" "$ADMIN/$name"; done
 install -m 644 "$STAGE/server/voice/app.py" "$TARGET/server/voice/app.py"
 for name in "${FILES[@]}"; do install -m 644 "$STAGE/server/accounts/$name" "$TARGET/server/accounts/$name"; done
@@ -107,7 +116,7 @@ import json,sys
 assert json.load(open(sys.argv[1])).get('walletMode')=='http'
 PY
 CHANGED=0
-echo 'WALLET_SELLERS_OFFICIAL_INBOX_READY'
+echo 'AUTO_WALLETS_BACKGROUND_VOICE_READY'
 echo "Backup: $BACKUP"
 echo 'Four animated gifts seeded once. Owner edits remain in the admin catalog.'
 echo 'Diamond exchange: 100 Diamonds = 70 Coins.'

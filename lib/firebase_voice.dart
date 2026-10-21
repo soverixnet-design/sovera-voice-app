@@ -1,3 +1,4 @@
+import 'voice_background.dart';
 import 'dart:async';
 import 'dart:math';
 import 'package:flutter/material.dart';
@@ -31,12 +32,14 @@ Future<bool> waitForMicPublishPermission({
 
 /// A native permission sheet temporarily makes Android inactive. Keep RTC
 /// connected during that sheet, but always disconnect on real backgrounding.
-bool shouldDisconnectVoice(AppLifecycleState state, {required bool requestingMicrophone}) =>
+bool shouldDisconnectVoice(AppLifecycleState state, {required bool requestingMicrophone,bool backgroundReady=false}) =>
+  !backgroundReady &&
   state != AppLifecycleState.resumed &&
   !(state == AppLifecycleState.inactive && requestingMicrophone);
 
 /// Live audio uses Firebase bearer authentication and server-owned seat leases.
 class FirebaseVoicePanel extends StatefulWidget {
+  final VoidCallback? onLeaveRoom;
   final FirebaseProfileApi api;
   final String roomId;
   final int seatCount;
@@ -46,7 +49,7 @@ class FirebaseVoicePanel extends StatefulWidget {
   final Set<int> lockedSeats;
   final VoidCallback? onControlsChanged;
   final List<Map<String,dynamic>> people;
-  const FirebaseVoicePanel({
+  const FirebaseVoicePanel({this.onLeaveRoom,
     super.key,required this.api,required this.roomId,this.seatCount=9,this.people=const [],this.blockedUids=const {},this.autoConnect=false,this.roomRole='member',this.lockedSeats=const {},this.onControlsChanged,
   });
   @override State<FirebaseVoicePanel> createState()=>_FirebaseVoicePanelState();
@@ -112,13 +115,17 @@ class _FirebaseVoicePanelState extends State<FirebaseVoicePanel> with WidgetsBin
   int reconnectAttempts=0;
   bool pausedForReconnect=false;
   bool busy=false, active=true, closing=false, muted=true;
-  bool requestingMicrophone=false,listeningMuted=false;
+  bool requestingMicrophone=false,listeningMuted=false,backgroundReady=false,foreground=true;
   String? error;
   int epoch=0;
   bool get connected=>room?.connectionState==rtc.ConnectionState.connected;
   Future<Map<String,dynamic>> request(String action,{int? seat})=>widget.api.call('POST',suffix:'/voice',fields:{'room_id':widget.roomId,'action':action,if(seat!=null)'seat':seat});
   @override void initState(){
     super.initState();WidgetsBinding.instance.addObserver(this);
+    VoiceBackground.channel.setMethodCallHandler((call)async{
+      if(call.method=='mute'){await mute();if(mounted)setState((){});}
+      if(call.method=='leave'){await closeAudio();await request('leave');widget.onLeaveRoom?.call();}
+    });
     if(widget.autoConnect)WidgetsBinding.instance.addPostFrameCallback((_){if(mounted)connect();});
   }
   Map<String,dynamic>? seatPerson(int index){for(final person in widget.people){if(person['uid']==seats.occupants[index])return person;}return null;}
@@ -169,7 +176,7 @@ class _FirebaseVoicePanelState extends State<FirebaseVoicePanel> with WidgetsBin
     final generation=epoch;
     rtc.Room? candidate;
     try{
-      await closeAudio();
+      await closeAudio(stopBackground:false);
       final data=await request('join');
       if(data['url']!=voiceServerUrl||data['token'] is! String)throw StateError('Invalid voice response');
       if(!mounted||closing||!active||generation!=epoch)return;
@@ -178,6 +185,7 @@ class _FirebaseVoicePanelState extends State<FirebaseVoicePanel> with WidgetsBin
       if(!mounted||closing||!active||generation!=epoch){await candidate.disconnect();await candidate.dispose();candidate=null;return;}
       room=candidate;candidate=null;reconnectAttempts=0;room!.addListener(changed);applyBlocks();
       seats=VoiceSeatState.parse(await request('state'));
+      if(active&&mounted)backgroundReady=await VoiceBackground.start();
       timer=Timer.periodic(const Duration(seconds:8),(_)=>sync());
     }catch(_){if(candidate!=null){await candidate.disconnect();await candidate.dispose();}await closeAudio();reconnectAttempts++;error='Voice could not connect. Tap Retry audio or a mic seat.';scheduleReconnect();}
     finally{if(mounted&&!closing)setState(()=>busy=false);}
@@ -202,7 +210,7 @@ class _FirebaseVoicePanelState extends State<FirebaseVoicePanel> with WidgetsBin
       // Permission completion and Flutter's resumed event may arrive in either
       // order. Never take/renew a seat until this same room is active again.
       return await waitForMicPublishPermission(
-        canPublish:()=>active,
+        canPublish:()=>foreground,
         canContinue:()=>mounted&&!closing&&connected&&generation==epoch,
         checks:30,
       );
@@ -221,6 +229,10 @@ class _FirebaseVoicePanelState extends State<FirebaseVoicePanel> with WidgetsBin
       if(seats.mine==null)throw StateError('Seat expired');
       if(!await awaitPublishPermission(generation))throw StateError('Publish permission delayed');
       if(!canUseMicrophone||generation!=epoch)return;
+      if(VoiceBackground.supported){
+        backgroundReady=await VoiceBackground.start(microphone:true);
+        if(!backgroundReady)throw StateError('Background microphone service could not start');
+      }
       await room!.localParticipant!.setMicrophoneEnabled(true);
       muted=false;error=null;
     }catch(_){
@@ -241,6 +253,10 @@ class _FirebaseVoicePanelState extends State<FirebaseVoicePanel> with WidgetsBin
       if(seats.mine!=index)throw StateError('Seat not granted');
       if(!await awaitPublishPermission(generation))throw StateError('Publish permission delayed');
       if(!canUseMicrophone||generation!=epoch)return;
+      if(VoiceBackground.supported){
+        backgroundReady=await VoiceBackground.start(microphone:true);
+        if(!backgroundReady)throw StateError('Background microphone service could not start');
+      }
       await room!.localParticipant!.setMicrophoneEnabled(true);
       muted=false;error=null;
     }catch(_){
@@ -291,20 +307,21 @@ class _FirebaseVoicePanelState extends State<FirebaseVoicePanel> with WidgetsBin
     catch(_){error='Could not confirm seat release. Microphone is off.';}
     finally{busy=false;if(mounted&&!closing)setState((){});}
   }
-  Future<void> closeAudio()async{
-    timer?.cancel();timer=null;suppressed.clear();
+  Future<void> closeAudio({bool stopBackground=true})async{
+    timer?.cancel();timer=null;suppressed.clear();if(stopBackground){backgroundReady=false;await VoiceBackground.stop();}
     final old=room;room=null;
     if(old!=null){old.removeListener(changed);try{await old.localParticipant?.setMicrophoneEnabled(false);await old.disconnect();}finally{await old.dispose();}}
     muted=true;seats=const VoiceSeatState(0,null,{});
   }
   @override void didChangeAppLifecycleState(AppLifecycleState state){
-    active=state==AppLifecycleState.resumed;
+    foreground=state==AppLifecycleState.resumed;
+    active=foreground||backgroundReady;
     retryTimer?.cancel();
-    if(active){reconnectAttempts=0;if(room==null)scheduleReconnect();}
-    if(shouldDisconnectVoice(state,requestingMicrophone:requestingMicrophone)){epoch++;unawaited(closeAudio().catchError((Object _){}));unawaited(request('leave').then<void>((_){}).catchError((Object _){}));}
+    if(state==AppLifecycleState.resumed){reconnectAttempts=0;if(room==null)scheduleReconnect();}
+    if(shouldDisconnectVoice(state,requestingMicrophone:requestingMicrophone,backgroundReady:backgroundReady)){epoch++;unawaited(closeAudio().catchError((Object _){}));unawaited(request('leave').then<void>((_){}).catchError((Object _){}));}
     if(mounted)setState((){});
   }
-  @override void dispose(){closing=true;retryTimer?.cancel();WidgetsBinding.instance.removeObserver(this);unawaited(closeAudio().catchError((Object _){}));unawaited(request('leave').then<void>((_){}).catchError((Object _){}));super.dispose();}
+  @override void dispose(){VoiceBackground.channel.setMethodCallHandler(null);closing=true;retryTimer?.cancel();WidgetsBinding.instance.removeObserver(this);unawaited(closeAudio().catchError((Object _){}));unawaited(request('leave').then<void>((_){}).catchError((Object _){}));super.dispose();}
   @override Widget build(BuildContext context)=>Padding(padding:const EdgeInsets.all(8),child:Column(mainAxisSize:MainAxisSize.min,children:[
     Row(children:[
       Icon(connected?Icons.graphic_eq:Icons.wifi_tethering,color:connected?cyan:Colors.white38,size:17),

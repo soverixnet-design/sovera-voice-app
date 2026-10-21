@@ -46,3 +46,21 @@ p=Path('android/app/build.gradle.kts')
 if p.exists():
  text=p.read_text().replace('compileSdk = flutter.compileSdkVersion','compileSdk = 37')
  p.write_text(text)
+
+# Keep an explicitly joined voice room alive behind the Android home screen.
+import shutil
+p=Path('android/app/src/main/AndroidManifest.xml')
+tree=ET.parse(p);root=tree.getroot()
+for permission in ['FOREGROUND_SERVICE','FOREGROUND_SERVICE_MICROPHONE','FOREGROUND_SERVICE_MEDIA_PLAYBACK','WAKE_LOCK','POST_NOTIFICATIONS']:
+ name='android.permission.'+permission
+ if not any(e.get('{'+NS+'}name')==name for e in root.findall('uses-permission')):
+  ET.SubElement(root,'uses-permission',{'{'+NS+'}name':name})
+application=root.find('application')
+assert application is not None
+if not any(e.get('{'+NS+'}name')=='.SoveraVoiceService' for e in application.findall('service')):
+ ET.SubElement(application,'service',{'{'+NS+'}name':'.SoveraVoiceService','{'+NS+'}exported':'false','{'+NS+'}foregroundServiceType':'microphone|mediaPlayback','{'+NS+'}stopWithTask':'true'})
+tree.write(p,encoding='utf-8',xml_declaration=True)
+for name in ['MainActivity.kt','SoveraVoiceService.kt']:
+ destination=Path('android/app/src/main/kotlin/com/sovera/sovera')/name
+ destination.parent.mkdir(parents=True,exist_ok=True)
+ shutil.copyfile(Path(__file__).parent/'android_voice'/name,destination)

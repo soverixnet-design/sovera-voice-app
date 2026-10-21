@@ -53,6 +53,17 @@ class WalletStore:
               ON account_wallet_ledger(firebase_uid,created_at DESC,reference DESC);
             """)
 
+    def provision(self,uid):
+        """Create a native server wallet once; never replace an imported balance."""
+        import os
+        if os.getenv('SOVERA_AUTO_WALLETS')!='1':return
+        with sqlite3.connect(self.database_path,timeout=10) as db:
+            db.execute('BEGIN IMMEDIATE')
+            db.execute("INSERT OR IGNORE INTO account_profiles(firebase_uid,display_name,country,bio,updated_at) VALUES(?,'Sovera member','','',?)",(uid,int(time.time())))
+            if db.execute('SELECT 1 FROM account_wallet_links WHERE firebase_uid=?',(uid,)).fetchone():return
+            if db.execute('SELECT 1 FROM account_wallet_ledger WHERE firebase_uid=?',(uid,)).fetchone():raise HTTPException(409,'Wallet reconciliation required')
+            db.execute('INSERT INTO account_wallet_links VALUES(?,?,?,?)',(uid,'sovera-native:'+uid,int(time.time()),'active'))
+
     def state(self, uid):
         # Do not create a wallet on login or give a fake zero balance.
         with sqlite3.connect(self.database_path,timeout=10) as db:

@@ -7,6 +7,10 @@ import 'package:sovera/firebase_profile.dart';
 import 'package:sovera/firebase_rooms.dart';
 import 'package:sovera/firebase_voice.dart';
 void main(){
+ test('Verified foreground service keeps paused room alive; fallback still disconnects',(){
+  expect(shouldDisconnectVoice(AppLifecycleState.paused,requestingMicrophone:false,backgroundReady:true),false);
+  expect(shouldDisconnectVoice(AppLifecycleState.paused,requestingMicrophone:false),true);
+ });
   testWidgets('room frame artwork can be selected without changing account roles',(tester)async{
     Map<String,dynamic>? selected;
     await tester.pumpWidget(MaterialApp(home:Builder(builder:(context)=>Scaffold(body:TextButton(onPressed:()async{

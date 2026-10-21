@@ -118,12 +118,15 @@ def create_app(profiles, verify, *, voice=False):
     @app.get('/sovera/account')
     async def get_profile(authorization: str | None = Header(default=None)):
         uid = await actor(authorization)
+        await asyncio.to_thread(wallets.provision,uid)
         return {'profile':await asyncio.to_thread(profiles.get, uid)}
 
     @app.put('/sovera/account')
     async def save_profile(data:ProfileInput, authorization: str | None = Header(default=None)):
         uid = await actor(authorization)
-        return {'profile':await asyncio.to_thread(profiles.save, uid, data)}
+        profile=await asyncio.to_thread(profiles.save, uid, data)
+        await asyncio.to_thread(wallets.provision,uid)
+        return {'profile':profile}
     from .profile_media import attach_profile_media
     attach_profile_media(app, profiles, actor)
     rooms = Rooms(profiles.path)
@@ -147,6 +150,7 @@ def create_app(profiles, verify, *, voice=False):
     @app.get('/sovera/account/wallet')
     async def wallet_state(authorization: str | None = Header(default=None)):
         uid=await actor(authorization)
+        await asyncio.to_thread(wallets.provision,uid)
         return await asyncio.to_thread(wallets.state,uid)
 
     @app.post('/sovera/account/wallet/exchange')
@@ -261,9 +265,11 @@ def create_app(profiles, verify, *, voice=False):
     @app.post('/sovera/account/greedy/access')
     async def greedy_token(authorization: str | None = Header(default=None)):
         uid=await actor(authorization)
+        await asyncio.to_thread(wallets.provision,uid)
         profile=await asyncio.to_thread(profiles.get,uid)
         if profile is None:
             raise HTTPException(409,'Save your profile first')
+        await asyncio.to_thread(wallets.provision,uid)
         verified=await asyncio.to_thread(wallets.state,uid)
         if verified['canSpend'] is not True:
             raise HTTPException(503,'Game wallet migration and settlement not verified')

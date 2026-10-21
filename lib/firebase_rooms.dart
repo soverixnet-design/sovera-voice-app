@@ -185,7 +185,7 @@ class _FirebaseRoomChatState extends State<FirebaseRoomChat> with WidgetsBinding
   String get path=>'/rooms/${Uri.encodeComponent(widget.room['id'] as String)}';
   @override void initState(){super.initState();roomName=widget.room['name'] as String;roomFrame=(widget.room['room_frame']??'none') as String;roomImage=widget.room['image_url'] as String?;seatCount=widget.room['seats'] as int? ?? 9;WidgetsBinding.instance.addObserver(this);SoveraPreferences.lowData.addListener(start);start();}
   void start(){timer?.cancel();sync();timer=Timer.periodic(Duration(seconds:SoveraPreferences.lowData.value?15:5),(_)=>sync());}
-  @override void didChangeAppLifecycleState(AppLifecycleState state){if(state==AppLifecycleState.resumed){heartbeat=null;start();}else{timer?.cancel();}}
+  @override void didChangeAppLifecycleState(AppLifecycleState state){if(state==AppLifecycleState.resumed){heartbeat=null;start();}else if(state==AppLifecycleState.detached){timer?.cancel();}}
   @override void dispose(){SoveraPreferences.lowData.removeListener(start);WidgetsBinding.instance.removeObserver(this);timer?.cancel();input.dispose();unawaited(widget.api.call('DELETE',suffix:'$path/presence').then<void>((_){}).catchError((Object _){}));super.dispose();}
   Future<void> sync()async{
     if(syncing)return;syncing=true;
@@ -363,7 +363,7 @@ class _FirebaseRoomChatState extends State<FirebaseRoomChat> with WidgetsBinding
     // Original full-size seat artwork stays scrollable on short displays;
     // input stays fixed and accessible without layout overflow.
     Expanded(child:SingleChildScrollView(child:Column(children:[
-    FirebaseVoicePanel(api:widget.api,roomId:widget.room['id'] as String,seatCount:seatCount,people:roomPeople,blockedUids:blocked,autoConnect:true,roomRole:isOwner?'owner':roomRole,lockedSeats:lockedSeats,onControlsChanged:sync),
+    FirebaseVoicePanel(onLeaveRoom:widget.onLeave,api:widget.api,roomId:widget.room['id'] as String,seatCount:seatCount,people:roomPeople,blockedUids:blocked,autoConnect:true,roomRole:isOwner?'owner':roomRole,lockedSeats:lockedSeats,onControlsChanged:sync),
     if(catalogEvents.isNotEmpty)CatalogRoomAnimation(key:ValueKey(catalogEvents.first['event_id']),event:catalogEvents.first,serverNow:catalogServerNow,recipients:catalogEvents.where((r)=>r['id']==catalogEvents.first['id']&&r['sender_uid']==catalogEvents.first['sender_uid']&&r['created_at']==catalogEvents.first['created_at']).toList()),
     if(roomEffects.isNotEmpty)AnimatedSwitcher(
       duration:const Duration(milliseconds:300),

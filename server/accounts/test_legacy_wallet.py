@@ -42,6 +42,16 @@ class LegacyWalletTests(unittest.TestCase):
         again=import_wallet(self.path,proof,owner=True,apply=True)
         self.assertTrue(again['duplicate']);self.assertEqual(again['coins'],'137')
         with self.control.db() as db:self.assertEqual(db.execute("SELECT COUNT(*) FROM account_wallet_ledger WHERE firebase_uid='owner' AND kind='verified_import'").fetchone()[0],1)
+    def test_native_wallet_import_adds_legacy_balance_once_without_resetting_recharge(self):
+        from unittest.mock import patch
+        with patch.dict('os.environ',{'SOVERA_AUTO_WALLETS':'1'}):WalletStore(self.path).provision('owner')
+        with self.control.db() as db:db.execute("INSERT INTO account_wallet_ledger VALUES('native-recharge','owner',70,0,'recharge',1800000000)")
+        saved=import_wallet(self.path,manifest(),owner=True,apply=True)
+        self.assertEqual(saved['coins'],'190')
+        self.assertEqual(WalletStore(self.path).state('owner')['coins'],'190')
+        self.assertTrue(import_wallet(self.path,manifest(),owner=True,apply=True)['duplicate'])
+        self.assertEqual(WalletStore(self.path).state('owner')['coins'],'190')
+
     def test_bad_snapshots_and_tampering_are_rejected(self):
         proof=manifest();proof['payload']+=' '
         with self.assertRaises(ImportRejected):validate(proof)
