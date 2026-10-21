@@ -1,3 +1,4 @@
+import 'sovera_icons.dart';
 // Exact original Sovera UI primitives, separate from old Supabase app runtime.
 // Firebase is used for identity only; all user content comes from Sovera server.
 import 'package:flutter/material.dart';
@@ -52,7 +53,8 @@ class Jewel extends StatelessWidget {
   final double size;
   const Jewel(this.icon, {super.key, this.color = violet, this.size = 54});
   @override
-  Widget build(BuildContext context) => Container(
+  Widget build(BuildContext context) => SoveraIcon.assetFor(icon)!=null
+    ? SoveraIcon(icon,size:size) : Container(
     width: size, height: size,
     decoration: BoxDecoration(borderRadius: BorderRadius.circular(size * .32),
       gradient: LinearGradient(begin: Alignment.topLeft, end: Alignment.bottomRight, colors: [Color.lerp(color, Colors.white, .45)!, color, Color.lerp(color, Colors.black, .4)!]),

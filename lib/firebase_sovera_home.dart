@@ -1,3 +1,4 @@
+import 'sovera_icons.dart';
 import 'firebase_rewards.dart';
 import 'firebase_members.dart';
 import 'firebase_room_session.dart';
@@ -273,7 +274,7 @@ class _FirebaseSoveraHomeState extends State<FirebaseSoveraHome>{
     OutlinedButton.icon(onPressed:()=>setState(()=>tab=0),
       icon:const Icon(Icons.meeting_room_outlined),
       label:const Text('Open a room to chat with members')),
-    FilledButton.icon(onPressed:()=>go(FirebaseMessageInbox(api:api)),icon:const Icon(Icons.chat_rounded),label:const Text('Private messages')),
+    FilledButton.icon(onPressed:()=>go(FirebaseMessageInbox(api:api)),icon:const SoveraIcon(Icons.chat_rounded,size:28),label:const Text('Private messages')),
   ]);
   Widget profileTab()=>Column(
     crossAxisAlignment:CrossAxisAlignment.stretch,children:[
@@ -313,7 +314,7 @@ class _FirebaseSoveraHomeState extends State<FirebaseSoveraHome>{
         ()=>go(FirebaseStaffPage(api:api,role:staffRole!))),
       (Icons.settings_outlined,'Settings',
         ()=>go(SoveraSettingsPage(support:()=>go(FirebaseCommunity(api:api,section:'support',title:'Official support')),blocked:()=>go(FirebaseCommunity(api:api,section:'blocks',title:'Blocked users'))))),
-    ])ListTile(leading:Icon(item.$1,color:gold),title:Text(item.$2),
+    ])ListTile(leading:SoveraIcon(item.$1,color:gold,size:30),title:Text(item.$2),
       trailing:const Icon(Icons.chevron_right_rounded),onTap:item.$3),
     const SizedBox(height:12),
     TextButton.icon(onPressed:()async{
@@ -349,7 +350,7 @@ class _FirebaseSoveraHomeState extends State<FirebaseSoveraHome>{
       destinations:const[
         NavigationDestination(icon:Icon(Icons.home_rounded),label:'Home'),
         NavigationDestination(icon:Icon(Icons.auto_awesome_rounded),label:'Moments'),
-        NavigationDestination(icon:Icon(Icons.chat_bubble_outline_rounded),label:'Messages'),
+        NavigationDestination(icon:SoveraIcon(Icons.chat_bubble_outline_rounded,size:30),label:'Messages'),
         NavigationDestination(icon:Icon(Icons.person_outline_rounded),label:'Me'),
       ]),
   );

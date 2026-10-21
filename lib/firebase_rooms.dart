@@ -1,3 +1,4 @@
+import 'sovera_icons.dart';
 import 'room_entry_scene.dart';
 import 'firebase_members.dart';
 import 'firebase_room_session.dart';
@@ -399,7 +400,7 @@ class _FirebaseRoomChatState extends State<FirebaseRoomChat> with WidgetsBinding
           border:OutlineInputBorder(borderRadius:BorderRadius.circular(24),borderSide:BorderSide.none)))),
       IconButton(tooltip:'Send message',onPressed:sending?null:send,icon:const Icon(Icons.send_rounded)),
       IconButton(tooltip:'Room games',onPressed:openGame,icon:const Icon(Icons.sports_esports_rounded,color:Color(0xFFA28BFF))),
-      IconButton(tooltip:'Gift box',onPressed:sendingEffect?null:chooseEffect,icon:const Icon(Icons.card_giftcard_rounded,color:Color(0xFFFF74BD),size:30)),
+      IconButton(tooltip:'Gift box',onPressed:sendingEffect?null:chooseEffect,icon:const SoveraIcon(Icons.card_giftcard_rounded,size:42)),
     ])),
   ]))),Positioned.fill(child:RoomEntryScene(events:catalogEvents,serverNow:catalogServerNow))]));
 }

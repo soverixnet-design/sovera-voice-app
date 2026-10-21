@@ -1,3 +1,4 @@
+import 'sovera_icons.dart';
 import 'firebase_members.dart';
 import 'voice_background.dart';
 import 'dart:async';
@@ -295,7 +296,7 @@ class _FirebaseVoicePanelState extends State<FirebaseVoicePanel> with WidgetsBin
       if(error!=null&&!connected)TextButton(onPressed:busy?null:connect,child:const Text('Retry audio')),
     ]),
     if(connected&&seats.mine!=null)Align(alignment:Alignment.centerRight,child:Wrap(spacing:8,runSpacing:4,children:[
-      TextButton.icon(onPressed:busy?null:muted?enableMic:()async{await mute();if(mounted)setState((){});},icon:Icon(muted?Icons.mic_off_rounded:Icons.mic_rounded),label:Text(muted?'Unmute':'Mute')),
+      TextButton.icon(onPressed:busy?null:muted?enableMic:()async{await mute();if(mounted)setState((){});},icon:SoveraIcon(muted?Icons.mic_off_rounded:Icons.mic_rounded,size:34),label:Text(muted?'Unmute':'Mute')),
       TextButton(onPressed:busy?null:leave,child:const Text('Leave seat')),
     ])),
     // The original Sovera gold-and-blue circular room-seat layout remains

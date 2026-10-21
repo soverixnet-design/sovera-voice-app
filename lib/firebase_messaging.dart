@@ -1,3 +1,4 @@
+import 'sovera_icons.dart';
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'firebase_profile.dart';
@@ -30,7 +31,7 @@ class _FirebaseMessageInboxState extends State<FirebaseMessageInbox> {
       if(!loading&&error==null&&rows.isEmpty)const Text('No messages yet.'),
       for(final row in rows)Padding(padding:const EdgeInsets.only(bottom:12),child:Glass(tint:widget.official?gold:cyan,child:ListTile(
         contentPadding:EdgeInsets.zero,
-        leading:Icon(widget.official?Icons.verified_rounded:Icons.chat_bubble_outline,color:widget.official?gold:cyan),
+        leading:SoveraIcon(widget.official?Icons.campaign_rounded:Icons.chat_bubble_outline,size:42),
         title:Text('${row[widget.official?'title':'name']}',style:const TextStyle(fontWeight:FontWeight.bold)),
         subtitle:Text('${row['text']}',maxLines:widget.official?null:2,overflow:widget.official?null:TextOverflow.ellipsis),
         onTap:widget.official?null:()async{await Navigator.push(context,MaterialPageRoute<void>(builder:(_)=>FirebaseDirectChat(api:widget.api,target:'${row['uid']}',name:'${row['name']}')));if(mounted)load();},
