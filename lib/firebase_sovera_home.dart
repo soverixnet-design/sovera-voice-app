@@ -1,3 +1,4 @@
+import 'firebase_room_session.dart';
 import 'firebase_messaging.dart';
 import 'dart:async';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -131,7 +132,7 @@ class _FirebaseSoveraHomeState extends State<FirebaseSoveraHome>{
     finally{if(mounted)setState(()=>creating=false);}
   }
   void openRoom(Map<String,dynamic> room){
-    go(FirebaseRoomChat(api:api,room:room));
+    PersistentRoomLayer.open(context,api,room);
   }
   Widget title(String name)=>Padding(padding:const EdgeInsets.symmetric(vertical:14),
     child:Text(name,style:const TextStyle(fontSize:24,fontWeight:FontWeight.w800)));

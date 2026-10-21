@@ -1,3 +1,4 @@
+import 'firebase_room_session.dart';
 // Separate sign-in verification target. Legacy room/wallet APIs are not invoked.
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_core/firebase_core.dart';
@@ -251,5 +252,5 @@ class _CelebrationSessionState extends State<_CelebrationSession>{
   final client=http.Client();
   late final api=FirebaseProfileApi(uid:widget.user.uid,client:client,token:()async=>FirebaseAuth.instance.currentUser?.uid==widget.user.uid?widget.user.getIdToken():null);
   @override void dispose(){client.close();super.dispose();}
-  @override Widget build(BuildContext context)=>GlobalCelebrationLayer(api:api,child:widget.child);
+  @override Widget build(BuildContext context)=>GlobalCelebrationLayer(api:api,child:PersistentRoomLayer(api:api,child:widget.child));
 }

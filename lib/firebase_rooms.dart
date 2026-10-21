@@ -1,3 +1,4 @@
+import 'firebase_room_session.dart';
 import 'dart:async';
 import 'dart:math';
 import 'package:flutter/material.dart';
@@ -43,7 +44,7 @@ class _FirebaseRoomsPageState extends State<FirebaseRoomsPage> {
     catch(e){if(mounted)setState(()=>error=_error(e));}
     finally{if(mounted){setState(()=>busy=false);load();}}
   }
-  Future<void> open(Map<String,dynamic> room)=>Navigator.of(context).push<void>(MaterialPageRoute(builder:(_)=>FirebaseRoomChat(api:widget.api,room:room))).then((_){if(mounted)load();});
+  Future<void> open(Map<String,dynamic> room)=>PersistentRoomLayer.open(context,widget.api,room).then((_){if(mounted)load();});
   @override Widget build(BuildContext context)=>Scaffold(appBar:AppBar(title:const Text('Sovera rooms'),actions:[
     IconButton(tooltip:'Greedy Wheel',onPressed:()=>Navigator.push(context,
       MaterialPageRoute<void>(builder:(_)=>FirebaseGreedyWheelPage(api:widget.api))),
@@ -162,7 +163,8 @@ class _FirebaseRoomEffectPickerState extends State<FirebaseRoomEffectPicker>{
 
 class FirebaseRoomChat extends StatefulWidget {
   final FirebaseProfileApi api;final Map<String,dynamic> room;
-  const FirebaseRoomChat({super.key,required this.api,required this.room});
+  final VoidCallback? onMinimize,onLeave;
+  const FirebaseRoomChat({super.key,required this.api,required this.room,this.onMinimize,this.onLeave});
   @override State<FirebaseRoomChat> createState()=>_FirebaseRoomChatState();
 }
 class _FirebaseRoomChatState extends State<FirebaseRoomChat> with WidgetsBindingObserver {
@@ -329,10 +331,12 @@ class _FirebaseRoomChatState extends State<FirebaseRoomChat> with WidgetsBinding
   }
   @override Widget build(BuildContext context)=>Scaffold(
     backgroundColor:const Color(0xFF0C0D0F),
-    appBar:AppBar(backgroundColor:const Color(0xFF101C32),leadingWidth:38,titleSpacing:0,
+    appBar:AppBar(backgroundColor:const Color(0xFF101C32),automaticallyImplyLeading:false,titleSpacing:10,
       title:Row(children:[InkWell(onTap:isOwner?editRoom:null,child:ClipRRect(borderRadius:BorderRadius.circular(12),child:SizedBox(width:42,height:42,child:SoveraRoomPhoto(room:{...widget.room,'image_url':roomImage})))),const SizedBox(width:8),
         Expanded(child:Text('${_flag((widget.room['country']??'').toString())} $roomName'.trim(),maxLines:1,overflow:TextOverflow.ellipsis,style:const TextStyle(fontSize:15,fontWeight:FontWeight.w800))),
       ]),actions:[
+      RoomDepthButton(tooltip:'Minimize room',icon:Icons.remove_rounded,onPressed:widget.onMinimize??()=>Navigator.maybePop(context)),
+      RoomDepthButton(tooltip:'Leave room',icon:Icons.logout_rounded,exit:true,onPressed:widget.onLeave??()=>Navigator.pop(context)),
       Padding(padding:const EdgeInsets.symmetric(horizontal:4),child:Center(child:Row(children:[const Icon(Icons.people_outline,size:16,color:Color(0xFF8EE3DC)),const SizedBox(width:3),Text('${roomPeople.length}',style:const TextStyle(fontSize:12))]))),
     PopupMenuButton<String>(tooltip:'Room options',onSelected:(value){
       if(value=='settings')editRoom();

@@ -103,14 +103,16 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           RELEASE_COMMIT: ${{ github.sha }}
         run: |
-          cp release/arm64/app-arm64-v8a-release.apk release/Sovera-0.18.9-arm64.apk
-          cp release/armv7/app-armeabi-v7a-release.apk release/Sovera-0.18.9-armv7.apk
+          cp release/arm64/app-arm64-v8a-release.apk release/Sovera-0.18.10-arm64.apk
+          cp release/armv7/app-armeabi-v7a-release.apk release/Sovera-0.18.10-armv7.apk
           sed "s/__ROOM_SOURCE_COMMIT__/$RELEASE_COMMIT/g" server/accounts/update_room.sh > release/update_room.sh
           sha256sum release/*.apk > release/SHA256SUMS.txt
-          tag="v0.18.9-rc.${GITHUB_RUN_NUMBER}"
+          tag="v0.18.10-rc.${GITHUB_RUN_NUMBER}"
           cat > release/notes.md <<'NOTES'
-          Sovera 0.18.9 release candidate
+          Sovera 0.18.10 release candidate
 
+          - Persistent in-app room session: minimizing or navigating back keeps the same voice and seat subtree alive.
+          - Raised minimize/leave controls and a floating return-to-room card; explicit leave releases the seat.
           - Owner-approved coin seller directory with actual balances and private seller conversations.
           - Private official receipts for recharges, seller status and collection grants; targeted admin messages and global updates.
           - Raised wallet balance cards and compact profile identity with gallery avatar, country, gender and copyable ID.
@@ -135,4 +137,4 @@ jobs:
           Real two-device audio and installation/Google sign-in still need device verification.
           Existing VPS needs the attached update_room.sh for new API features.
           NOTES
-          gh release create "$tag" release/Sovera-0.18.9-arm64.apk release/Sovera-0.18.9-armv7.apk release/SHA256SUMS.txt release/update_room.sh --target "$RELEASE_COMMIT" --title "Sovera 0.18.9 - Wallet, Sellers & Official Inbox" --prerelease --notes-file release/notes.md
+          gh release create "$tag" release/Sovera-0.18.10-arm64.apk release/Sovera-0.18.10-armv7.apk release/SHA256SUMS.txt release/update_room.sh --target "$RELEASE_COMMIT" --title "Sovera 0.18.10 - Persistent Room & 3D Minimize" --prerelease --notes-file release/notes.md
