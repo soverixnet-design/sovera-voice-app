@@ -18,7 +18,7 @@ class _RoomEntrySceneState extends State<RoomEntryScene>{
   for(final e in widget.events.reversed){
    if(e['asset'] is! Map||(e['asset'] as Map)['kind']!='entry')continue;
    final id=e['event_id'];
-   if(id==null||!seen.add(id)||widget.serverNow-(e['created_at'] as num).toInt()>15)continue;
+   if(id==null||!seen.add(id as Object)||widget.serverNow-(e['created_at'] as num).toInt()>15)continue;
    if(queue.length<8)queue.add(e);
   }
   if(seen.length>400){seen.clear();for(final e in widget.events){if(e['event_id']!=null)seen.add(e['event_id'] as Object);}}
