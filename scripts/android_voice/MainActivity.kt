@@ -7,6 +7,7 @@ import android.os.Build
 import io.flutter.embedding.android.FlutterActivity
 import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.plugin.common.MethodChannel
+import android.view.WindowManager
 
 class MainActivity: FlutterActivity() {
     override fun setFrameworkHandlesBack(frameworkHandlesBack: Boolean) {
@@ -31,6 +32,11 @@ class MainActivity: FlutterActivity() {
         SoveraVoiceService.action = { command -> runOnUiThread { channel.invokeMethod(command, null) } }
         channel.setMethodCallHandler { call, result ->
             when (call.method) {
+                "screenAwake" -> {
+                    if (call.argument<Boolean>("enabled") == true) window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+                    else window.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+                    result.success(true)
+                }
                 "start" -> {
                     SoveraVoiceService.started = { ready -> runOnUiThread { result.success(ready); if (ready) { setFrameworkHandlesBack(true); offerVoiceNotificationPermission() } } }
                     try {

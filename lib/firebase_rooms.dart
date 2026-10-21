@@ -1,3 +1,4 @@
+import 'voice_background.dart';
 import 'room_design_view.dart';
 import 'firebase_server_wallet.dart';
 import 'firebase_rewards.dart';
@@ -176,6 +177,7 @@ class FirebaseRoomChat extends StatefulWidget {
   @override State<FirebaseRoomChat> createState()=>_FirebaseRoomChatState();
 }
 class _FirebaseRoomChatState extends State<FirebaseRoomChat> with WidgetsBindingObserver {
+  final screenOwner=Object();
   final input=TextEditingController();final messages=<Map<String,dynamic>>[];
   Timer? timer;bool syncing=false,sending=false,savingRoom=false,sendingEffect=false;String? error,pendingId,pendingText;
   String? pendingEffectId,pendingEffectKey;
@@ -194,10 +196,10 @@ class _FirebaseRoomChatState extends State<FirebaseRoomChat> with WidgetsBinding
   bool get isOwner=>widget.room['owner_uid']==widget.api.uid;
   DateTime? heartbeat;
   String get path=>'/rooms/${Uri.encodeComponent(widget.room['id'] as String)}';
-  @override void initState(){super.initState();roomName=widget.room['name'] as String;roomFrame=(widget.room['room_frame']??'none') as String;roomImage=widget.room['image_url'] as String?;seatCount=widget.room['seats'] as int? ?? 9;WidgetsBinding.instance.addObserver(this);SoveraPreferences.lowData.addListener(start);start();}
+  @override void initState(){super.initState();unawaited(RoomScreenAwake.set(screenOwner,true));roomName=widget.room['name'] as String;roomFrame=(widget.room['room_frame']??'none') as String;roomImage=widget.room['image_url'] as String?;seatCount=widget.room['seats'] as int? ?? 9;WidgetsBinding.instance.addObserver(this);SoveraPreferences.lowData.addListener(start);start();}
   void start(){timer?.cancel();sync();timer=Timer.periodic(Duration(seconds:SoveraPreferences.lowData.value?15:5),(_)=>sync());}
   @override void didChangeAppLifecycleState(AppLifecycleState state){if(state==AppLifecycleState.resumed){heartbeat=null;start();}else if(state==AppLifecycleState.detached){timer?.cancel();}}
-  @override void dispose(){SoveraPreferences.lowData.removeListener(start);WidgetsBinding.instance.removeObserver(this);timer?.cancel();input.dispose();unawaited(widget.api.call('DELETE',suffix:'$path/presence').then<void>((_){}).catchError((Object _){}));super.dispose();}
+  @override void dispose(){unawaited(RoomScreenAwake.set(screenOwner,false));SoveraPreferences.lowData.removeListener(start);WidgetsBinding.instance.removeObserver(this);timer?.cancel();input.dispose();unawaited(widget.api.call('DELETE',suffix:'$path/presence').then<void>((_){}).catchError((Object _){}));super.dispose();}
   Future<void> sync()async{
     if(syncing)return;syncing=true;
     try{

@@ -36,3 +36,16 @@ class VoiceBackground {
     return serial(()async{if(current==null&&running)await nativeStop();});
   }
 }
+
+/// A live room holds the foreground display awake, including in-app minimize.
+/// Android ignores this window flag while another app is in the foreground.
+class RoomScreenAwake {
+  static final owners=<Object>{};
+  static Future<void> set(Object owner,bool enabled)async{
+    if(!VoiceBackground.supported)return;
+    if(enabled){owners.add(owner);}else{owners.remove(owner);}
+    await VoiceBackground.serial(()async{
+      try{await VoiceBackground.channel.invokeMethod<void>('screenAwake',{'enabled':owners.isNotEmpty});}catch(_){}
+    });
+  }
+}
