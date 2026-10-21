@@ -19,7 +19,7 @@ void main(){
       if(request.url.path.endsWith('/messages'))return http.Response('{"messages":[]}',200);
       return http.Response('{"saved":true}',200);
     }));
-    await tester.pumpWidget(MaterialApp(home:FirebaseRoomChat(api:api,room:const {'id':'room','name':'Blue Lounge','country':'BD','owner_uid':'owner','seats':9}))));
+    await tester.pumpWidget(MaterialApp(home:FirebaseRoomChat(api:api,room:const {'id':'room','name':'Blue Lounge','country':'BD','owner_uid':'owner','seats':9})));
     await tester.pumpAndSettle();
     expect(find.text('🇧🇩 Blue Lounge'),findsOneWidget);
     expect(find.text('Tap a mic to join'),findsNothing);
