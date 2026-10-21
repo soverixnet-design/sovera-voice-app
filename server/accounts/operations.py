@@ -90,11 +90,10 @@ class Operations:
             self.owner(db,uid)
             jobs=[]
             if db.execute("SELECT 1 FROM sqlite_master WHERE name='account_job_status'").fetchone():jobs=[dict(r) for r in db.execute('SELECT * FROM account_job_status')]
-        snapshots=[]
-        for path in sorted(Path('/var/backups/sovera').glob('????????T??????Z/manifest.json'),reverse=True)[:14]:
-            try:
-                m=json.loads(path.read_text());snapshots.append({'id':path.parent.name,'created_at':m['created_at'],'verified':m['verified'],'files':m['files']})
-            except (OSError,ValueError,KeyError):continue
+            snapshots=[]
+            if db.execute("SELECT 1 FROM sqlite_master WHERE name='account_backup_status'").fetchone():
+                snapshots=[json.loads(r[0]) for r in db.execute('SELECT payload FROM account_backup_status ORDER BY created_at DESC LIMIT 14')]
+                for row in snapshots:row['id']=datetime.fromtimestamp(row['created_at'],timezone.utc).strftime('%Y%m%dT%H%M%SZ')
         return {'jobs':jobs,'backups':snapshots,'restore_note':'Integrity is checked on backup copies. No live restore is performed. Cross-database recovery requires coordinated operator review.'}
     def rooms(self,uid,q=''):
         with self.control.db() as db:

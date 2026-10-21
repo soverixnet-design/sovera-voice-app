@@ -58,6 +58,7 @@ jobs:
       - uses: subosito/flutter-action@v2
         with:
           channel: stable
+          flutter-version: '3.47.7'
           cache: true
       - run: flutter create --platforms=android,ios --org com.sovera --project-name sovera .
       - run: python3 scripts/configure_mobile_auth.py
@@ -72,6 +73,17 @@ jobs:
           path: build/design-review/frame-tag-fit.png
       # Release the Firebase-authenticated Sovera SERVER app, not legacy
       # lib/main.dart (which starts the former Supabase runtime).
+      - name: Install Android NDK with bounded download retries
+        shell: bash
+        run: |
+          for attempt in 1 2 3; do
+            if "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --install 'ndk;28.2.13676358'; then exit 0; fi
+            if [ ! -f "$ANDROID_HOME/ndk/28.2.13676358/source.properties" ]; then
+              rm -rf "$ANDROID_HOME/ndk/28.2.13676358"
+            fi
+            echo "NDK download failed on attempt $attempt; retrying"
+          done
+          exit 1
       - run: flutter build apk --release --split-per-abi --target lib/firebase_login_main.dart
       - uses: actions/upload-artifact@v4
         with:

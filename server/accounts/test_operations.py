@@ -89,10 +89,11 @@ class MaintenanceTests(unittest.TestCase):
     def test_backup_checks_copy_hash_and_retains_live_wallet(self):
         import tempfile
         from pathlib import Path
-        from .maintenance import backup,file_hash
+        from .maintenance import backup,file_hash,record_backup
         with tempfile.TemporaryDirectory() as directory:
             result=backup(directory,{'account':self.path})
-            self.assertTrue(result['verified'])
+            self.assertTrue(result['verified']);record_backup(self.path,result)
+            self.assertTrue(Operations(self.path).maintenance_status('owner')['backups'][0]['verified'])
             copy=next(Path(directory).glob('*/account.sqlite3'))
             self.assertEqual(file_hash(copy),result['files']['account']['sha256'])
             self.assertGreater(result['files']['account']['counts']['account_profiles'],0)

@@ -37,6 +37,7 @@ cleanup(){
     done
     if [ -f "$BACKUP/greedy-account.env" ]; then install -m 600 "$BACKUP/greedy-account.env" /etc/sovera-greedy-account.env; fi
     systemctl stop sovera-maintenance.timer sovera-backup.timer sovera-maintenance.service sovera-backup.service 2>/dev/null || true
+    systemctl disable sovera-maintenance.timer sovera-backup.timer 2>/dev/null || true
     for unit in sovera-maintenance.service sovera-maintenance.timer sovera-backup.service sovera-backup.timer; do
       if [ -f "$BACKUP/units/$unit" ]; then install -m 644 "$BACKUP/units/$unit" "/etc/systemd/system/$unit"; else rm -f "/etc/systemd/system/$unit"; fi
     done

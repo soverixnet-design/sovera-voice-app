@@ -48,6 +48,12 @@ def backup(directory='/var/backups/sovera',databases=None):
     except Exception:
         shutil.rmtree(dest);raise
 
+def record_backup(path,manifest):
+    with sqlite3.connect(path,timeout=15) as db:
+        db.execute('CREATE TABLE IF NOT EXISTS account_backup_status(created_at INTEGER PRIMARY KEY,payload TEXT NOT NULL)')
+        db.execute('INSERT OR REPLACE INTO account_backup_status VALUES(?,?)',(manifest['created_at'],json.dumps(manifest)))
+        db.execute('DELETE FROM account_backup_status WHERE created_at NOT IN (SELECT created_at FROM account_backup_status ORDER BY created_at DESC LIMIT 14)')
+
 def tick(path):
     from .operations import Operations
     from .rewards import Rewards
@@ -62,6 +68,7 @@ def main():
     parser=argparse.ArgumentParser();parser.add_argument('--backup',action='store_true');args=parser.parse_args()
     with open('/run/sovera-maintenance.lock','w') as lock:
         fcntl.flock(lock,fcntl.LOCK_EX|fcntl.LOCK_NB)
-        if args.backup:backup();print('SOVERA_BACKUP_INTEGRITY_OK')
+        if args.backup:
+            result=backup();record_backup(DATABASES['account'],result);print('SOVERA_BACKUP_INTEGRITY_OK')
         else:tick(DATABASES['account']);print('SOVERA_MAINTENANCE_OK')
 if __name__=='__main__':main()
