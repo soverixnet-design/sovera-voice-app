@@ -9,6 +9,8 @@ import sqlite3
 import time
 from fastapi import HTTPException, Request
 
+from .broadcasts import initialize, person, emit
+
 MAX_COINS = 9007199254740991
 
 def configured():
@@ -20,6 +22,7 @@ class GreedyLedger:
     def __init__(self, path):
         self.path = str(path)
         with sqlite3.connect(self.path) as db:
+            initialize(db)
             db.executescript('''
                 CREATE TABLE IF NOT EXISTS account_greedy_requests(
                   tx_id TEXT PRIMARY KEY, fingerprint TEXT NOT NULL,
@@ -81,6 +84,9 @@ class GreedyLedger:
                     db.execute('INSERT INTO account_greedy_refunds VALUES(?,?)', (data['refundOf'], tx))
                 db.execute('INSERT INTO account_wallet_ledger VALUES(?,?,?,?,?,?)', ('greedy:' + tx, uid, delta, 0, kind, int(time.time())))
                 result['balance'] = coins + delta
+                if kind == 'game_win':
+                    winner=person(db,uid)
+                    if winner is not None: emit(db,'greedy:'+tx,'win',{'winner':winner,'game':'Greedy Wheel','coins':str(amount)})
             db.execute('INSERT INTO account_greedy_requests VALUES(?,?,?)', (tx, fingerprint, json.dumps(result)))
             return result
 

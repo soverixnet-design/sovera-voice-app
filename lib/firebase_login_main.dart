@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:http/http.dart' as http;
 import 'firebase_profile.dart';
+import 'firebase_broadcasts.dart';
 import 'app_preferences.dart';
 import 'firebase_rooms.dart';
 import 'firebase_greedy_wheel.dart';
@@ -56,6 +57,10 @@ class FirebaseLoginApp extends StatelessWidget {
       scaffoldBackgroundColor: const Color(0xFF12172D),
       colorScheme: const ColorScheme.dark(primary: Color(0xFF9268F4)),
     ),
+    builder:(context,child)=>StreamBuilder<User?>(stream:FirebaseAuth.instance.userChanges(),builder:(context,snapshot){
+      final user=snapshot.data;
+      return user==null?child??const SizedBox():_CelebrationSession(key:ValueKey(user.uid),user:user,child:child??const SizedBox());
+    }),
     home: StreamBuilder<User?>(
       stream: FirebaseAuth.instance.userChanges(),
       builder: (context, snapshot) {
@@ -235,4 +240,16 @@ class _FirebaseSignedInPageState extends State<FirebaseSignedInPage> {
       }), child: const Text('Sign out')),
     ]),
   );
+}
+
+class _CelebrationSession extends StatefulWidget {
+  final User user; final Widget child;
+  const _CelebrationSession({super.key,required this.user,required this.child});
+  @override State<_CelebrationSession> createState()=>_CelebrationSessionState();
+}
+class _CelebrationSessionState extends State<_CelebrationSession>{
+  final client=http.Client();
+  late final api=FirebaseProfileApi(uid:widget.user.uid,client:client,token:()async=>FirebaseAuth.instance.currentUser?.uid==widget.user.uid?widget.user.getIdToken():null);
+  @override void dispose(){client.close();super.dispose();}
+  @override Widget build(BuildContext context)=>GlobalCelebrationLayer(api:api,child:widget.child);
 }

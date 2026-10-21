@@ -103,6 +103,12 @@ class CatalogTests(unittest.TestCase):
         events=self.catalog.events('owner',room)
         self.assertEqual(len(events['items']),2)
         self.assertEqual(events['items'][0]['asset']['url'],gift['url'])
+        from .broadcasts import Broadcasts
+        announcements=Broadcasts(self.path).read()['items']
+        self.assertEqual(len(announcements),2)
+        self.assertTrue(all(e['kind']=='gift' for e in announcements))
+        self.assertEqual(announcements[0]['gift']['count'],1)
+        self.assertEqual(announcements[0]['gift']['url'],gift['url'])
     def test_unverified_recipient_rolls_back_gift_and_entry_heartbeat_is_not_replayed(self):
         self.setup_catalog();room=self.seed_owner();gift=self.item('gift',30)
         with self.assertRaises(HTTPException):self.catalog.transact('owner',GiftInput(item_id=gift['id'],expected_price=30,request_id=uuid.uuid4(),recipient_uids=['support']),room)

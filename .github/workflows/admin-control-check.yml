@@ -27,7 +27,7 @@ jobs:
       - run: pip install Pillow==12.3.0 fastapi==0.146.0 httpx==0.28.1 PyJWT==2.15.1 livekit-api==1.2.2
       - run: python server/voice/test_seats.py
       - run: python server/voice/test_firebase_auth.py
-      - run: python -m unittest server.accounts.test_greedy_wallet -v
+      - run: python -m unittest server.accounts.test_greedy_wallet server.accounts.test_broadcasts -v
       - run: python -m unittest server.accounts.test_community -v
       - run: python -m unittest server.accounts.test_control server.accounts.test_catalog server.accounts.test_legacy_wallet -v
       - run: python -m unittest server.accounts.test_control_password server.accounts.test_control_installer -v
@@ -103,14 +103,15 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           RELEASE_COMMIT: ${{ github.sha }}
         run: |
-          cp release/arm64/app-arm64-v8a-release.apk release/Sovera-0.18.6-arm64.apk
-          cp release/armv7/app-armeabi-v7a-release.apk release/Sovera-0.18.6-armv7.apk
+          cp release/arm64/app-arm64-v8a-release.apk release/Sovera-0.18.7-arm64.apk
+          cp release/armv7/app-armeabi-v7a-release.apk release/Sovera-0.18.7-armv7.apk
           sed "s/__ROOM_SOURCE_COMMIT__/$RELEASE_COMMIT/g" server/accounts/update_room.sh > release/update_room.sh
           sha256sum release/*.apk > release/SHA256SUMS.txt
-          tag="v0.18.6-rc.${GITHUB_RUN_NUMBER}"
+          tag="v0.18.7-rc.${GITHUB_RUN_NUMBER}"
           cat > release/notes.md <<'NOTES'
-          Sovera 0.18.6 release candidate
+          Sovera 0.18.7 release candidate
 
+          - App-wide ten-second right-to-left winner and gift celebration banners, driven by confirmed server transactions.
           - Gift box shows your verified server wallet Coins, refreshes while open and never substitutes a dummy balance.
           - Persistent per-seat/all-seat locks enforced by the voice server.
           - Room owners can assign/revoke room admins without granting global admin or wallet access.
@@ -129,4 +130,4 @@ jobs:
           Real two-device audio and installation/Google sign-in still need device verification.
           Existing VPS needs the attached update_room.sh for new API features.
           NOTES
-          gh release create "$tag" release/Sovera-0.18.6-arm64.apk release/Sovera-0.18.6-armv7.apk release/SHA256SUMS.txt release/update_room.sh --target "$RELEASE_COMMIT" --title "Sovera 0.18.6 - Gift Wallet Balance Fix" --prerelease --notes-file release/notes.md
+          gh release create "$tag" release/Sovera-0.18.7-arm64.apk release/Sovera-0.18.7-armv7.apk release/SHA256SUMS.txt release/update_room.sh --target "$RELEASE_COMMIT" --title "Sovera 0.18.7 - Global Win & Gift Banners" --prerelease --notes-file release/notes.md

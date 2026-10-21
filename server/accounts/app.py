@@ -130,6 +130,8 @@ def create_app(profiles, verify, *, voice=False):
     from .room_controls import attach_room_controls
     attach_room_controls(app, rooms, actor)
     wallets = WalletStore(profiles.path)
+    from .broadcasts import attach_broadcasts
+    attach_broadcasts(app, profiles.path, actor)
     attach_greedy_wallet(app, wallets)
     duel = RoomDuel(profiles.path)
     colors = GlobalColors(profiles.path)

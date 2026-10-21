@@ -64,6 +64,8 @@ class Catalog:
             CREATE TABLE IF NOT EXISTS account_catalog_requests(id TEXT PRIMARY KEY,actor TEXT NOT NULL,payload TEXT NOT NULL,response TEXT NOT NULL);
             CREATE TABLE IF NOT EXISTS account_catalog_events(id INTEGER PRIMARY KEY AUTOINCREMENT,room_id TEXT NOT NULL,sender_uid TEXT NOT NULL,recipient_uid TEXT NOT NULL,item_id TEXT NOT NULL,created_at INTEGER NOT NULL);
             ''')
+            from .broadcasts import initialize
+            initialize(db)
     def manage(self,db,uid):
         if self.control.role(db,uid) not in ('owner','admin'):raise HTTPException(403,'Catalog management permission required')
     def row(self,db,item_id,active=True):
@@ -203,7 +205,12 @@ class Catalog:
                 db.execute('INSERT INTO account_wallet_ledger VALUES(?,?,?,?,?,?)',('catalog:'+request,uid,-cost,0,'gift' if room else 'exchange',now))
                 for index,person in enumerate(recipients):db.execute('INSERT INTO account_wallet_ledger VALUES(?,?,?,?,?,?)',('catalog:'+request+':'+str(index),person,0,item['price'],'gift',now))
             if room:
-                for person in recipients:db.execute('INSERT INTO account_catalog_events(room_id,sender_uid,recipient_uid,item_id,created_at) VALUES(?,?,?,?,?)',(room,uid,person,str(data.item_id),now))
+                for target in recipients:
+                    db.execute('INSERT INTO account_catalog_events(room_id,sender_uid,recipient_uid,item_id,created_at) VALUES(?,?,?,?,?)',(room,uid,target,str(data.item_id),now))
+                    from .broadcasts import person as public_person, emit
+                    sender,recipient=public_person(db,uid),public_person(db,target)
+                    if sender is not None and recipient is not None:
+                        emit(db,'gift:'+request+':'+target,'gift',{'sender':sender,'recipient':recipient,'gift':{'title':item['title'],'url':PUBLIC+item['media_id'],'count':1},'coins':str(item['price'])})
             else:db.execute('INSERT OR IGNORE INTO account_asset_ownership VALUES(?,?,?)',(uid,str(data.item_id),now))
             result={'saved':True,'coins_spent':cost,'diamond_each':item['price'] if room else 0,'request_id':request}
             db.execute('INSERT INTO account_catalog_requests VALUES(?,?,?,?)',(request,uid,payload,json.dumps(result)))
