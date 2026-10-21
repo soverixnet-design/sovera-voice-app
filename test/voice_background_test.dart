@@ -14,7 +14,7 @@ void main(){
     return true;
   });
   addTearDown(()=>TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger.setMockMethodCallHandler(VoiceBackground.channel,null));
-  await tester.runAsync(()async{
+  try { await tester.runAsync(()async{
     final oldOwner=Object(),newOwner=Object();
     final oldStart=VoiceBackground.start(owner:oldOwner);
     await Future<void>.delayed(Duration.zero);
@@ -29,6 +29,6 @@ void main(){
     await VoiceBackground.stop(owner:newOwner);
     expect(calls,['start','stop','start','stop']);
     expect(VoiceBackground.running,false);
-  });
+  }); } finally { debugDefaultTargetPlatformOverride=null; }
  });
 }
