@@ -32,6 +32,7 @@ jobs:
       - run: python -m unittest server.accounts.test_rewards server.accounts.test_members server.accounts.test_auto_wallet server.accounts.test_messaging server.accounts.test_control server.accounts.test_catalog server.accounts.test_legacy_wallet -v
       - run: python -m unittest server.accounts.test_operations server.accounts.test_control_password server.accounts.test_control_installer -v
       - run: node --check admin/selfhost/app.js
+      - run: node test/room_design_bridge_test.cjs
       - run: python -m unittest server.food.test_food server.food.test_identity server.accounts.test_accounts server.accounts.test_profile_media server.accounts.test_room_photos server.accounts.test_room_controls server.accounts.test_voice server.accounts.test_duel server.accounts.test_global_games server.accounts.test_food_wheel server.accounts.test_greedy_access server.accounts.test_wallet -v
   admin:
     runs-on: ubuntu-latest

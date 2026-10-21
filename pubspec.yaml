@@ -26,6 +26,7 @@ dev_dependencies:
 flutter:
   uses-material-design: true
   assets:
+    - assets/room-design/
     - assets/ui-icons/
     - assets/sovera-logo-transparent.png
     - assets/games/food-wheel.html

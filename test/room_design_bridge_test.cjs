@@ -1,0 +1,20 @@
+const {readFileSync}=require('node:fs');
+const vm=require('node:vm');
+const assert=require('node:assert/strict');
+function element(){return {style:{},dataset:{},classList:{add(){},remove(){},toggle(){}},value:'',children:[],textContent:'',innerHTML:'',append(...x){this.children.push(...x);},replaceChildren(){this.children=[];},setAttribute(){},querySelector(){return element();},parentElement:{},scrollHeight:100};}
+const nodes=new Map(),sent=[];
+const document={getElementById(id){if(!nodes.has(id))nodes.set(id,element());return nodes.get(id);},createElement:element,querySelectorAll(){return [];}};
+const window={SoveraRoom:{postMessage(s){sent.push(JSON.parse(s));}}};
+vm.runInNewContext(readFileSync('assets/room-design/room-live.js','utf8'),{window,document});
+assert.equal(nodes.has('host'),false);
+window.SoveraLive.update({uid:'real-user',name:'<img onerror=evil()>',roomId:'real-room',people:[{uid:'real-user'}],seats:[{uid:'real-user',name:'<script>bad</script>',locked:false}],messages:[],coins:'123456',dailyWins:'75000',role:'member',connected:true,muted:true});
+assert.equal(nodes.get('rname').textContent,'<img onerror=evil()>');
+assert.equal(nodes.get('cstat').textContent,'🪙 123456');
+assert.equal(nodes.get('liveWins').textContent,'75000');
+assert.equal(nodes.get('bOwn').style.display,'none');
+assert.match(nodes.get('host').innerHTML,/&lt;script&gt;/);
+nodes.get('mic').onclick();assert.equal(sent.pop().action,'mic');
+nodes.get('txt').value='Actual message';nodes.get('sendTxt').onclick();
+assert.deepEqual(sent.pop(),{action:'send',text:'Actual message'});
+assert.equal(nodes.get('cstat').textContent,'🪙 123456');
+console.log('ROOM_DESIGN_BRIDGE_OK');

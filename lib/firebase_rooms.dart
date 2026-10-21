@@ -1,3 +1,7 @@
+import 'room_design_view.dart';
+import 'firebase_server_wallet.dart';
+import 'firebase_rewards.dart';
+import 'firebase_messaging.dart';
 import 'sovera_icons.dart';
 import 'room_entry_scene.dart';
 import 'firebase_members.dart';
@@ -167,13 +171,15 @@ class _FirebaseRoomEffectPickerState extends State<FirebaseRoomEffectPicker>{
 class FirebaseRoomChat extends StatefulWidget {
   final FirebaseProfileApi api;final Map<String,dynamic> room;
   final VoidCallback? onMinimize,onLeave;
-  const FirebaseRoomChat({super.key,required this.api,required this.room,this.onMinimize,this.onLeave});
+  final bool useUploadedDesign;
+  const FirebaseRoomChat({super.key,required this.api,required this.room,this.onMinimize,this.onLeave,this.useUploadedDesign=false});
   @override State<FirebaseRoomChat> createState()=>_FirebaseRoomChatState();
 }
 class _FirebaseRoomChatState extends State<FirebaseRoomChat> with WidgetsBindingObserver {
   final input=TextEditingController();final messages=<Map<String,dynamic>>[];
   Timer? timer;bool syncing=false,sending=false,savingRoom=false,sendingEffect=false;String? error,pendingId,pendingText;
   String? pendingEffectId,pendingEffectKey;
+  String? designCoins,designWins;
   List<Map<String,dynamic>> roomEffects=[],catalogEvents=[],roomPeople=[];
   int catalogServerNow=0;
   Map<String,dynamic>? pendingGift;
@@ -207,6 +213,16 @@ class _FirebaseRoomChatState extends State<FirebaseRoomChat> with WidgetsBinding
           if(metadata is Map&&metadata['name'] is String&&metadata['seats'] is int){roomName=metadata['name'] as String;seatCount=metadata['seats'] as int;roomImage=metadata['image_url'] as String?;}
           roomRole=controls['role'] as String;lockedSeats=(controls['locked_seats'] as List).cast<int>().toSet();roomAdmins=(controls['admins'] as List).whereType<Map>().map((r)=>Map<String,dynamic>.from(r)).toList();});
       }catch(_){}
+      if(widget.useUploadedDesign){
+        try{
+          final wallet=await widget.api.call('GET',suffix:'/wallet');
+          final ranking=await widget.api.call('GET',suffix:'/rankings?metric=play&period=daily');
+          if(mounted)setState((){
+            designCoins=wallet['verified']==true?wallet['coins']?.toString():null;
+            final mine=ranking['mine'];designWins=mine is Map?mine['score'].toString():'0';
+          });
+        }catch(_){if(mounted)setState((){designCoins=null;designWins=null;});}
+      }
       final data=await widget.api.call('GET',suffix:'$path/messages');
       if(mounted)setState((){messages..clear()..addAll((data['messages'] as List).map((r)=>Map<String,dynamic>.from(r as Map)));error=null;});
       try{
@@ -332,7 +348,44 @@ class _FirebaseRoomChatState extends State<FirebaseRoomChat> with WidgetsBinding
       input.clear();pendingId=null;pendingText=null;await sync();
     }catch(e){if(mounted)setState(()=>error=_error(e));}finally{if(mounted)setState(()=>sending=false);}
   }
-  @override Widget build(BuildContext context)=>Scaffold(
+  Future<void> designAction(Map<String,dynamic> event,Future<void> Function(String,int?) voiceAction)async{
+    final action=event['action'];
+    final seat=event['seat'];
+    if(action=='take'||action=='seatMenu'||action=='mic'||action=='leaveSeat'){
+      if(seat!=null&&(seat is! int||seat<0||seat>=seatCount))return;
+      await voiceAction(action.toString(),seat as int?);return;
+    }
+    if(action=='minimize'){widget.onMinimize?.call();return;}
+    if(action=='leave'){widget.onLeave?.call();return;}
+    if(action=='send'&&event['text'] is String){
+      final text=event['text'] as String;if(text.length>500)return;
+      input.text=text;await send();return;
+    }
+    if(action=='gifts'){await chooseEffect();return;}
+    if(action=='games'){openGame();return;}
+    if(action=='settings'){await editRoom();return;}
+    if(action=='admins'&&isOwner){await manageAdmins();return;}
+    if(action=='profile'&&event['uid'] is String){
+      await Navigator.push<void>(context,MaterialPageRoute(builder:(_)=>FirebaseMemberProfile(api:widget.api,uid:event['uid'] as String)));return;
+    }
+    if(action=='wallet')await Navigator.push<void>(context,MaterialPageRoute(builder:(_)=>FirebaseServerWalletPage(api:widget.api)));
+    if(action=='ranking')await Navigator.push<void>(context,MaterialPageRoute(builder:(_)=>FirebaseRewardsPage(api:widget.api,initialMetric:'play',initialPeriod:'daily')));
+    if(action=='messages')await Navigator.push<void>(context,MaterialPageRoute(builder:(_)=>FirebaseMessageInbox(api:widget.api)));
+    if(action=='photo'&&mounted)ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content:Text('Room chat photo upload is not connected yet.')));
+    if(mounted)await sync();
+  }
+  @override Widget build(BuildContext context)=>widget.useUploadedDesign?Scaffold(
+    backgroundColor:const Color(0xff0a0820),
+    body:SafeArea(child:Stack(children:[
+      Positioned.fill(child:FirebaseVoicePanel(onLeaveRoom:widget.onLeave,api:widget.api,roomId:widget.room['id'] as String,seatCount:seatCount,people:roomPeople,blockedUids:blocked,autoConnect:true,roomRole:isOwner?'owner':roomRole,lockedSeats:lockedSeats,onControlsChanged:sync,
+        presentation:(context,voice,action)=>RoomDesignView(
+          snapshot:{...voice,'uid':widget.api.uid,'roomId':widget.room['id'],'name':roomName,'imageUrl':roomImage,'sendPending':pendingId!=null,'people':roomPeople,'messages':messages,'coins':designCoins,'dailyWins':designWins,'role':isOwner?'owner':roomRole,'error':error??voice['error']},
+          onAction:(event)=>designAction(event,action)))),
+      if(catalogEvents.isNotEmpty&&(catalogEvents.first['asset'] as Map?)?['kind']!='entry')
+        IgnorePointer(child:CatalogRoomAnimation(key:ValueKey(catalogEvents.first['event_id']),event:catalogEvents.first,serverNow:catalogServerNow,recipients:catalogEvents.where((r)=>r['id']==catalogEvents.first['id']&&r['sender_uid']==catalogEvents.first['sender_uid']&&r['created_at']==catalogEvents.first['created_at']).toList())),
+      Positioned.fill(child:RoomEntryScene(events:catalogEvents,serverNow:catalogServerNow)),
+    ])),
+  ):Scaffold(
     backgroundColor:const Color(0xFF0C0D0F),
     appBar:AppBar(backgroundColor:const Color(0xFF101C32),automaticallyImplyLeading:false,titleSpacing:10,
       title:Row(children:[InkWell(onTap:isOwner?editRoom:null,child:ClipRRect(borderRadius:BorderRadius.circular(12),child:SizedBox(width:42,height:42,child:SoveraRoomPhoto(room:{...widget.room,'image_url':roomImage})))),const SizedBox(width:8),

@@ -51,8 +51,9 @@ class FirebaseVoicePanel extends StatefulWidget {
   final Set<int> lockedSeats;
   final VoidCallback? onControlsChanged;
   final List<Map<String,dynamic>> people;
+  final Widget Function(BuildContext,Map<String,dynamic>,Future<void> Function(String,int?))? presentation;
   const FirebaseVoicePanel({this.onLeaveRoom,
-    super.key,required this.api,required this.roomId,this.seatCount=9,this.people=const [],this.blockedUids=const {},this.autoConnect=false,this.roomRole='member',this.lockedSeats=const {},this.onControlsChanged,
+    super.key,required this.api,required this.roomId,this.seatCount=9,this.people=const [],this.blockedUids=const {},this.autoConnect=false,this.roomRole='member',this.lockedSeats=const {},this.onControlsChanged,this.presentation,
   });
   @override State<FirebaseVoicePanel> createState()=>_FirebaseVoicePanelState();
 }
@@ -285,7 +286,19 @@ class _FirebaseVoicePanelState extends State<FirebaseVoicePanel> with WidgetsBin
     if(mounted)setState((){});
   }
   @override void dispose(){VoiceBackground.channel.setMethodCallHandler(null);closing=true;retryTimer?.cancel();WidgetsBinding.instance.removeObserver(this);unawaited(closeAudio().catchError((Object _){}));unawaited(request('leave').then<void>((_){}).catchError((Object _){}));super.dispose();}
-  @override Widget build(BuildContext context)=>Padding(padding:const EdgeInsets.all(8),child:Column(mainAxisSize:MainAxisSize.min,children:[
+  Future<void> designAction(String action,int? index)async{
+    if(action=='take'&&index!=null)await seatTap(index);
+    if(action=='seatMenu'&&index!=null)await seatMenu(index);
+    if(action=='leaveSeat')await leave();
+    if(action=='mic'){if(muted){await enableMic();}else{await mute();if(mounted)setState((){});}}
+  }
+  @override Widget build(BuildContext context)=>widget.presentation?.call(context,{
+    'connected':connected,'muted':muted,'error':error,
+    'mine':seats.mine,'seats':[for(var i=0;i<(connected&&seats.count>0?seats.count:widget.seatCount);i++){
+      'uid':seats.occupants[i],'name':seatPerson(i)?['name'],
+      'avatar':seatPerson(i)?['avatar_url'],'locked':widget.lockedSeats.contains(i),
+    }],
+  },designAction)??Padding(padding:const EdgeInsets.all(8),child:Column(mainAxisSize:MainAxisSize.min,children:[
     ValueListenableBuilder<bool>(valueListenable:SoveraPreferences.lowData,builder:(context,low,child)=>low?TextButton.icon(onPressed:()=>SoveraPreferences.setLowData(false),icon:const Icon(Icons.animation),label:const Text('Enable animated frames & entries')):const SizedBox.shrink()),
     Row(children:[
       Icon(connected?Icons.graphic_eq:Icons.wifi_tethering,color:connected?cyan:Colors.white38,size:17),
