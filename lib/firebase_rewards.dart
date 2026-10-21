@@ -11,14 +11,16 @@ import 'sovera_visuals.dart' show Glass,Jewel,cyan,gold,violet,pink;
 class FirebaseRewardsPage extends StatefulWidget {
   final FirebaseProfileApi api;
   final String initialTab;
-  const FirebaseRewardsPage({super.key,required this.api,this.initialTab='ranking'});
+  final String initialMetric;
+  final String initialPeriod;
+  const FirebaseRewardsPage({super.key,required this.api,this.initialTab='ranking',this.initialMetric='rich',this.initialPeriod='weekly'});
   @override State<FirebaseRewardsPage> createState()=>_FirebaseRewardsPageState();
 }
 class _FirebaseRewardsPageState extends State<FirebaseRewardsPage>{
   late String tab;String metric='rich',period='weekly';
   Map<String,dynamic>? board;List<Map<String,dynamic>> campaigns=[];
   String? error,claiming;bool loading=true;int generation=0,clock=0;Timer? ticker;
-  @override void initState(){super.initState();tab=widget.initialTab;load();ticker=Timer.periodic(const Duration(seconds:1),(_){if(mounted)setState(()=>clock++);});}
+  @override void initState(){super.initState();tab=widget.initialTab;metric=widget.initialMetric;period=widget.initialPeriod;load();ticker=Timer.periodic(const Duration(seconds:1),(_){if(mounted)setState(()=>clock++);});}
   @override void dispose(){ticker?.cancel();super.dispose();}
   Future<void> load()async{
     final version=++generation;setState((){loading=true;error=null;board=null;});

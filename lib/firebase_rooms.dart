@@ -294,7 +294,7 @@ class _FirebaseRoomChatState extends State<FirebaseRoomChat> with WidgetsBinding
   void launchGreedy()=>showModalBottomSheet<void>(
     context:context,isScrollControlled:true,useSafeArea:true,
     backgroundColor:const Color(0xFF12172D),
-    builder:(sheetContext)=>SizedBox(height:MediaQuery.sizeOf(sheetContext).height*.64,
+    builder:(sheetContext)=>SizedBox(height:MediaQuery.sizeOf(sheetContext).height,
       child:FirebaseGreedyWheelPage(api:widget.api,inRoom:true)));
   void openGame()=>showModalBottomSheet<void>(context:context,useSafeArea:true,
     backgroundColor:const Color(0xF5101424),builder:(sheetContext)=>Padding(
