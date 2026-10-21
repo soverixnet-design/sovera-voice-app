@@ -32,7 +32,7 @@ class _FirebaseServerWalletPageState extends State<FirebaseServerWalletPage>{
     setState(()=>loading=true);
     try{
       final result=await widget.api.call('GET',suffix:'/wallet');
-      try{final self=await widget.api.load();seller=self?['is_coin_seller']==true;}catch(_){seller=false;}
+      seller=result['is_coin_seller']==true;
       if(result['source']!='sovera-server'||
           result['status'] is! String||result['verified'] is! bool||
           result['canSpend'] is! bool){

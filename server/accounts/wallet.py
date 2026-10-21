@@ -89,6 +89,7 @@ class WalletStore:
                     'coins':str(coins),'diamonds':str(diamonds),
                     'canSpend':link['status']=='active' and configured(),
                     'canPurchase':link['status']=='active','canGift':link['status']=='active',
+                    'is_coin_seller':bool(db.execute("SELECT 1 FROM sqlite_master WHERE name='account_coin_sellers'").fetchone() and db.execute('SELECT 1 FROM account_coin_sellers WHERE uid=?',(uid,)).fetchone()),
                     'source':'sovera-server'}
 
     def exchange(self,uid,data):
