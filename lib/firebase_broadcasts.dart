@@ -11,12 +11,12 @@ class GlobalCelebrationLayer extends StatefulWidget {
   @override State<GlobalCelebrationLayer> createState()=>_GlobalCelebrationLayerState();
 }
 class _GlobalCelebrationLayerState extends State<GlobalCelebrationLayer> with SingleTickerProviderStateMixin,WidgetsBindingObserver {
-  late final AnimationController motion=AnimationController(vsync:this,duration:const Duration(seconds:10))..addStatusListener((status){if(status==AnimationStatus.completed){current=null;next();}});
+  late final AnimationController motion=AnimationController(vsync:this,duration:const Duration(seconds:10));
   final queue=Queue<Map<String,dynamic>>();
   int? cursor;
   bool fetching=false,active=true;
   Map<String,dynamic>? current;
-  Timer? timer;
+  Timer? timer,expiry;
   @override void initState(){super.initState();WidgetsBinding.instance.addObserver(this);poll();timer=Timer.periodic(const Duration(seconds:3),(_)=>poll());}
   Future<void> poll()async{
     if(fetching||!active)return;
@@ -39,14 +39,16 @@ class _GlobalCelebrationLayerState extends State<GlobalCelebrationLayer> with Si
   }
   void next(){
     if(!mounted||!active)return;
+    expiry?.cancel();
+    motion.stop();
     setState(()=>current=queue.isEmpty?null:queue.removeFirst());
-    if(current!=null)motion.forward(from:0);
+    if(current!=null){motion.forward(from:0);expiry=Timer(const Duration(seconds:10),next);}
   }
   @override void didChangeAppLifecycleState(AppLifecycleState state){
     active=state==AppLifecycleState.resumed;
-    if(!active){motion.stop();queue.clear();setState(()=>current=null);}else{poll();}
+    if(!active){expiry?.cancel();motion.stop();queue.clear();setState(()=>current=null);}else{poll();}
   }
-  @override void dispose(){WidgetsBinding.instance.removeObserver(this);timer?.cancel();motion.dispose();super.dispose();}
+  @override void dispose(){WidgetsBinding.instance.removeObserver(this);timer?.cancel();expiry?.cancel();motion.dispose();super.dispose();}
   @override Widget build(BuildContext context)=>Stack(children:[widget.child,
     if(current!=null)Positioned(top:MediaQuery.paddingOf(context).top+46,left:0,right:0,
       child:IgnorePointer(child:LayoutBuilder(builder:(context,box){
