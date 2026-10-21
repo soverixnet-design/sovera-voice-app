@@ -285,7 +285,13 @@ def attach_control(app,profiles,actor):
     @app.post('/sovera/control/publications')
     async def publish(data:Publication,request:Request):return await asyncio.to_thread(service.community.publish,await staff_actor(request),data)
 
-    from .messaging import SellerInput,NoticeInput
+    from .messaging import SellerInput,NoticeInput,SellerPackageInput
+    @app.get('/sovera/control/sellers/package')
+    async def seller_package(request:Request):
+        return await asyncio.to_thread(service.messaging.package,await staff_actor(request))
+    @app.post('/sovera/control/sellers/package')
+    async def seller_package_save(data:SellerPackageInput,request:Request):
+        return await asyncio.to_thread(service.messaging.package,await staff_actor(request),data)
     @app.get('/sovera/control/sellers')
     async def sellers(request:Request):
         uid=await staff_actor(request)

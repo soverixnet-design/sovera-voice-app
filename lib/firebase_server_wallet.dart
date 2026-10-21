@@ -17,6 +17,7 @@ class FirebaseServerWalletPage extends StatefulWidget {
 
 class _FirebaseServerWalletPageState extends State<FirebaseServerWalletPage>{
   bool loading=true, loadingMore=false, hasMore=false;
+  bool seller=false;
   String filter='All';
   String? error;
   Map<String,dynamic>? pendingExchange;
@@ -31,6 +32,7 @@ class _FirebaseServerWalletPageState extends State<FirebaseServerWalletPage>{
     setState(()=>loading=true);
     try{
       final result=await widget.api.call('GET',suffix:'/wallet');
+      try{final self=await widget.api.load();seller=self?['is_coin_seller']==true;}catch(_){seller=false;}
       if(result['source']!='sovera-server'||
           result['status'] is! String||result['verified'] is! bool||
           result['canSpend'] is! bool){
@@ -156,7 +158,7 @@ class _FirebaseServerWalletPageState extends State<FirebaseServerWalletPage>{
   }
   void receipt(Map<String,dynamic> item){
     showDialog<void>(context:context,builder:(context)=>AlertDialog(
-      title:Text((item['reference']?.toString().startsWith('reward:')==true?'Reward received':label(item['kind']))),
+      title:Text((item['reference']?.toString().startsWith('seller-transfer:')==true?'Seller Coin transfer':item['reference']?.toString().startsWith('reward:')==true?'Reward received':label(item['kind']))),
       content:SelectableText('${date(item['created_at'])}\n'
         'Coins: ${signed(item['coin_delta'])}\nDiamonds: ${signed(item['diamond_delta'])}\n\n'
         'Reference: ${item['reference']}'),
@@ -216,6 +218,10 @@ class _FirebaseServerWalletPageState extends State<FirebaseServerWalletPage>{
       const SizedBox(height:12),
       FilledButton.icon(onPressed:()=>openPage(FirebaseRewardsPage(api:widget.api,initialTab:'recharge')),icon:const Icon(Icons.redeem_rounded),label:const Text('Recharge Rewards')),
       const SizedBox(height:12),
+      if(seller)...[
+        FilledButton.icon(onPressed:()=>openPage(FirebaseSellerTransferPage(api:widget.api)),icon:const Icon(Icons.send_rounded),label:const Text('Send Coins to a member')),
+        const SizedBox(height:12),
+      ],
       FilledButton.icon(onPressed:()=>openPage(FirebaseOriginalCoinSellers(api:widget.api)),icon:const Icon(Icons.storefront_rounded),label:const Text('Coin seller list')),
       if(entries.isNotEmpty)...[
         const SizedBox(height:20),
@@ -238,4 +244,57 @@ class _FirebaseServerWalletPageState extends State<FirebaseServerWalletPage>{
       ],
     ])),
   );
+}
+
+class FirebaseSellerTransferPage extends StatefulWidget {
+  final FirebaseProfileApi api;
+  const FirebaseSellerTransferPage({super.key,required this.api});
+  @override State<FirebaseSellerTransferPage> createState()=>_FirebaseSellerTransferPageState();
+}
+class _FirebaseSellerTransferPageState extends State<FirebaseSellerTransferPage>{
+  final search=TextEditingController(),amount=TextEditingController();
+  List<Map<String,dynamic>> people=[];
+  Map<String,dynamic>? selected,pending;
+  bool busy=false;String? message;
+  @override void dispose(){search.dispose();amount.dispose();super.dispose();}
+  Future<void> find()async{
+    setState(()=>busy=true);
+    try{
+      final result=await widget.api.call('GET',suffix:'/members?q=${Uri.encodeQueryComponent(search.text.trim())}');
+      if(mounted)setState(()=>people=(result['items'] as List).whereType<Map>().map((x)=>Map<String,dynamic>.from(x)).where((x)=>x['uid']!=widget.api.uid).toList());
+    }catch(e){if(mounted)setState(()=>message=e is ProfileApiError?e.message:'Could not find member.');}
+    finally{if(mounted)setState(()=>busy=false);}
+  }
+  Future<void> send()async{
+    if(pending==null){
+      final coins=int.tryParse(amount.text.trim());
+      if(selected==null||coins==null||coins<1||coins>9007199254740991){setState(()=>message='Select a member and enter a valid Coin amount.');return;}
+      final yes=await showDialog<bool>(context:context,builder:(ctx)=>AlertDialog(
+        title:const Text('Confirm Coin transfer'),
+        content:Text('Send $coins Coins from your wallet to ${selected!['name']} · ID ${selected!['public_id']}?'),
+        actions:[TextButton(onPressed:()=>Navigator.pop(ctx,false),child:const Text('Cancel')),FilledButton(onPressed:()=>Navigator.pop(ctx,true),child:const Text('Send Coins'))]));
+      if(yes!=true||!mounted)return;
+      pending={'target_uid':selected!['uid'],'coins':coins,'request_id':communityRequestId()};
+    }
+    setState(()=>busy=true);
+    try{
+      await widget.api.call('POST',suffix:'/seller-transfer',fields:pending);
+      pending=null;
+      if(mounted){setState(()=>message='Coins sent. Both accounts received an Official Notice receipt.');amount.clear();}
+    }catch(e){if(mounted)setState(()=>message=e is ProfileApiError?e.message:'Transfer not confirmed. Retry the same transfer.');}
+    finally{if(mounted)setState(()=>busy=false);}
+  }
+  @override Widget build(BuildContext context)=>Scaffold(
+    appBar:AppBar(title:const Text('Seller · Send Coins')),
+    body:ListView(padding:const EdgeInsets.all(18),children:[
+      TextField(controller:search,enabled:!busy&&pending==null,decoration:const InputDecoration(labelText:'Member name or public ID')),
+      FilledButton(onPressed:busy||pending!=null?null:find,child:const Text('Find member')),
+      for(final person in people)ListTile(selected:selected?['uid']==person['uid'],
+        leading:Icon(selected?['uid']==person['uid']?Icons.radio_button_checked:Icons.radio_button_off),
+        onTap:busy||pending!=null?null:()=>setState(()=>selected=person),
+        title:Text('${person['name']}'),subtitle:Text('ID · ${person['public_id']}')),
+      TextField(controller:amount,enabled:!busy&&pending==null,keyboardType:TextInputType.number,maxLength:16,decoration:const InputDecoration(labelText:'Coins from your own wallet')),
+      if(message!=null)Text(message!),
+      FilledButton(onPressed:busy?null:send,child:Text(busy?'Confirming…':pending==null?'Review transfer':'Retry same transfer')),
+    ]));
 }

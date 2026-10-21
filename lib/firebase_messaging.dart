@@ -19,7 +19,12 @@ class _FirebaseMessageInboxState extends State<FirebaseMessageInbox> {
     setState(()=>loading=true);
     try{
       final result=await widget.api.call('GET',suffix:widget.official?'/official-inbox':'/messages');
-      if(mounted)setState((){rows=(result['items'] as List).map((x)=>Map<String,dynamic>.from(x as Map)).toList();error=null;});
+      if(mounted){
+        setState((){rows=(result['items'] as List).map((x)=>Map<String,dynamic>.from(x as Map)).toList();error=null;});
+        if(widget.official&&ModalRoute.of(context)?.isCurrent==true&&rows.isNotEmpty){
+          await widget.api.call('POST',suffix:'/message-read',fields:{'ids':rows.map((x)=>x['id'].toString()).toList()});
+        }
+      }
     }catch(e){if(mounted)setState(()=>error=e is ProfileApiError?e.message:'Could not load messages.');}
     finally{if(mounted)setState(()=>loading=false);}
   }
@@ -31,6 +36,7 @@ class _FirebaseMessageInboxState extends State<FirebaseMessageInbox> {
       if(!loading&&error==null&&rows.isEmpty)const Text('No messages yet.'),
       for(final row in rows)Padding(padding:const EdgeInsets.only(bottom:12),child:Glass(tint:widget.official?gold:cyan,child:ListTile(
         contentPadding:EdgeInsets.zero,
+        trailing:!widget.official&&(row['unread'] as num? ?? 0)>0?Badge(label:Text('${row['unread']}')):null,
         leading:SoveraIcon(widget.official?Icons.campaign_rounded:Icons.chat_bubble_outline,size:42),
         title:Text('${row[widget.official?'title':'name']}',style:const TextStyle(fontWeight:FontWeight.bold)),
         subtitle:Text('${row['text']}',maxLines:widget.official?null:2,overflow:widget.official?null:TextOverflow.ellipsis),
@@ -61,6 +67,10 @@ class _FirebaseDirectChatState extends State<FirebaseDirectChat> {
         if(!mounted)return;
         setState((){blocked=result['blocked']==true;error=null;rows.addAll((result['items'] as List).map((x)=>Map<String,dynamic>.from(x as Map)));});
         more=result['has_more']==true;
+        final incoming=(result['items'] as List).whereType<Map>().where((x)=>x['sender']!=widget.api.uid).map((x)=>'dm:${x['id']}').toList();
+        if(incoming.isNotEmpty&&ModalRoute.of(context)?.isCurrent==true){
+          await widget.api.call('POST',suffix:'/message-read',fields:{'ids':incoming});
+        }
       }
     }catch(e){if(mounted)setState(()=>error=e is ProfileApiError?e.message:'Could not load chat.');}
     finally{loading=false;}

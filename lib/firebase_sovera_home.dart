@@ -47,6 +47,7 @@ class _FirebaseSoveraHomeState extends State<FirebaseSoveraHome>{
   Map<String,dynamic>? profile;
   String? error;
   int tab=0,banner=0;
+  int unreadMessages=0,unreadOfficial=0;
   bool loading=false,creating=false;
   String query='',filter='All';
   String? staffRole;
@@ -76,6 +77,10 @@ class _FirebaseSoveraHomeState extends State<FirebaseSoveraHome>{
     try{
       final data=await api.call('GET',suffix:'/rooms');
       final p=await api.load();
+      try{
+        final counts=await api.call('GET',suffix:'/unread');
+        if(mounted)setState((){unreadMessages=(counts['messages'] as num? ?? 0).toInt();unreadOfficial=(counts['official'] as num? ?? 0).toInt();});
+      }catch(_){/* Retry notification counts on the next refresh. */}
       // Older deployed servers may not yet have community endpoints.
       Set<String>? savedFollows;String? role;
       try{
@@ -270,6 +275,7 @@ class _FirebaseSoveraHomeState extends State<FirebaseSoveraHome>{
       child:Glass(tint:item.$3,child:Row(children:[
         Jewel(item.$1,color:item.$3,size:45),const SizedBox(width:14),
         Expanded(child:Text(item.$2,style:const TextStyle(fontWeight:FontWeight.w700))),
+        if(item.$2=='Official notices'&&unreadOfficial>0)Badge(label:Text('$unreadOfficial')),
         const Icon(Icons.chevron_right_rounded),
       ])))),
     const SizedBox(height:14),
@@ -277,7 +283,7 @@ class _FirebaseSoveraHomeState extends State<FirebaseSoveraHome>{
     OutlinedButton.icon(onPressed:()=>setState(()=>tab=0),
       icon:const Icon(Icons.meeting_room_outlined),
       label:const Text('Open a room to chat with members')),
-    FilledButton.icon(onPressed:()=>go(FirebaseMessageInbox(api:api)),icon:const SoveraIcon(Icons.chat_rounded,size:28),label:const Text('Private messages')),
+    FilledButton.icon(onPressed:()=>go(FirebaseMessageInbox(api:api)),icon:const SoveraIcon(Icons.chat_rounded,size:28),label:Text(unreadMessages>0?'Private messages ($unreadMessages)':'Private messages')),
   ]);
   Widget profileTab()=>Column(
     crossAxisAlignment:CrossAxisAlignment.stretch,children:[

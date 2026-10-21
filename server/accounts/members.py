@@ -9,6 +9,7 @@ from pydantic import BaseModel,ConfigDict,Field
 from .community import Community
 
 SCHEMA='''
+CREATE TABLE IF NOT EXISTS account_coin_sellers(uid TEXT PRIMARY KEY,actor TEXT NOT NULL,created_at INTEGER NOT NULL);
 CREATE TABLE IF NOT EXISTS account_public_ids(seq INTEGER PRIMARY KEY AUTOINCREMENT,uid TEXT UNIQUE NOT NULL,public_id TEXT UNIQUE);
 CREATE TABLE IF NOT EXISTS account_gift_receipts(request_id TEXT NOT NULL,sender TEXT NOT NULL,recipient TEXT NOT NULL,item TEXT NOT NULL,title TEXT NOT NULL,price INTEGER NOT NULL,room TEXT NOT NULL,created_at INTEGER NOT NULL,PRIMARY KEY(request_id,recipient));
 CREATE TABLE IF NOT EXISTS account_user_follows(uid TEXT NOT NULL,target TEXT NOT NULL,created_at INTEGER NOT NULL,PRIMARY KEY(uid,target));
@@ -74,7 +75,7 @@ class Members(Community):
             friends=db.execute('SELECT count(*) FROM account_user_follows f JOIN account_user_follows g ON f.uid=g.target AND f.target=g.uid WHERE f.uid=?',(target,)).fetchone()[0]
             visitors=db.execute('SELECT count(DISTINCT visitor) FROM account_profile_visits WHERE target=?',(target,)).fetchone()[0]
             sent,received=db.execute("SELECT COALESCE(SUM(CASE WHEN coin_delta<0 THEN -coin_delta ELSE 0 END),0),COALESCE(SUM(CASE WHEN diamond_delta>0 THEN diamond_delta ELSE 0 END),0) FROM account_wallet_ledger WHERE firebase_uid=? AND kind='gift'",(target,)).fetchone()
-            return dict(p)|{'public_id':public_id(db,target),'equipped':equipped_assets(db,target),'vip':membership(db,target),'followers':followers,'following':following,'friends':friends,'visitors':visitors,'is_following':bool(db.execute('SELECT 1 FROM account_user_follows WHERE uid=? AND target=?',(viewer,target)).fetchone()),'gift_coins_sent':str(sent),'gift_diamonds_received':str(received),'wealth_level':sent//10000,'charm_level':received//10000}
+            return dict(p)|{'is_coin_seller':bool(db.execute('SELECT 1 FROM account_coin_sellers WHERE uid=?',(target,)).fetchone()),'public_id':public_id(db,target),'equipped':equipped_assets(db,target),'vip':membership(db,target),'followers':followers,'following':following,'friends':friends,'visitors':visitors,'is_following':bool(db.execute('SELECT 1 FROM account_user_follows WHERE uid=? AND target=?',(viewer,target)).fetchone()),'gift_coins_sent':str(sent),'gift_diamonds_received':str(received),'wealth_level':sent//10000,'charm_level':received//10000}
     def follow_user(self,uid,target,enabled):
         if uid==target:raise HTTPException(400,'Cannot follow yourself')
         self.profile(uid,target)

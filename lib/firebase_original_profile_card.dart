@@ -47,6 +47,8 @@ class FirebaseOriginalProfileCard extends StatelessWidget {
       Text(name,
         textAlign:TextAlign.center,
         style:const TextStyle(fontSize:24,fontWeight:FontWeight.w800)),
+      if(profile?['is_coin_seller']==true)
+        const Chip(avatar:Icon(Icons.verified_rounded,color:gold),label:Text('Approved Coin Seller')),
       const SizedBox(height:9),
       Wrap(alignment:WrapAlignment.center,crossAxisAlignment:WrapCrossAlignment.center,spacing:8,children:[
         Text(countryFlag(country),style:const TextStyle(fontSize:22)),
