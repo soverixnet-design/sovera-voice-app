@@ -2,6 +2,7 @@
 const {chromium}=require('playwright');
 const {resolve}=require('node:path');
 const assert=require('node:assert/strict');
+const {mkdirSync}=require('node:fs');
 (async()=>{
  const browser=await chromium.launch({headless:true});
  try{
@@ -28,6 +29,14 @@ const assert=require('node:assert/strict');
    assert.deepEqual(errors,[]);
    await page.close();
   }
+  mkdirSync('build/room-design/source-gifts',{recursive:true});
+  const icons=[['rose','🌹'],['ring','💍'],['car','🚗'],['castle','🏰'],['lion','🦁'],['dragon','🐉'],['rocket','🚀'],['crown','👑']];
+  const iconPage=await browser.newPage({viewport:{width:256,height:256},deviceScaleFactor:1});
+  for(const [name,emoji] of icons){
+   await iconPage.setContent('<html><body style="margin:0;background:transparent"><div style="width:256px;height:256px;display:grid;place-items:center;font:180px Noto Color Emoji,Apple Color Emoji,Segoe UI Emoji,sans-serif">'+emoji+'</div></body></html>');
+   await iconPage.screenshot({path:'build/room-design/source-gifts/'+name+'.png',omitBackground:true});
+  }
+  await iconPage.close();
  }finally{await browser.close();}
  console.log('ROOM_VIEWPORT_AND_ACTIONS_OK');
 })().catch(e=>{console.error(e);process.exit(1)});
