@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'voice_background.dart';
 import 'room_design_view.dart';
 import 'firebase_server_wallet.dart';
@@ -182,6 +183,7 @@ class _FirebaseRoomChatState extends State<FirebaseRoomChat> with WidgetsBinding
   Timer? timer;bool syncing=false,sending=false,savingRoom=false,sendingEffect=false;String? error,pendingId,pendingText;
   String? pendingEffectId,pendingEffectKey;
   String? designCoins,designWins;
+  String designSeatStyle='grad';List<Map<String,dynamic>> designReactions=[],designBanned=[],designGifts=[];List<dynamic> designMuted=[];bool designGiftLoading=false;
   String? designBackground;String designTheme="mid";bool designChat=true;int designPhotoLevel=0;
   Map<String,dynamic>? pendingPhoto;
   List<Map<String,dynamic>> roomEffects=[],catalogEvents=[],roomPeople=[];
@@ -215,6 +217,10 @@ class _FirebaseRoomChatState extends State<FirebaseRoomChat> with WidgetsBinding
         if(mounted)setState((){
           final metadata=controls['room'];
           if(metadata is Map&&metadata['name'] is String&&metadata['seats'] is int){roomName=metadata['name'] as String;seatCount=metadata['seats'] as int;roomImage=metadata['image_url'] as String?;}
+          designSeatStyle=metadata is Map?metadata['seat_style']?.toString()??'grad':'grad';
+          designReactions=(controls['reactions'] as List? ?? []).whereType<Map>().map((r)=>Map<String,dynamic>.from(r)).toList();
+          designBanned=(controls['banned'] as List? ?? []).whereType<Map>().map((r)=>Map<String,dynamic>.from(r)).toList();
+          designMuted=controls['muted_uids'] as List? ?? [];
           designBackground=metadata is Map?metadata['background_url'] as String?:null;
           designTheme=metadata is Map?(metadata['theme']?.toString()??'mid'):'mid';designChat=metadata is Map?metadata['chat_enabled']!=0:true;designPhotoLevel=metadata is Map?(metadata['photo_min_level'] as num?)?.toInt()??0:0;
           roomRole=controls['role'] as String;lockedSeats=(controls['locked_seats'] as List).cast<int>().toSet();roomAdmins=(controls['admins'] as List).whereType<Map>().map((r)=>Map<String,dynamic>.from(r)).toList();});
@@ -357,7 +363,7 @@ class _FirebaseRoomChatState extends State<FirebaseRoomChat> with WidgetsBinding
   Future<void> designAction(Map<String,dynamic> event,Future<void> Function(String,int?) voiceAction)async{
     final action=event['action'];
     final seat=event['seat'];
-    if(action=='take'||action=='seatMenu'||action=='mic'||action=='leaveSeat'){
+    if(action=='take'||action=='seatMenu'||action=='mic'||action=='leaveSeat'||action=='sound'){
       if(seat!=null&&(seat is! int||seat<0||seat>=seatCount))return;
       await voiceAction(action.toString(),seat as int?);return;
     }
@@ -367,12 +373,39 @@ class _FirebaseRoomChatState extends State<FirebaseRoomChat> with WidgetsBinding
       final text=event['text'] as String;if(text.length>500)return;
       input.text=text;await send();return;
     }
-    if(action=='gifts'){await chooseEffect();return;}
+    if(action=='gifts'){
+      setState(()=>designGiftLoading=true);
+      try{final catalog=await widget.api.call('GET',suffix:'/catalog');if(mounted)setState(()=>designGifts=(catalog['items'] as List).whereType<Map>().map((r)=>Map<String,dynamic>.from(r)).where((r)=>r['kind']=='gift').toList());}
+      finally{if(mounted)setState(()=>designGiftLoading=false);}
+      return;
+    }
+    if(action=='sendGift'){
+      if(sendingEffect)return;
+      final item=event['itemId'],recipients=event['recipients'],quantity=event['quantity'],price=event['price'];
+      if(item is! String||recipients is! List||quantity is! int||quantity<1||quantity>100||price is! int)return;
+      final fields={'item_id':item,'recipient_uids':recipients,'quantity':quantity,'expected_price':price};
+      if(pendingGift!=null&&jsonEncode({...pendingGift!}..remove('request_id'))!=jsonEncode(fields))throw const ProfileApiError('Retry the pending gift before changing it.');
+      pendingGift??={...fields,'request_id':_requestId()};
+      setState(()=>sendingEffect=true);
+      try{await widget.api.call('POST',suffix:'$path/gifts',fields:pendingGift);pendingGift=null;await sync();}
+      catch(e){if(e is ProfileApiError&&e.status==409)pendingGift=null;rethrow;}
+      finally{if(mounted)setState(()=>sendingEffect=false);}
+      return;
+    }
+    if(action=='reaction'&&event['emoji'] is String){
+      await widget.api.call('POST',suffix:'$path/reaction',fields:{'emoji':event['emoji'],'request_id':_requestId()});await sync();return;
+    }
+    if(action=='seatLock'&&(isOwner||roomRole=='admin')&&seat is int&&event['locked'] is bool){
+      await widget.api.call('PUT',suffix:'$path/seat-lock',fields:{'seat':seat,'locked':event['locked']});await sync();return;
+    }
+    if(action=='moderate'&&(isOwner||roomRole=='admin')&&event['kind'] is String){
+      await widget.api.call('POST',suffix:'$path/moderate',fields:{'action':event['kind'],if(event['uid'] is String)'target_uid':event['uid']});await sync();return;
+    }
     if(action=='games'){openGame();return;}
     if(action=='saveSettings'&&isOwner){
       final name=event['name'],count=event['seats'],theme=event['theme'],level=event['photoLevel'];
       if(name is! String||count is! int||theme is! String||level is! int)return;
-      await widget.api.call('PUT',suffix:path,fields:{'name':name,'seats':count,'theme':theme,'photo_min_level':level,'chat_enabled':event['chatEnabled']==true});await sync();return;
+      await widget.api.call('PUT',suffix:path,fields:{'name':name,'seats':count,'theme':theme,'photo_min_level':level,'chat_enabled':event['chatEnabled']==true,if(event['seatStyle'] is String)'seat_style':event['seatStyle'],if(event['clearBackground']==true)'background_url':null});await sync();return;
     }
     if((action=='roomPhoto'||action=='roomBackground')&&isOwner){
       final photo=await ImagePicker().pickImage(source:ImageSource.gallery,maxWidth:1024,maxHeight:1024,imageQuality:85);
@@ -410,10 +443,9 @@ class _FirebaseRoomChatState extends State<FirebaseRoomChat> with WidgetsBinding
     body:SafeArea(child:Stack(children:[
       Positioned.fill(child:FirebaseVoicePanel(onLeaveRoom:widget.onLeave,api:widget.api,roomId:widget.room['id'] as String,seatCount:seatCount,people:roomPeople,blockedUids:blocked,autoConnect:true,roomRole:isOwner?'owner':roomRole,lockedSeats:lockedSeats,onControlsChanged:sync,
         presentation:(context,voice,action)=>RoomDesignView(
-          snapshot:{...voice,'uid':widget.api.uid,'roomId':widget.room['id'],'name':roomName,'imageUrl':roomImage,'sendPending':pendingId!=null,'people':roomPeople,'messages':messages,'coins':designCoins,'dailyWins':designWins,'admins':roomAdmins,'role':isOwner?'owner':roomRole,'backgroundUrl':designBackground,'theme':designTheme,'chatEnabled':designChat,'photoLevel':designPhotoLevel,'error':error??voice['error']},
+          snapshot:{...voice,'uid':widget.api.uid,'roomId':widget.room['id'],'name':roomName,'imageUrl':roomImage,'sendPending':pendingId!=null,'people':roomPeople,'messages':messages,'coins':designCoins,'dailyWins':designWins,'admins':roomAdmins,'role':isOwner?'owner':roomRole,'backgroundUrl':designBackground,'theme':designTheme,'chatEnabled':designChat,'photoLevel':designPhotoLevel,'seatStyle':designSeatStyle,'reactions':designReactions,'banned':designBanned,'mutedUids':designMuted,'gifts':designGifts,'giftLoading':designGiftLoading,'giftPending':pendingGift,'giftSending':sendingEffect,'events':catalogEvents,'serverNow':catalogServerNow,'error':error??voice['error']},
           onAction:(event)=>designAction(event,action)))),
-      if(catalogEvents.isNotEmpty&&(catalogEvents.first['asset'] as Map?)?['kind']!='entry')
-        IgnorePointer(child:CatalogRoomAnimation(key:ValueKey(catalogEvents.first['event_id']),event:catalogEvents.first,serverNow:catalogServerNow,recipients:catalogEvents.where((r)=>r['id']==catalogEvents.first['id']&&r['sender_uid']==catalogEvents.first['sender_uid']&&r['created_at']==catalogEvents.first['created_at']).toList())),
+
       Positioned.fill(child:RoomEntryScene(events:catalogEvents,serverNow:catalogServerNow)),
     ])),
   ):Scaffold(

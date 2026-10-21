@@ -45,6 +45,7 @@ class BuyInput(BaseModel):
     request_id:uuid.UUID
     expected_price:int=Field(strict=True,ge=0,le=1000000000)
 class GiftInput(BuyInput):
+    quantity:int=Field(default=1,strict=True,ge=1,le=100)
     recipient_uids:list[str]=Field(min_length=1,max_length=100)
 
 def equipped_assets(db,uid):
@@ -178,7 +179,8 @@ class Catalog:
         row=db.execute('SELECT status,verified_at FROM account_wallet_links WHERE firebase_uid=?',(uid,)).fetchone()
         if not row or row['status']!='active' or row['verified_at']<=0:raise HTTPException(409,'Wallet verification required before spending or receiving gifts')
     def transact(self,uid,data,room=None):
-        payload=json.dumps({'item':str(data.item_id),'expected_price':data.expected_price,'room':room,'recipients':sorted(set(data.recipient_uids)) if room else []},sort_keys=True)
+        quantity=data.quantity if room else 1
+        payload=json.dumps({**({'quantity':quantity} if quantity!=1 else {}),'item':str(data.item_id),'expected_price':data.expected_price,'room':room,'recipients':sorted(set(data.recipient_uids)) if room else []},sort_keys=True)
         request=str(data.request_id)
         with self.control.db() as db:
             db.execute('BEGIN IMMEDIATE')
@@ -200,7 +202,9 @@ class Catalog:
                 if db.execute('SELECT 1 FROM account_asset_ownership o WHERE uid=? AND item_id=? AND NOT EXISTS(SELECT 1 FROM account_reward_asset_expiry x WHERE x.uid=o.uid AND x.item_id=o.item_id)',(uid,str(data.item_id))).fetchone():
                     result={'saved':True,'coins_spent':0,'already_owned':True}
                     db.execute('INSERT INTO account_catalog_requests VALUES(?,?,?,?)',(request,uid,payload,json.dumps(result)));return result
-            cost=item['price']*(len(recipients) if room else 1)
+            unit_total=item['price']*quantity
+            cost=unit_total*(len(recipients) if room else 1)
+            if cost>9007199254740991:raise HTTPException(409,'Amount exceeds supported precision')
             if cost:
                 self.verified(db,uid)
                 balance=db.execute('SELECT COALESCE(SUM(coin_delta),0) FROM account_wallet_ledger WHERE firebase_uid=?',(uid,)).fetchone()[0]
@@ -208,21 +212,21 @@ class Catalog:
                 for person in recipients:
                     self.verified(db,person)
                     diamonds=db.execute('SELECT COALESCE(SUM(diamond_delta),0) FROM account_wallet_ledger WHERE firebase_uid=?',(person,)).fetchone()[0]
-                    if diamonds<0 or diamonds+item['price']>9007199254740991:raise HTTPException(409,'Recipient wallet reconciliation required')
+                    if diamonds<0 or diamonds+unit_total>9007199254740991:raise HTTPException(409,'Recipient wallet reconciliation required')
                 db.execute('INSERT INTO account_wallet_ledger VALUES(?,?,?,?,?,?)',('catalog:'+request,uid,-cost,0,'gift' if room else 'exchange',now))
-                for index,person in enumerate(recipients):db.execute('INSERT INTO account_wallet_ledger VALUES(?,?,?,?,?,?)',('catalog:'+request+':'+str(index),person,0,item['price'],'gift',now))
+                for index,person in enumerate(recipients):db.execute('INSERT INTO account_wallet_ledger VALUES(?,?,?,?,?,?)',('catalog:'+request+':'+str(index),person,0,unit_total,'gift',now))
             if room:
                 for target in recipients:
-                    db.execute('INSERT INTO account_gift_receipts VALUES(?,?,?,?,?,?,?,?)',(request,uid,target,str(data.item_id),item['title'],item['price'],room,now))
+                    db.execute('INSERT INTO account_gift_receipts VALUES(?,?,?,?,?,?,?,?)',(request,uid,target,str(data.item_id),item['title'],unit_total,room,now))
                     db.execute('INSERT INTO account_catalog_events(room_id,sender_uid,recipient_uid,item_id,created_at) VALUES(?,?,?,?,?)',(room,uid,target,str(data.item_id),now))
                     from .broadcasts import person as public_person, emit
                     sender,recipient=public_person(db,uid),public_person(db,target)
                     if sender is not None and recipient is not None:
-                        emit(db,'gift:'+request+':'+target,'gift',{'sender':sender,'recipient':recipient,'gift':{'title':item['title'],'url':PUBLIC+item['media_id'],'count':1},'coins':str(item['price'])})
+                        emit(db,'gift:'+request+':'+target,'gift',{'sender':sender,'recipient':recipient,'gift':{'title':item['title'],'url':PUBLIC+item['media_id'],'count':quantity},'coins':str(unit_total)})
             else:
                 db.execute('INSERT OR IGNORE INTO account_asset_ownership VALUES(?,?,?)',(uid,str(data.item_id),now))
                 db.execute('DELETE FROM account_reward_asset_expiry WHERE uid=? AND item_id=?',(uid,str(data.item_id)))
-            result={'saved':True,'coins_spent':cost,'diamond_each':item['price'] if room else 0,'request_id':request}
+            result={'saved':True,'coins_spent':cost,'diamond_each':unit_total if room else 0,'request_id':request}
             db.execute('INSERT INTO account_catalog_requests VALUES(?,?,?,?)',(request,uid,payload,json.dumps(result)))
             return result
     def events(self,uid,room):

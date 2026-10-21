@@ -162,4 +162,15 @@ class CatalogTests(unittest.TestCase):
             with self.subTest(path=item['path']):
                 self.catalog.upload('owner',Path(item['path']).read_bytes())
 
+    def test_gift_quantity_is_atomic_and_retries_do_not_spend_twice(self):
+        self.setup_catalog();room=self.seed_owner();gift=self.item('gift',2)
+        data=GiftInput(item_id=gift['id'],recipient_uids=['alice'],quantity=10,expected_price=2,request_id=uuid.uuid4())
+        first=self.catalog.transact('owner',data,room)
+        self.assertEqual(first['coins_spent'],20);self.assertEqual(first['diamond_each'],20)
+        self.assertEqual(first,self.catalog.transact('owner',data,room))
+        with self.assertRaises(HTTPException):self.catalog.transact('owner',data.model_copy(update={'quantity':5}),room)
+        with self.control.db() as db:
+            self.assertEqual(db.execute("SELECT SUM(coin_delta) FROM account_wallet_ledger WHERE firebase_uid='owner'").fetchone()[0],80)
+            self.assertEqual(db.execute("SELECT price FROM account_gift_receipts WHERE sender='owner'").fetchone()[0],20)
+
 if __name__=='__main__':unittest.main()

@@ -28,6 +28,7 @@ seats = {}
 lock = asyncio.Lock()
 lk = None
 seat_policy = None
+publish_policy = None
 
 
 class Join(BaseModel):
@@ -265,8 +266,12 @@ async def token(body: Join, authorization: str = Header(default='')):
             elif body.action == 'renew':
                 if own is None:
                     raise HTTPException(409, 'Seat expired')
-                await publish(room, uid, True)
-                seats[own]['until'] = time.monotonic() + LEASE_SECONDS
+                if publish_policy is not None and not publish_policy(uid,str(body.room_id)):
+                    await publish(room,uid,False)
+                    del seats[own]
+                else:
+                    await publish(room, uid, True)
+                    seats[own]['until'] = time.monotonic() + LEASE_SECONDS
             return response({'seats': [{'seat': key[1], 'user_id': item['uid']}
                 for key, item in seats.items() if key[0] == room], 'seat_count': count,
                 'my_seat': next((key[1] for key, item in seats.items() if key[0] == room and item['uid'] == uid), None)})

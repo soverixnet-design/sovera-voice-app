@@ -10,7 +10,7 @@
 html,body{height:100%}
 body{background:#05030f;color:#fff;font-family:system-ui,"Noto Sans Bengali","Hind Siliguri",sans-serif;display:flex;justify-content:center}
 button{font:inherit;color:inherit}
-.app{width:100%;max-width:440px;height:100%;position:relative;display:flex;flex-direction:column;overflow:hidden;background:linear-gradient(180deg,var(--bg1),var(--bg2) 70%)}
+.app{width:100%;max-width:none;height:100dvh;position:relative;display:flex;flex-direction:column;overflow:hidden;background:linear-gradient(180deg,var(--bg1),var(--bg2) 70%)}
 .blob{position:absolute;border-radius:50%;filter:blur(60px);opacity:.45;pointer-events:none;animation:dr 14s ease-in-out infinite alternate}
 .b1{width:260px;height:260px;background:var(--k1);top:-60px;left:-70px}
 .b2{width:240px;height:240px;background:var(--k2);top:220px;right:-90px;animation-delay:-5s;opacity:.32}
@@ -145,6 +145,17 @@ button{font:inherit;color:inherit}
 .fx .s{position:absolute;left:0;top:0;font-size:14px}
 .fx .t{position:absolute;left:0;top:0;font-size:13px;font-weight:800;color:var(--gold);white-space:nowrap;text-shadow:0 2px 6px #000}
 .toast{position:absolute;top:60px;left:50%;transform:translateX(-50%);background:rgba(20,12,50,.94);padding:8px 16px;border-radius:20px;font-size:12.5px;z-index:30;display:none;border:1px solid var(--line);white-space:nowrap}
+
+html,body{width:100%;height:100%;overflow:hidden;padding:0!important}
+body{display:block}
+.app{width:100%;max-width:none;min-height:0;margin:0;height:100dvh}
+.top{padding-top:12px}.rt small{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.equipped-frame{position:absolute;inset:0;width:100%;height:100%;object-fit:contain;pointer-events:none;z-index:2}
+.gift-flight{position:absolute;left:0;top:0;width:84px;height:84px;object-fit:contain;pointer-events:none}
+.gf small{display:block}.sheet .act,.sheet .send{touch-action:manipulation}
+@media(max-width:360px){.top{gap:5px;padding-left:8px;padding-right:8px}.ib{width:34px;height:34px}.room{gap:6px;padding-right:7px}.dock{padding-left:7px;padding-right:7px}.irow{gap:5px}.rb{width:36px;height:36px}.mic{width:42px;height:42px}.av{width:52px;height:52px}.host .av{width:78px;height:78px}}
+@media(max-height:650px){.host{margin-bottom:8px}.host .av{width:68px;height:68px}.av{width:46px;height:46px}.grid{gap:10px 4px}.chat{height:clamp(90px,22vh,140px)}.stage{padding-top:5px}}
+@media(prefers-reduced-motion:reduce){.blob,.host .av::before{animation:none}}
 </style>
 </head>
 <body>

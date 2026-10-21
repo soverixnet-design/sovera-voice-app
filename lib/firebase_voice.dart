@@ -287,16 +287,19 @@ class _FirebaseVoicePanelState extends State<FirebaseVoicePanel> with WidgetsBin
   }
   @override void dispose(){VoiceBackground.channel.setMethodCallHandler(null);closing=true;retryTimer?.cancel();WidgetsBinding.instance.removeObserver(this);unawaited(closeAudio().catchError((Object _){}));unawaited(request('leave').then<void>((_){}).catchError((Object _){}));super.dispose();}
   Future<void> designAction(String action,int? index)async{
+    if(action=='sound'){setState(()=>listeningMuted=!listeningMuted);applyBlocks();}
     if(action=='take'&&index!=null)await seatTap(index);
     if(action=='seatMenu'&&index!=null)await seatMenu(index);
     if(action=='leaveSeat')await leave();
     if(action=='mic'){if(muted){await enableMic();}else{await mute();if(mounted)setState((){});}}
   }
   @override Widget build(BuildContext context)=>widget.presentation?.call(context,{
-    'connected':connected,'muted':muted,'error':error,
+    'connected':connected,'muted':muted,'listeningMuted':listeningMuted,'error':error,
     'mine':seats.mine,'seats':[for(var i=0;i<(connected&&seats.count>0?seats.count:widget.seatCount);i++){
       'uid':seats.occupants[i],'name':seatPerson(i)?['name'],
-      'avatar':seatPerson(i)?['avatar_url'],'locked':widget.lockedSeats.contains(i),
+      'avatar':seatPerson(i)?['avatar_url'],'equipped':seatPerson(i)?['equipped'],
+      'speaking':seats.occupants[i]==widget.api.uid?room?.localParticipant?.isSpeaking==true:room?.remoteParticipants.values.any((p)=>p.identity==seats.occupants[i]&&p.isSpeaking)==true,
+      'locked':widget.lockedSeats.contains(i),
     }],
   },designAction)??Padding(padding:const EdgeInsets.all(8),child:Column(mainAxisSize:MainAxisSize.min,children:[
     ValueListenableBuilder<bool>(valueListenable:SoveraPreferences.lowData,builder:(context,low,child)=>low?TextButton.icon(onPressed:()=>SoveraPreferences.setLowData(false),icon:const Icon(Icons.animation),label:const Text('Enable animated frames & entries')):const SizedBox.shrink()),

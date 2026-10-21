@@ -27,3 +27,43 @@ class RoomControlTests(unittest.TestCase):
         with self.assertRaises(HTTPException): controls.lock('bob',room,SeatLock(locked=False))
         self.assertEqual(self.client.put(f'/sovera/account/rooms/{room}/seat-lock',json={'locked':True,'seat':99},headers=headers).status_code,422)
         self.assertEqual(self.client.put(f'/sovera/account/rooms/{room}/admins',json={'uid':'bob','enabled':True},headers={'Authorization':'Bearer bob'}).status_code,403)
+
+    def test_reactions_are_private_identity_bound_retry_safe_and_rate_limited(self):
+        import uuid
+        from .room_controls import ReactionInput
+        from .rooms import Rooms,RoomInput
+        self.store.save('alice',ProfileInput(display_name='Alice',country='BD'))
+        self.store.save('bob',ProfileInput(display_name='Bob',country='BD'))
+        rooms=Rooms(self.path);room=rooms.save('alice',RoomInput(name='Real room',seats=21,seat_style='neon'))['id']
+        controls=RoomControls(rooms)
+        data=ReactionInput(emoji='😂',request_id=uuid.uuid4())
+        with self.assertRaises(HTTPException):controls.react('bob',room,data)
+        rooms.presence('alice',room)
+        first=controls.react('alice',room,data)
+        self.assertEqual(first,controls.react('alice',room,data))
+        self.assertEqual(controls.state('alice',room)['reactions'][0]['uid'],'alice')
+        self.assertEqual(controls.state('alice',room)['room']['seat_style'],'neon')
+        with self.assertRaises(HTTPException):controls.react('alice',room,data.model_copy(update={'emoji':'🔥'}))
+        with self.assertRaises(HTTPException):controls.react('alice',room,data.model_copy(update={'request_id':uuid.uuid4()}))
+
+    def test_room_moderation_does_not_grant_global_power_or_force_unmute(self):
+        from .room_controls import ModerateInput
+        from .rooms import Rooms,RoomInput,MessageInput
+        import uuid
+        for uid in ('alice','bob','charlie'):self.store.save(uid,ProfileInput(display_name=uid,country='BD'))
+        rooms=Rooms(self.path);room=rooms.save('alice',RoomInput(name='Room'))['id']
+        controls=RoomControls(rooms)
+        for uid in ('alice','bob','charlie'):rooms.presence(uid,room)
+        controls.admin('alice',room,RoomAdmin(uid='bob',enabled=True))
+        with self.assertRaises(HTTPException):controls.moderate('charlie',room,ModerateInput(action='kick',target_uid='bob'))
+        with self.assertRaises(HTTPException):controls.moderate('bob',room,ModerateInput(action='kick',target_uid='alice'))
+        controls.moderate('bob',room,ModerateInput(action='mute',target_uid='charlie'))
+        self.assertFalse(controls.can_publish('charlie',room))
+        with self.assertRaises(HTTPException):controls.check_take('charlie',room,2)
+        controls.moderate('bob',room,ModerateInput(action='unmute',target_uid='charlie'))
+        self.assertTrue(controls.can_publish('charlie',room))
+        controls.moderate('bob',room,ModerateInput(action='kick',target_uid='charlie'))
+        with self.assertRaises(HTTPException):rooms.presence('charlie',room)
+        with self.assertRaises(HTTPException):rooms.send('charlie',room,MessageInput(text='Blocked',request_id=uuid.uuid4()))
+        controls.moderate('alice',room,ModerateInput(action='unban',target_uid='charlie'))
+        rooms.presence('charlie',room)

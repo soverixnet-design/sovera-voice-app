@@ -16,6 +16,7 @@ class RoomInput(BaseModel):
     background_url:str|None=Field(default=None,max_length=2000)
     theme:Literal["mid","gold","ocean","rose","forest","sunset"]|None=None
     chat_enabled:bool|None=None
+    seat_style:Literal['grad','gold','neon','sq','none']|None=None
     photo_min_level:int|None=Field(default=None,strict=True,ge=0,le=10000)
 
 class MessageInput(BaseModel):
@@ -64,7 +65,7 @@ class Rooms:
             if 'image_url' not in columns:
                 db.execute('ALTER TABLE account_rooms ADD COLUMN image_url TEXT')
             db.execute('CREATE TABLE IF NOT EXISTS account_room_photos(room TEXT NOT NULL,key TEXT PRIMARY KEY,data BLOB NOT NULL)')
-            for column,declaration in [('background_url','TEXT'),('theme',"TEXT NOT NULL DEFAULT 'mid'"),('chat_enabled','INTEGER NOT NULL DEFAULT 1'),('photo_min_level','INTEGER NOT NULL DEFAULT 0')]:
+            for column,declaration in [('background_url','TEXT'),('theme',"TEXT NOT NULL DEFAULT 'mid'"),('chat_enabled','INTEGER NOT NULL DEFAULT 1'),('photo_min_level','INTEGER NOT NULL DEFAULT 0'),('seat_style',"TEXT NOT NULL DEFAULT 'grad'")]:
                 if column not in columns:db.execute('ALTER TABLE account_rooms ADD COLUMN '+column+' '+declaration)
             db.execute('CREATE TABLE IF NOT EXISTS account_chat_photos(key TEXT PRIMARY KEY,room TEXT NOT NULL,uid TEXT NOT NULL,data BLOB NOT NULL,created_at INTEGER NOT NULL)')
             message_columns={r['name'] for r in db.execute('PRAGMA table_info(account_messages)')}
@@ -89,6 +90,8 @@ class Rooms:
         if moderation and moderation[0]!='open':raise HTTPException(403,'Room unavailable: '+moderation[1])
         if not db.execute('SELECT 1 FROM account_rooms WHERE id=?',(room,)).fetchone():
             raise HTTPException(404,'Room not found')
+    def check_member(self,db,uid,room):
+        if db.execute("SELECT 1 FROM sqlite_master WHERE name='account_room_bans'").fetchone() and db.execute('SELECT 1 FROM account_room_bans WHERE room=? AND uid=?',(room,uid)).fetchone():raise HTTPException(403,'You are blocked from this room')
     def directory(self):
         with self.db() as db:
             from .catalog import equipped_assets
@@ -98,7 +101,7 @@ class Rooms:
                 FROM account_rooms r JOIN account_profiles p ON p.firebase_uid=r.owner_uid
                 WHERE NOT EXISTS(SELECT 1 FROM account_room_moderation m WHERE m.room=r.id AND m.status<>'open') ORDER BY r.created_at DESC LIMIT 100''',(self.clock()-90,)).fetchall()]
     def save(self,uid,data,room=None):
-        if data.seats not in (5,6,9,12,15): raise HTTPException(422,'Choose 5, 6, 9, 12 or 15 seats')
+        if not 5<=data.seats<=21: raise HTTPException(422,'Choose between 5 and 21 seats')
         with self.db() as db:
             db.execute('BEGIN IMMEDIATE')
             self.profile(db,uid)
@@ -117,7 +120,7 @@ class Rooms:
                     url=data.background_url
                     if url is not None and (not url.startswith(PUBLIC) or not db.execute('SELECT 1 FROM account_room_photos WHERE room=? AND key=?',(room,url.removeprefix(PUBLIC))).fetchone()):raise HTTPException(422,'Upload a background for this room first')
                     db.execute('UPDATE account_rooms SET background_url=? WHERE id=?',(url,room))
-                for key in ('theme','chat_enabled','photo_min_level'):
+                for key in ('theme','chat_enabled','photo_min_level','seat_style'):
                     value=getattr(data,key)
                     if value is not None:db.execute('UPDATE account_rooms SET '+key+'=? WHERE id=?',(value,room))
                 db.execute('UPDATE account_rooms SET name=?,seats=?,room_frame=? WHERE id=?',(data.name,data.seats,data.room_frame if data.room_frame is not None else existing['room_frame'],room))
@@ -127,10 +130,14 @@ class Rooms:
             else:
                 room=str(uuid.uuid4())
                 db.execute('INSERT INTO account_rooms(id,owner_uid,name,seats,created_at,room_frame) VALUES(?,?,?,?,?,?)',(room,uid,data.name,data.seats,self.clock(),data.room_frame or 'none'))
+            for key in ('theme','chat_enabled','photo_min_level','seat_style'):
+                value=getattr(data,key)
+                if value is not None:db.execute('UPDATE account_rooms SET '+key+'=? WHERE id=?',(value,room))
             return dict(db.execute('SELECT * FROM account_rooms WHERE id=?',(room,)).fetchone())
     def presence(self,uid,room,leave=False):
         with self.db() as db:
             self.exists(db,room)
+            if not leave:self.check_member(db,uid,room)
             if leave: db.execute('DELETE FROM account_presence WHERE uid=? AND room_id=?',(uid,room))
             else:
                 self.profile(db,uid)
@@ -144,6 +151,7 @@ class Rooms:
     def messages(self,room,after=0,viewer=None):
         with self.db() as db:
             self.exists(db,room)
+            if viewer:self.check_member(db,viewer,room)
             sql='''SELECT id,text,image_url,name,country,created_at,sender_uid AS uid
                 FROM account_messages m WHERE room_id=? AND NOT EXISTS(
                 SELECT 1 FROM account_blocks b WHERE b.uid=? AND b.target=m.sender_uid)'''
@@ -209,7 +217,7 @@ class Rooms:
     def send(self,uid,room,data):
         with self.db() as db:
             db.execute('BEGIN IMMEDIATE')
-            self.exists(db,room);p=self.profile(db,uid)
+            self.exists(db,room);self.check_member(db,uid,room);p=self.profile(db,uid)
             if not data.text and not data.image_url:raise HTTPException(422,'Write a message or choose a photo')
             old=db.execute('SELECT * FROM account_messages WHERE sender_uid=? AND request_id=?',(uid,str(data.request_id))).fetchone()
             if old:

@@ -48,6 +48,16 @@ jobs:
       - run: node selfhost-dom-test.mjs
         working-directory: admin/tests
       - run: node --check admin/web/app.js
+  room_design:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: npm install --no-save playwright@1.58.2
+      - run: npx playwright install --with-deps chromium
+      - run: node test/room_design_viewport_test.cjs
   android:
     runs-on: ubuntu-latest
     steps:
