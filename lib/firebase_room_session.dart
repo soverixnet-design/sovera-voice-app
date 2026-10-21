@@ -52,7 +52,7 @@ class _PersistentRoomLayerState extends State<PersistentRoomLayer> {
     root!.push<void>(activePortal).whenComplete((){if(identical(portal,activePortal))portal=null;});
   }
   void removePortal(){final old=portal;portal=null;if(old!=null&&old.isActive)root?.removeRoute(old);}
-  void minimize(){if(room==null||leaving)return;setState(()=>minimized=true);removePortal();}
+  void minimize(){if(room==null||leaving)return;FocusManager.instance.primaryFocus?.unfocus();setState(()=>minimized=true);removePortal();}
   Future<void> leave()async{
     if(room==null||leaving)return;
     setState(()=>leaving=true);
@@ -62,6 +62,11 @@ class _PersistentRoomLayerState extends State<PersistentRoomLayer> {
     if(!mounted)return;
     removePortal();setState((){room=null;minimized=false;leaving=false;});
     await WidgetsBinding.instance.endOfFrame;
+  }
+  @override void dispose(){
+    final old=portal, navigator=root;
+    WidgetsBinding.instance.addPostFrameCallback((_){if(navigator?.mounted==true&&old?.isActive==true)navigator!.removeRoute(old!);});
+    super.dispose();
   }
   @override Widget build(BuildContext context)=>_RoomScope(host:this,child:Stack(children:[
     widget.child,

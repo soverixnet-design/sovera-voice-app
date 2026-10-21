@@ -13,7 +13,6 @@ import 'firebase_original_social.dart';
 import 'firebase_original_coin_sellers.dart';
 import 'firebase_server_wallet.dart';
 import 'firebase_community.dart';
-import 'firebase_rooms.dart';
 import 'sovera_room_card.dart';
 import 'firebase_greedy_wheel.dart';
 import 'sovera_visuals.dart' show BrandLogo, Glass, Jewel, violet, gold, pink, cyan;
