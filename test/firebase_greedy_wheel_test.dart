@@ -10,6 +10,11 @@ void main(){
     var called=false;
     final api=FirebaseProfileApi(uid:'alice',token:()async=>'secret-firebase-token',
       client:MockClient((request)async{
+        if(request.url.path.endsWith('/rankings')){
+          expect(request.method,'GET');
+          expect(request.url.queryParameters,{'metric':'play','period':'daily'});
+          return http.Response('{"mine":{"score":"75000"},"items":[],"server_now":1,"ends_at":86400}',200);
+        }
         called=true;
         expect(request.method,'POST');
         expect(request.url.path,endsWith('/sovera/account/greedy/access'));
@@ -21,7 +26,9 @@ void main(){
     expect(called,isTrue);
     expect(find.textContaining('No fake coins or bets'),findsOneWidget);
     expect(find.text('Retry secure connection'),findsOneWidget);
-    expect(find.text('Greedy Wheel · Same live round'),findsOneWidget);
+    expect(find.text('Greedy Wheel'),findsOneWidget);
+    expect(find.text("Today's total wins · 75000 Coins"),findsOneWidget);
+    expect(find.byTooltip('Game wins ranking'),findsOneWidget);
     await tester.pumpWidget(const SizedBox());
   });
 }
