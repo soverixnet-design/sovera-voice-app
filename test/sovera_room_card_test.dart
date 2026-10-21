@@ -1,3 +1,4 @@
+import 'package:sovera/voice_background.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:sovera/sovera_room_card.dart';
@@ -7,6 +8,9 @@ import 'package:http/testing.dart';
 import 'package:http/http.dart' as http;
 
 void main(){
+  TestWidgetsFlutterBinding.ensureInitialized();
+  setUp(()=>TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger.setMockMethodCallHandler(VoiceBackground.channel,(_)async=>false));
+  tearDown(()=>TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger.setMockMethodCallHandler(VoiceBackground.channel,null));
   testWidgets('room cover and country appear below the image without repeating identity',(tester)async{
     await tester.pumpWidget(MaterialApp(home:Scaffold(body:SizedBox(width:180,height:235,child:SoveraRoomCard(room:const {'name':'Blue Lounge','country':'BD','occupants':3},onTap:(){})))));
     expect(find.text('🇧🇩 Blue Lounge'),findsOneWidget);

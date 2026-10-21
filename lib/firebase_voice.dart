@@ -185,7 +185,7 @@ class _FirebaseVoicePanelState extends State<FirebaseVoicePanel> with WidgetsBin
       if(!mounted||closing||!active||generation!=epoch){await candidate.disconnect();await candidate.dispose();candidate=null;return;}
       room=candidate;candidate=null;reconnectAttempts=0;room!.addListener(changed);applyBlocks();
       seats=VoiceSeatState.parse(await request('state'));
-      if(active&&mounted)backgroundReady=await VoiceBackground.start();
+      if(foreground&&mounted)backgroundReady=await VoiceBackground.start();
       timer=Timer.periodic(const Duration(seconds:8),(_)=>sync());
     }catch(_){if(candidate!=null){await candidate.disconnect();await candidate.dispose();}await closeAudio();reconnectAttempts++;error='Voice could not connect. Tap Retry audio or a mic seat.';scheduleReconnect();}
     finally{if(mounted&&!closing)setState(()=>busy=false);}

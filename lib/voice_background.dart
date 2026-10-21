@@ -8,5 +8,5 @@ class VoiceBackground {
     if(!supported)return false;
     try{return await channel.invokeMethod<bool>('start',{'microphone':microphone}).timeout(const Duration(seconds:8))==true;}catch(_){return false;}
   }
-  static Future<void> stop()async{if(supported){try{await channel.invokeMethod<void>('stop');}catch(_){}}}
+  static Future<void> stop()async{if(supported){try{await channel.invokeMethod<void>('stop').timeout(const Duration(seconds:2));}catch(_){}}}
 }
