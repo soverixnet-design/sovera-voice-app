@@ -343,7 +343,7 @@ class _FirebaseSoveraHomeState extends State<FirebaseSoveraHome>{
           Row(children:[const BrandLogo(size:48),const SizedBox(width:10),
             const Expanded(child:Text('Sovera',
               style:TextStyle(fontSize:27,fontWeight:FontWeight.w800))),
-            IconButton(onPressed:notices,icon:const Icon(Icons.notifications_none_rounded)),
+            IconButton(onPressed:notices,icon:Badge(isLabelVisible:unreadOfficial>0,label:Text('$unreadOfficial'),child:const Icon(Icons.notifications_none_rounded))),
             IconButton(onPressed:()=>setState(()=>tab=3),
               icon:const Icon(Icons.settings_outlined))]),
           const Padding(padding:EdgeInsets.symmetric(vertical:8),
@@ -357,11 +357,11 @@ class _FirebaseSoveraHomeState extends State<FirebaseSoveraHome>{
     bottomNavigationBar:NavigationBar(
       backgroundColor:const Color(0xFF1B2448),
       selectedIndex:tab,onDestinationSelected:(v)=>setState(()=>tab=v),
-      destinations:const[
-        NavigationDestination(icon:Icon(Icons.home_rounded),label:'Home'),
-        NavigationDestination(icon:Icon(Icons.auto_awesome_rounded),label:'Moments'),
-        NavigationDestination(icon:SoveraIcon(Icons.chat_bubble_outline_rounded,size:30),label:'Messages'),
-        NavigationDestination(icon:Icon(Icons.person_outline_rounded),label:'Me'),
+      destinations:[
+        const NavigationDestination(icon:Icon(Icons.home_rounded),label:'Home'),
+        const NavigationDestination(icon:Icon(Icons.auto_awesome_rounded),label:'Moments'),
+        NavigationDestination(icon:Badge(isLabelVisible:unreadMessages+unreadOfficial>0,label:Text('${unreadMessages+unreadOfficial}'),child:const SoveraIcon(Icons.chat_bubble_outline_rounded,size:30)),label:'Messages'),
+        const NavigationDestination(icon:Icon(Icons.person_outline_rounded),label:'Me'),
       ]),
   );
 }
