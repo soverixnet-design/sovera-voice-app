@@ -13,10 +13,14 @@ class RoomInput(BaseModel):
     seats:int=Field(default=9,strict=True)
     image_url:str|None=Field(default=None,max_length=2000)
     room_frame:Literal["none","coins_seller","official"]|None=None
+    theme:Literal["mid","gold","ocean","rose","forest","sunset"]|None=None
+    chat_enabled:bool|None=None
+    photo_min_level:int|None=Field(default=None,strict=True,ge=0,le=10000)
 
 class MessageInput(BaseModel):
     model_config=ConfigDict(extra='forbid',str_strip_whitespace=True)
-    text:str=Field(min_length=1,max_length=500)
+    text:str=Field(default="",max_length=500)
+    image_url:str|None=Field(default=None,max_length=2000)
     request_id:uuid.UUID
 
 class RoomEffectInput(BaseModel):
@@ -59,6 +63,11 @@ class Rooms:
             if 'image_url' not in columns:
                 db.execute('ALTER TABLE account_rooms ADD COLUMN image_url TEXT')
             db.execute('CREATE TABLE IF NOT EXISTS account_room_photos(room TEXT NOT NULL,key TEXT PRIMARY KEY,data BLOB NOT NULL)')
+            for column,declaration in [('theme',"TEXT NOT NULL DEFAULT 'mid'"),('chat_enabled','INTEGER NOT NULL DEFAULT 1'),('photo_min_level','INTEGER NOT NULL DEFAULT 0')]:
+                if column not in columns:db.execute('ALTER TABLE account_rooms ADD COLUMN '+column+' '+declaration)
+            db.execute('CREATE TABLE IF NOT EXISTS account_chat_photos(key TEXT PRIMARY KEY,room TEXT NOT NULL,uid TEXT NOT NULL,data BLOB NOT NULL,created_at INTEGER NOT NULL)')
+            message_columns={r['name'] for r in db.execute('PRAGMA table_info(account_messages)')}
+            if 'image_url' not in message_columns:db.execute('ALTER TABLE account_messages ADD COLUMN image_url TEXT')
             if 'room_frame' not in columns:
                 db.execute("ALTER TABLE account_rooms ADD COLUMN room_frame TEXT NOT NULL DEFAULT 'none'")
     @contextmanager
@@ -102,6 +111,9 @@ class Rooms:
                         if not data.image_url.startswith(PUBLIC) or not db.execute('SELECT 1 FROM account_room_photos WHERE room=? AND key=?',(room,data.image_url.removeprefix(PUBLIC))).fetchone():
                             raise HTTPException(422,'Upload a picture for this room first')
                     db.execute('UPDATE account_rooms SET image_url=? WHERE id=?',(data.image_url,room))
+                for key in ('theme','chat_enabled','photo_min_level'):
+                    value=getattr(data,key)
+                    if value is not None:db.execute('UPDATE account_rooms SET '+key+'=? WHERE id=?',(value,room))
                 db.execute('UPDATE account_rooms SET name=?,seats=?,room_frame=? WHERE id=?',(data.name,data.seats,data.room_frame if data.room_frame is not None else existing['room_frame'],room))
             elif existing:
                 self.exists(db,existing['id'])
@@ -126,7 +138,7 @@ class Rooms:
     def messages(self,room,after=0,viewer=None):
         with self.db() as db:
             self.exists(db,room)
-            sql='''SELECT id,text,name,country,created_at,sender_uid AS uid
+            sql='''SELECT id,text,image_url,name,country,created_at,sender_uid AS uid
                 FROM account_messages m WHERE room_id=? AND NOT EXISTS(
                 SELECT 1 FROM account_blocks b WHERE b.uid=? AND b.target=m.sender_uid)'''
             if after:
@@ -192,11 +204,21 @@ class Rooms:
         with self.db() as db:
             db.execute('BEGIN IMMEDIATE')
             self.exists(db,room);p=self.profile(db,uid)
+            if not data.text and not data.image_url:raise HTTPException(422,'Write a message or choose a photo')
             old=db.execute('SELECT * FROM account_messages WHERE sender_uid=? AND request_id=?',(uid,str(data.request_id))).fetchone()
             if old:
-                if old['text']!=data.text or old['room_id']!=room: raise HTTPException(409,'Request ID already used')
+                if old['text']!=data.text or old['room_id']!=room or old['image_url']!=data.image_url: raise HTTPException(409,'Request ID already used')
                 return {'id':old['id']}
+            settings=db.execute('SELECT chat_enabled,photo_min_level FROM account_rooms WHERE id=?',(room,)).fetchone()
+            if not settings['chat_enabled']:raise HTTPException(403,'Room chat is disabled')
+            if data.image_url:
+                from .room_photos import CHAT_PUBLIC
+                key=data.image_url.removeprefix(CHAT_PUBLIC)
+                if not data.image_url.startswith(CHAT_PUBLIC) or not db.execute('SELECT 1 FROM account_chat_photos WHERE key=? AND room=? AND uid=?',(key,room,uid)).fetchone():raise HTTPException(422,'Upload a photo for this room first')
+                sent=db.execute("SELECT COALESCE(SUM(-coin_delta),0) FROM account_wallet_ledger WHERE firebase_uid=? AND kind='gift' AND coin_delta<0",(uid,)).fetchone()[0]
+                if sent//10000<settings['photo_min_level']:raise HTTPException(403,'Room photo level requirement not met')
             last=db.execute('SELECT max(created_at) FROM account_messages WHERE sender_uid=?',(uid,)).fetchone()[0]
             if last is not None and self.clock()-last<1: raise HTTPException(429,'Wait before sending another message')
             cur=db.execute('INSERT INTO account_messages(room_id,sender_uid,request_id,text,name,country,created_at) VALUES(?,?,?,?,?,?,?)',(room,uid,str(data.request_id),data.text,p['display_name'],p['country'],self.clock()))
+            if data.image_url:db.execute('UPDATE account_messages SET image_url=? WHERE id=?',(data.image_url,cur.lastrowid))
             return {'id':cur.lastrowid}

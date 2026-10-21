@@ -1,7 +1,7 @@
 const {readFileSync}=require('node:fs');
 const vm=require('node:vm');
 const assert=require('node:assert/strict');
-function element(){return {style:{},dataset:{},classList:{add(){},remove(){},toggle(){}},value:'',children:[],textContent:'',innerHTML:'',append(...x){this.children.push(...x);},replaceChildren(){this.children=[];},setAttribute(){},querySelector(){return element();},parentElement:{},scrollHeight:100};}
+function element(){return {style:{setProperty(){}},dataset:{},classList:{add(){},remove(){},toggle(){}},value:'',children:[],textContent:'',innerHTML:'',append(...x){this.children.push(...x);},replaceChildren(){this.children=[];},setAttribute(){},querySelector(){return element();},parentElement:{},scrollHeight:100};}
 const nodes=new Map(),sent=[];
 const document={getElementById(id){if(!nodes.has(id))nodes.set(id,element());return nodes.get(id);},createElement:element,querySelectorAll(){return [];}};
 const window={SoveraRoom:{postMessage(s){sent.push(JSON.parse(s));}}};

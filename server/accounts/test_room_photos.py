@@ -35,3 +35,31 @@ class RoomPhotoTests(unittest.TestCase):
         with Image.open(io.BytesIO(photo.content)) as image:
             self.assertLessEqual(max(image.size),768)
         self.assertEqual(self.client.post(path,headers=self.headers,content=b'<svg/>').status_code,400)
+
+    def test_live_chat_photos_permissions_retry_and_room_settings(self):
+        import uuid
+        self.profiles.save('alice',ProfileInput(display_name='Alice',country='BD'))
+        self.profiles.save('bob',ProfileInput(display_name='Bob',country='BD'))
+        room=self.client.post('/sovera/account/rooms',headers=self.headers,json={'name':'Photos','seats':9}).json()['room']['id']
+        root=f'/sovera/account/rooms/{room}'
+        image=io.BytesIO();Image.new('RGB',(60,60),'red').save(image,'PNG')
+        self.assertEqual(self.client.post(root+'/chat-photo',headers=self.headers,content=image.getvalue()).status_code,403)
+        self.client.put(root+'/presence',headers=self.headers)
+        photo=self.client.post(root+'/chat-photo',headers=self.headers,content=image.getvalue())
+        self.assertEqual(photo.status_code,200)
+        payload={'text':'','image_url':photo.json()['avatar_url'],'request_id':str(uuid.uuid4())}
+        first=self.client.post(root+'/messages',headers=self.headers,json=payload)
+        self.assertEqual(first.status_code,200)
+        self.assertEqual(self.client.post(root+'/messages',headers=self.headers,json=payload).json(),first.json())
+        items=self.client.get(root+'/messages',headers=self.headers).json()['messages']
+        self.assertEqual(items[-1]['image_url'],payload['image_url'])
+        self.assertEqual(self.client.post(root+'/messages',headers={'Authorization':'Bearer bob'},json={**payload,'request_id':str(uuid.uuid4())}).status_code,422)
+        settings={'name':'Photos','seats':6,'theme':'ocean','chat_enabled':False,'photo_min_level':3}
+        self.assertEqual(self.client.put(root,headers={'Authorization':'Bearer bob'},json=settings).status_code,403)
+        self.assertEqual(self.client.put(root,headers=self.headers,json=settings).status_code,200)
+        visible=self.client.get(root+'/controls',headers={'Authorization':'Bearer bob'}).json()['room']
+        self.assertEqual(visible['theme'],'ocean');self.assertEqual(visible['photo_min_level'],3)
+        self.assertEqual(self.client.post(root+'/messages',headers=self.headers,json={'text':'blocked','request_id':str(uuid.uuid4())}).status_code,403)
+        self.assertEqual(self.client.post(root+'/chat-photo',headers=self.headers,content=image.getvalue()).status_code,403)
+        # An already committed send can safely be retried after settings change.
+        self.assertEqual(self.client.post(root+'/messages',headers=self.headers,json=payload).json(),first.json())

@@ -180,6 +180,8 @@ class _FirebaseRoomChatState extends State<FirebaseRoomChat> with WidgetsBinding
   Timer? timer;bool syncing=false,sending=false,savingRoom=false,sendingEffect=false;String? error,pendingId,pendingText;
   String? pendingEffectId,pendingEffectKey;
   String? designCoins,designWins;
+  String designTheme="mid";bool designChat=true;int designPhotoLevel=0;
+  Map<String,dynamic>? pendingPhoto;
   List<Map<String,dynamic>> roomEffects=[],catalogEvents=[],roomPeople=[];
   int catalogServerNow=0;
   Map<String,dynamic>? pendingGift;
@@ -211,6 +213,7 @@ class _FirebaseRoomChatState extends State<FirebaseRoomChat> with WidgetsBinding
         if(mounted)setState((){
           final metadata=controls['room'];
           if(metadata is Map&&metadata['name'] is String&&metadata['seats'] is int){roomName=metadata['name'] as String;seatCount=metadata['seats'] as int;roomImage=metadata['image_url'] as String?;}
+          designTheme=metadata is Map?(metadata['theme']?.toString()??'mid'):'mid';designChat=metadata is Map?metadata['chat_enabled']!=0:true;designPhotoLevel=metadata is Map?(metadata['photo_min_level'] as num?)?.toInt()??0:0;
           roomRole=controls['role'] as String;lockedSeats=(controls['locked_seats'] as List).cast<int>().toSet();roomAdmins=(controls['admins'] as List).whereType<Map>().map((r)=>Map<String,dynamic>.from(r)).toList();});
       }catch(_){}
       if(widget.useUploadedDesign){
@@ -363,7 +366,24 @@ class _FirebaseRoomChatState extends State<FirebaseRoomChat> with WidgetsBinding
     }
     if(action=='gifts'){await chooseEffect();return;}
     if(action=='games'){openGame();return;}
+    if(action=='saveSettings'&&isOwner){
+      final name=event['name'],count=event['seats'],theme=event['theme'],level=event['photoLevel'];
+      if(name is! String||count is! int||theme is! String||level is! int)return;
+      await widget.api.call('PUT',suffix:path,fields:{'name':name,'seats':count,'theme':theme,'photo_min_level':level,'chat_enabled':event['chatEnabled']==true});await sync();return;
+    }
+    if(action=='roomPhoto'&&isOwner){
+      final photo=await ImagePicker().pickImage(source:ImageSource.gallery,maxWidth:1024,maxHeight:1024,imageQuality:85);
+      if(photo==null)return;
+      final url=await widget.api.uploadPhoto(photo,suffix:'$path/photo');
+      await widget.api.call('PUT',suffix:path,fields:{'name':roomName,'seats':seatCount,'image_url':url});await sync();return;
+    }
     if(action=='settings'){await editRoom();return;}
+    if(action=='setAdmin'&&isOwner&&event['uid'] is String&&event['enabled'] is bool){
+      await widget.api.call('PUT',suffix:'$path/admins',fields:{'uid':event['uid'],'enabled':event['enabled']});await sync();return;
+    }
+    if(action=='lockAll'&&(isOwner||roomRole=='admin')&&event['locked'] is bool){
+      await widget.api.call('PUT',suffix:'$path/seat-lock',fields:{'locked':event['locked']});await sync();return;
+    }
     if(action=='admins'&&isOwner){await manageAdmins();return;}
     if(action=='profile'&&event['uid'] is String){
       await Navigator.push<void>(context,MaterialPageRoute(builder:(_)=>FirebaseMemberProfile(api:widget.api,uid:event['uid'] as String)));return;
@@ -371,7 +391,15 @@ class _FirebaseRoomChatState extends State<FirebaseRoomChat> with WidgetsBinding
     if(action=='wallet')await Navigator.push<void>(context,MaterialPageRoute(builder:(_)=>FirebaseServerWalletPage(api:widget.api)));
     if(action=='ranking')await Navigator.push<void>(context,MaterialPageRoute(builder:(_)=>FirebaseRewardsPage(api:widget.api,initialMetric:'play',initialPeriod:'daily')));
     if(action=='messages')await Navigator.push<void>(context,MaterialPageRoute(builder:(_)=>FirebaseMessageInbox(api:widget.api)));
-    if(action=='photo'&&mounted)ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content:Text('Room chat photo upload is not connected yet.')));
+    if(action=='photo'){
+      if(pendingPhoto==null){
+        final photo=await ImagePicker().pickImage(source:ImageSource.gallery,maxWidth:1024,maxHeight:1024,imageQuality:85);
+        if(photo==null)return;
+        final url=await widget.api.uploadPhoto(photo,suffix:'$path/chat-photo');
+        pendingPhoto={'text':'','image_url':url,'request_id':_requestId()};
+      }
+      await widget.api.call('POST',suffix:'$path/messages',fields:pendingPhoto!);pendingPhoto=null;
+    }
     if(mounted)await sync();
   }
   @override Widget build(BuildContext context)=>widget.useUploadedDesign?Scaffold(
@@ -379,7 +407,7 @@ class _FirebaseRoomChatState extends State<FirebaseRoomChat> with WidgetsBinding
     body:SafeArea(child:Stack(children:[
       Positioned.fill(child:FirebaseVoicePanel(onLeaveRoom:widget.onLeave,api:widget.api,roomId:widget.room['id'] as String,seatCount:seatCount,people:roomPeople,blockedUids:blocked,autoConnect:true,roomRole:isOwner?'owner':roomRole,lockedSeats:lockedSeats,onControlsChanged:sync,
         presentation:(context,voice,action)=>RoomDesignView(
-          snapshot:{...voice,'uid':widget.api.uid,'roomId':widget.room['id'],'name':roomName,'imageUrl':roomImage,'sendPending':pendingId!=null,'people':roomPeople,'messages':messages,'coins':designCoins,'dailyWins':designWins,'role':isOwner?'owner':roomRole,'error':error??voice['error']},
+          snapshot:{...voice,'uid':widget.api.uid,'roomId':widget.room['id'],'name':roomName,'imageUrl':roomImage,'sendPending':pendingId!=null,'people':roomPeople,'messages':messages,'coins':designCoins,'dailyWins':designWins,'admins':roomAdmins,'role':isOwner?'owner':roomRole,'theme':designTheme,'chatEnabled':designChat,'photoLevel':designPhotoLevel,'error':error??voice['error']},
           onAction:(event)=>designAction(event,action)))),
       if(catalogEvents.isNotEmpty&&(catalogEvents.first['asset'] as Map?)?['kind']!='entry')
         IgnorePointer(child:CatalogRoomAnimation(key:ValueKey(catalogEvents.first['event_id']),event:catalogEvents.first,serverNow:catalogServerNow,recipients:catalogEvents.where((r)=>r['id']==catalogEvents.first['id']&&r['sender_uid']==catalogEvents.first['sender_uid']&&r['created_at']==catalogEvents.first['created_at']).toList())),
