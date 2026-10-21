@@ -59,6 +59,8 @@ class WalletStore:
         if os.getenv('SOVERA_AUTO_WALLETS')!='1':return
         with sqlite3.connect(self.database_path,timeout=10) as db:
             db.execute('BEGIN IMMEDIATE')
+            db.execute('CREATE TABLE IF NOT EXISTS account_member_created(uid TEXT PRIMARY KEY,created_at INTEGER NOT NULL)')
+            db.execute('INSERT OR IGNORE INTO account_member_created SELECT ?,? WHERE NOT EXISTS(SELECT 1 FROM account_profiles WHERE firebase_uid=?)',(uid,int(time.time()),uid))
             db.execute("INSERT OR IGNORE INTO account_profiles(firebase_uid,display_name,country,bio,updated_at) VALUES(?,'Sovera member','','',?)",(uid,int(time.time())))
             from .members import public_id
             public_id(db,uid)

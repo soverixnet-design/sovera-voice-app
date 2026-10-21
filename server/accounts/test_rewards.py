@@ -82,3 +82,17 @@ class RewardTests(unittest.TestCase):
             self.assertTrue(self.rewards.claim('alice',str(p.id))['saved'])
         self.assertEqual(self.client.get('/sovera/account/rewards').status_code,401)
         self.assertEqual(self.client.post('/sovera/account/rewards/'+str(p.id)+'/claim',headers={'Authorization':'Bearer agent'}).status_code,409)
+
+    def test_recurring_auto_rewards_are_once_only_and_can_stop_next_period(self):
+        p=self.campaign();p=p.model_copy(update={'ends_at':self.start+86400,'repeat':'daily','auto_claim':True})
+        # Replace only this not-yet-started fixture with the published repeating terms.
+        with self.control.db() as db:db.execute('DELETE FROM account_reward_campaigns WHERE id=?',(str(p.id),))
+        self.rewards.save('owner',p);self.activity('alice',-30)
+        with patch('server.accounts.rewards.time.time',return_value=p.ends_at+1):
+            self.assertEqual(self.rewards.tick(),1);self.assertEqual(self.rewards.tick(),0)
+            with self.control.db() as db:
+                rows=db.execute('SELECT * FROM account_reward_campaigns').fetchall();self.assertEqual(len(rows),2)
+                following=next(r['id'] for r in rows if r['id']!=str(p.id))
+            self.rewards.stop_repeat('owner',following)
+        with patch('server.accounts.rewards.time.time',return_value=p.ends_at+86401):self.rewards.tick()
+        with self.control.db() as db:self.assertEqual(db.execute('SELECT COUNT(*) FROM account_reward_campaigns').fetchone()[0],2)

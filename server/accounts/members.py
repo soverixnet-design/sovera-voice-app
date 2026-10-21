@@ -16,7 +16,8 @@ CREATE TABLE IF NOT EXISTS account_profile_visits(target TEXT NOT NULL,visitor T
 CREATE TABLE IF NOT EXISTS account_bans(uid TEXT PRIMARY KEY,actor TEXT NOT NULL,reason TEXT NOT NULL,created_at INTEGER NOT NULL);
 CREATE TABLE IF NOT EXISTS account_adjustments(request_id TEXT PRIMARY KEY,actor TEXT NOT NULL,target TEXT NOT NULL,amount INTEGER NOT NULL,note TEXT NOT NULL,balance INTEGER NOT NULL,created_at INTEGER NOT NULL);
 CREATE TABLE IF NOT EXISTS account_agencies(id TEXT PRIMARY KEY,name TEXT NOT NULL,manager TEXT NOT NULL,active INTEGER NOT NULL DEFAULT 1);
-CREATE TABLE IF NOT EXISTS account_agency_members(uid TEXT PRIMARY KEY,agency TEXT NOT NULL,status TEXT NOT NULL CHECK(status IN ('pending','active')),created_at INTEGER NOT NULL);
+CREATE TABLE IF NOT EXISTS account_agency_timeline(id INTEGER PRIMARY KEY AUTOINCREMENT,uid TEXT NOT NULL,agency TEXT NOT NULL,joined_at INTEGER NOT NULL,left_at INTEGER);
+    CREATE TABLE IF NOT EXISTS account_agency_members(uid TEXT PRIMARY KEY,agency TEXT NOT NULL,status TEXT NOT NULL CHECK(status IN ('pending','active')),created_at INTEGER NOT NULL);
 '''
 
 def initialize(db):db.executescript(SCHEMA)
@@ -67,12 +68,13 @@ class Members(Community):
             if db.execute('SELECT 1 FROM account_blocks WHERE (uid=? AND target=?) OR (uid=? AND target=?)',(viewer,target,target,viewer)).fetchone():raise HTTPException(403,'Member unavailable')
             if visit and target!=viewer:db.execute('INSERT OR IGNORE INTO account_profile_visits VALUES(?,?,?,?)',(target,viewer,int(time.time())//86400,int(time.time())))
             from .catalog import equipped_assets
+            from .programs import membership
             followers=db.execute('SELECT count(*) FROM account_user_follows WHERE target=?',(target,)).fetchone()[0]
             following=db.execute('SELECT count(*) FROM account_user_follows WHERE uid=?',(target,)).fetchone()[0]
             friends=db.execute('SELECT count(*) FROM account_user_follows f JOIN account_user_follows g ON f.uid=g.target AND f.target=g.uid WHERE f.uid=?',(target,)).fetchone()[0]
             visitors=db.execute('SELECT count(DISTINCT visitor) FROM account_profile_visits WHERE target=?',(target,)).fetchone()[0]
             sent,received=db.execute("SELECT COALESCE(SUM(CASE WHEN coin_delta<0 THEN -coin_delta ELSE 0 END),0),COALESCE(SUM(CASE WHEN diamond_delta>0 THEN diamond_delta ELSE 0 END),0) FROM account_wallet_ledger WHERE firebase_uid=? AND kind='gift'",(target,)).fetchone()
-            return dict(p)|{'public_id':public_id(db,target),'equipped':equipped_assets(db,target),'followers':followers,'following':following,'friends':friends,'visitors':visitors,'is_following':bool(db.execute('SELECT 1 FROM account_user_follows WHERE uid=? AND target=?',(viewer,target)).fetchone()),'gift_coins_sent':str(sent),'gift_diamonds_received':str(received),'wealth_level':sent//10000,'charm_level':received//10000}
+            return dict(p)|{'public_id':public_id(db,target),'equipped':equipped_assets(db,target),'vip':membership(db,target),'followers':followers,'following':following,'friends':friends,'visitors':visitors,'is_following':bool(db.execute('SELECT 1 FROM account_user_follows WHERE uid=? AND target=?',(viewer,target)).fetchone()),'gift_coins_sent':str(sent),'gift_diamonds_received':str(received),'wealth_level':sent//10000,'charm_level':received//10000}
     def follow_user(self,uid,target,enabled):
         if uid==target:raise HTTPException(400,'Cannot follow yourself')
         self.profile(uid,target)
@@ -173,13 +175,18 @@ class Members(Community):
                 if enabled:
                     result=db.execute("UPDATE account_agency_members SET status='active' WHERE uid=? AND agency=?",(target,agency))
                     if not result.rowcount:raise HTTPException(409,'Member must request to join first')
-                else:db.execute('DELETE FROM account_agency_members WHERE uid=? AND agency=?',(target,agency))
+                    db.execute('INSERT INTO account_agency_timeline(uid,agency,joined_at) SELECT ?,?,? WHERE NOT EXISTS(SELECT 1 FROM account_agency_timeline WHERE uid=? AND left_at IS NULL)',(target,agency,int(time.time()),target))
+                else:
+                    db.execute('UPDATE account_agency_timeline SET left_at=? WHERE uid=? AND agency=? AND left_at IS NULL',(int(time.time()),target,agency))
+                    db.execute('DELETE FROM account_agency_members WHERE uid=? AND agency=?',(target,agency))
             else:
                 if enabled:
                     old=db.execute('SELECT agency FROM account_agency_members WHERE uid=?',(uid,)).fetchone()
                     if old and old[0]!=agency:raise HTTPException(409,'Leave your current agency first')
                     db.execute("INSERT OR IGNORE INTO account_agency_members VALUES(?,?,'pending',?)",(uid,agency,int(time.time())))
-                else:db.execute('DELETE FROM account_agency_members WHERE uid=? AND agency=?',(uid,agency))
+                else:
+                    db.execute('UPDATE account_agency_timeline SET left_at=? WHERE uid=? AND agency=? AND left_at IS NULL',(int(time.time()),uid,agency))
+                    db.execute('DELETE FROM account_agency_members WHERE uid=? AND agency=?',(uid,agency))
         return {'saved':True}
 
 def attach_members(app,profiles,actor,staff_actor):

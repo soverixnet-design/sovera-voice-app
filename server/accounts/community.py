@@ -67,6 +67,10 @@ class Community:
 
     def require_staff(self, uid, publish=False):
         role = self.role(uid)
+        with self.db() as db:
+            if db.execute("SELECT 1 FROM sqlite_master WHERE name='account_staff_policy'").fetchone():
+                from .control_security import permit
+                permit(db,uid,'/sovera/control/publications' if publish else '/sovera/control/support')
         if role not in (('owner','admin') if publish else ('owner','admin','support')):
             raise HTTPException(403, 'Staff permission required')
 

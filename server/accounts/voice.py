@@ -21,6 +21,7 @@ def attach_voice(app, rooms, actor):
     def allowed(uid, room):
         with rooms.db() as db:
             rooms.profile(db, uid)
+            rooms.exists(db,room)
             if db.execute('SELECT 1 FROM account_bans WHERE uid=?',(uid,)).fetchone():raise HTTPException(403,'Account banned')
             row = db.execute('SELECT seats FROM account_rooms WHERE id=?', (room,)).fetchone()
             if row is None:

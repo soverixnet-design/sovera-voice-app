@@ -17,7 +17,7 @@ STAGE=$(mktemp -d /opt/sovera-room-stage.XXXXXX)
 chmod 755 "$STAGE"
 BACKUP=
 CHANGED=0
-FILES=(rewards.py test_rewards.py members.py test_members.py test_legacy_wallet.py import_legacy_wallet.py test_auto_wallet.py messaging.py test_messaging.py control.py community.py room_photos.py test_room_photos.py broadcasts.py test_broadcasts.py greedy_wallet.py catalog.py app.py wallet.py rooms.py voice.py room_controls.py test_room_controls.py profile_media.py seed_gifts.py test_profile_media.py test_wallet.py test_catalog.py)
+FILES=(control_password.py control_security.py operations.py programs.py maintenance.py test_operations.py rewards.py test_rewards.py members.py test_members.py test_legacy_wallet.py import_legacy_wallet.py test_auto_wallet.py messaging.py test_messaging.py control.py community.py room_photos.py test_room_photos.py broadcasts.py test_broadcasts.py greedy_wallet.py catalog.py app.py wallet.py rooms.py voice.py room_controls.py test_room_controls.py profile_media.py seed_gifts.py test_profile_media.py test_wallet.py test_catalog.py)
 GAMEFILES=(start.js limits.js selftest.js)
 ADMIN=/opt/livekit/caddy_data/sovera-control
 [ -d "$ADMIN" ] || { echo "Existing admin installation required"; exit 1; }
@@ -36,6 +36,14 @@ cleanup(){
       if [ -f "$BACKUP/admin/$name" ]; then install -m 644 "$BACKUP/admin/$name" "$ADMIN/$name"; fi
     done
     if [ -f "$BACKUP/greedy-account.env" ]; then install -m 600 "$BACKUP/greedy-account.env" /etc/sovera-greedy-account.env; fi
+    systemctl stop sovera-maintenance.timer sovera-backup.timer sovera-maintenance.service sovera-backup.service 2>/dev/null || true
+    for unit in sovera-maintenance.service sovera-maintenance.timer sovera-backup.service sovera-backup.timer; do
+      if [ -f "$BACKUP/units/$unit" ]; then install -m 644 "$BACKUP/units/$unit" "/etc/systemd/system/$unit"; else rm -f "/etc/systemd/system/$unit"; fi
+    done
+    systemctl daemon-reload
+    for job in maintenance backup; do
+      if [ -f "$BACKUP/units/$job.enabled" ]; then systemctl enable --now "sovera-$job.timer" || true; fi
+    done
     systemctl restart sovera-account || true
     systemctl restart sovera-greedy || true
     echo 'Previous code restored; wallet and game transactions preserved.'
@@ -58,7 +66,7 @@ for name in "${GAMEFILES[@]}"; do
   curl -fLsS --retry 3 --connect-timeout 10 --max-time 60 "$SOURCE/server/greedy/$name" -o "$STAGE/game/src/$name"
   "$NODE" --check "$STAGE/game/src/$name"
 done
-(cd "$STAGE" && "$PYTHON" -m unittest server.accounts.test_rewards server.accounts.test_members server.accounts.test_auto_wallet server.accounts.test_legacy_wallet server.accounts.test_messaging server.accounts.test_control server.accounts.test_room_photos server.accounts.test_broadcasts server.accounts.test_wallet server.accounts.test_catalog server.accounts.test_accounts server.accounts.test_profile_media server.accounts.test_room_controls server.accounts.test_voice server.accounts.test_greedy_wallet server.accounts.test_greedy_access -q)
+(cd "$STAGE" && "$PYTHON" -m unittest server.accounts.test_operations server.accounts.test_control_password server.accounts.test_rewards server.accounts.test_members server.accounts.test_auto_wallet server.accounts.test_legacy_wallet server.accounts.test_messaging server.accounts.test_control server.accounts.test_room_photos server.accounts.test_broadcasts server.accounts.test_wallet server.accounts.test_catalog server.accounts.test_accounts server.accounts.test_profile_media server.accounts.test_room_controls server.accounts.test_voice server.accounts.test_greedy_wallet server.accounts.test_greedy_access -q)
 curl -fLsS --retry 3 --connect-timeout 10 --max-time 60 "$SOURCE/server/voice/app.py" -o "$STAGE/server/voice/app.py"
 (cd "$STAGE" && "$PYTHON" -m unittest server.accounts.test_room_controls server.accounts.test_voice -q)
 echo 'Testing a shared round above one million using isolated test balances...'
@@ -90,7 +98,15 @@ for original,name in [
 PY
 cp -a "$TARGET/server/voice/app.py" "$BACKUP/gateway.py"
 cp -a /etc/sovera-greedy-account.env "$BACKUP/greedy-account.env"
+mkdir "$BACKUP/units"
+for unit in sovera-maintenance.service sovera-maintenance.timer sovera-backup.service sovera-backup.timer; do
+  if [ -f "/etc/systemd/system/$unit" ]; then cp -a "/etc/systemd/system/$unit" "$BACKUP/units/$unit"; fi
+done
+for job in maintenance backup; do
+  if systemctl is-enabled --quiet "sovera-$job.timer" 2>/dev/null; then touch "$BACKUP/units/$job.enabled"; fi
+done
 CHANGED=1
+systemctl stop sovera-maintenance.timer sovera-backup.timer sovera-maintenance.service sovera-backup.service 2>/dev/null || true
 "$PYTHON" - <<'PYENV'
 from pathlib import Path
 p=Path('/etc/sovera-greedy-account.env')
@@ -115,8 +131,45 @@ curl -fSs --retry 10 --retry-connrefused --retry-delay 1 --max-time 5 http://127
 import json,sys
 assert json.load(open(sys.argv[1])).get('walletMode')=='http'
 PY
+# Scheduled workers use the same private environment and application runtime.
+for job in maintenance backup; do
+  extra=
+  interval='OnBootSec=90s
+OnUnitActiveSec=60s'
+  if [ "$job" = backup ]; then extra=--backup; interval='OnCalendar=*-*-* 03:15:00 UTC
+Persistent=true'; fi
+  cat > "/etc/systemd/system/sovera-$job.service" <<UNIT
+[Unit]
+Description=Sovera $job worker
+After=sovera-account.service
+[Service]
+Type=oneshot
+TimeoutStartSec=300
+Restart=on-failure
+RestartSec=30
+User=root
+WorkingDirectory=$TARGET
+EnvironmentFile=-/etc/sovera-greedy-account.env
+ExecStart=$PYTHON -m server.accounts.maintenance $extra
+UMask=0077
+NoNewPrivileges=true
+UNIT
+  cat > "/etc/systemd/system/sovera-$job.timer" <<UNIT
+[Unit]
+Description=Scheduled Sovera $job
+[Timer]
+$interval
+RandomizedDelaySec=20
+[Install]
+WantedBy=timers.target
+UNIT
+done
+systemctl daemon-reload
+systemctl enable --now sovera-maintenance.timer sovera-backup.timer
+systemctl start sovera-maintenance.service
+systemctl start sovera-backup.service
 CHANGED=0
-echo 'RANKING_EVENT_RECHARGE_REWARDS_READY'
+echo 'PROFESSIONAL_ADMIN_BENEFITS_READY' 
 echo "Backup: $BACKUP"
 echo 'Four animated gifts seeded once. Owner edits remain in the admin catalog.'
 echo 'Diamond exchange: 100 Diamonds = 70 Coins.'

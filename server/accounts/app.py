@@ -1,5 +1,7 @@
 """Firebase-authenticated account profiles. No wallets or staff roles here."""
 import asyncio
+from contextvars import ContextVar
+access_context=ContextVar('sovera_request',default=None)
 import os
 import sqlite3
 import time
@@ -54,6 +56,8 @@ class Profiles:
                 firebase_uid TEXT PRIMARY KEY, display_name TEXT NOT NULL,
                 country TEXT NOT NULL, bio TEXT NOT NULL, avatar_url TEXT,
                 updated_at INTEGER NOT NULL)''')
+            db.execute('CREATE TABLE IF NOT EXISTS account_member_created(uid TEXT PRIMARY KEY,created_at INTEGER NOT NULL)')
+            db.execute('INSERT OR IGNORE INTO account_member_created SELECT firebase_uid,0 FROM account_profiles')
             from .members import initialize,public_id
             initialize(db)
             for uid, in db.execute('SELECT firebase_uid FROM account_profiles').fetchall():public_id(db,uid)
@@ -73,6 +77,7 @@ class Profiles:
 
     def save(self, uid, data):
         with sqlite3.connect(self.path, timeout=10) as db:
+            db.execute('INSERT OR IGNORE INTO account_member_created SELECT ?,? WHERE NOT EXISTS(SELECT 1 FROM account_profiles WHERE firebase_uid=?)',(uid,int(time.time()),uid))
             db.execute('''INSERT INTO account_profiles(firebase_uid,display_name,country,bio,avatar_url,updated_at) VALUES(?,?,?,?,?,?)
                 ON CONFLICT(firebase_uid) DO UPDATE SET display_name=excluded.display_name,
                 country=excluded.country,bio=excluded.bio,avatar_url=excluded.avatar_url,
@@ -95,7 +100,13 @@ def create_app(profiles, verify, *, voice=False):
             if length is None or not length.isdecimal() or int(length)>(8*1024*1024 if (request.url.path in ('/sovera/control/media','/sovera/account/avatar') or (request.url.path.startswith('/sovera/account/rooms/') and request.url.path.endswith('/photo'))) else 8192):
                 from fastapi.responses import JSONResponse
                 return JSONResponse({'detail':'Invalid request size'}, status_code=413)
-        response = await call_next(request)
+        context=access_context.set(request)
+        try:response = await call_next(request)
+        finally:access_context.reset(context)
+        observed=getattr(request.state,'verified_uid',None)
+        if observed and response.status_code<400:
+            from .operations import access
+            with sqlite3.connect(profiles.path) as access_db:access(access_db,observed,request.headers.get('user-agent','')+' '+request.headers.get('x-sovera-client',''),request.client.host if request.client else '')
         if not request.url.path.startswith(('/sovera/account/media/','/sovera/control/media/')) or 'cache-control' not in response.headers:
             response.headers['Cache-Control'] = 'no-store'
         return response
@@ -114,6 +125,8 @@ def create_app(profiles, verify, *, voice=False):
             raise HTTPException(401, 'Invalid session') from None
         with sqlite3.connect(profiles.path) as db:
             if db.execute('SELECT 1 FROM account_bans WHERE uid=?',(uid,)).fetchone():raise HTTPException(403,'This account has been banned. Contact official support.')
+        observed=access_context.get()
+        if observed is not None:observed.state.verified_uid=uid
         return uid
 
     @app.get('/sovera/account/health')

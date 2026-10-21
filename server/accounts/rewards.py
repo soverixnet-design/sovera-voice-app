@@ -30,13 +30,22 @@ class CampaignInput(BaseModel):
     ends_at:int=Field(strict=True,gt=0)
     threshold:int=Field(strict=True,ge=1,le=1000000000000,default=1)
     prizes:list[Prize]=Field(min_length=1,max_length=10)
+    repeat:Literal['none','daily','weekly','monthly']='none'
+    auto_claim:bool=False
     @model_validator(mode='after')
     def valid(self):
         if self.ends_at<=self.starts_at or self.ends_at-self.starts_at>366*86400:raise ValueError('Invalid campaign dates')
+        if self.repeat in ('daily','weekly') and self.ends_at-self.starts_at!={'daily':86400,'weekly':604800}[self.repeat]:raise ValueError('Daily/weekly repeats require an exact one-day/seven-day UTC window')
+        if self.repeat=='monthly' and next_month(self.starts_at)!=self.ends_at:raise ValueError('Monthly repeats require a calendar-month UTC window')
         ranks=[p.rank for p in self.prizes]
         if len(set(ranks))!=len(ranks):raise ValueError('Duplicate prize rank')
         if self.category=='recharge' and (self.metric!='recharge' or ranks!=[1]):raise ValueError('Recharge rewards need one threshold prize')
         return self
+
+def next_month(seconds):
+    import calendar
+    d=datetime.fromtimestamp(seconds,timezone.utc);y=d.year+(d.month==12);m=1 if d.month==12 else d.month+1
+    return int(d.replace(year=y,month=m,day=min(d.day,calendar.monthrange(y,m)[1])).timestamp())
 
 def schema(db):
     db.executescript('''
@@ -48,8 +57,9 @@ def schema(db):
 def score_rows(db,metric,start,end):
     # Never count imported balances, owner adjustments, refunds or reward credits.
     if metric=='recharge':
+        refunded=" AND NOT EXISTS(SELECT 1 FROM account_payment_orders o WHERE o.id=r.request_id AND o.status='refunded') " if db.execute("SELECT 1 FROM sqlite_master WHERE name='account_payment_orders'").fetchone() else ''
         return list(db.execute('''SELECT r.target AS uid,SUM(r.amount) AS score FROM account_control_recharges r
-         WHERE r.created_at>=? AND r.created_at<? GROUP BY r.target ORDER BY score DESC,uid''',(start,end)))
+         WHERE r.created_at>=? AND r.created_at<? '''+refunded+' GROUP BY r.target ORDER BY score DESC,uid',(start,end)))
     expression={'rich':'-coin_delta','charm':'diamond_delta','play':'coin_delta'}[metric]
     kind='game_win' if metric=='play' else 'gift'
     positive='coin_delta<0' if metric=='rich' else 'diamond_delta>0' if metric=='charm' else 'coin_delta>0'
@@ -102,6 +112,9 @@ class Rewards:
                 for rank,r in enumerate(entries[:10],1):
                     if rank in ranks and r['score']>=p['threshold']:db.execute('INSERT OR IGNORE INTO account_reward_winners VALUES(?,?,?,?,NULL)',(row['id'],r['uid'],rank,r['score']))
             db.execute("UPDATE account_reward_campaigns SET status='settled' WHERE id=?",(row['id'],))
+            if p.get('repeat','none')!='none':
+                following=dict(p);following['id']=str(uuid.uuid5(uuid.UUID(row['id']),str(p['ends_at'])));following['starts_at']=p['ends_at'];following['ends_at']=next_month(p['ends_at']) if p['repeat']=='monthly' else p['ends_at']+(86400 if p['repeat']=='daily' else 604800)
+                db.execute("INSERT OR IGNORE INTO account_reward_campaigns VALUES(?,?,'active',?,?)",(following['id'],json.dumps(following),row['actor'],now))
     def person(self,db,uid):
         from .wallet import legacy_identity
         p=db.execute('SELECT display_name AS name,avatar_url,country FROM account_profiles WHERE firebase_uid=?',(uid,)).fetchone()
@@ -157,6 +170,33 @@ class Rewards:
             official(db,'reward:'+key+':'+uid,uid,'Reward received',f"{p['title']}: {prize['coins']:,} Coins and {len(prize['item_ids'])} collection rewards ({prize['days']} days). Open Mall to equip your rewards.")
             self.control.audit(db,'system','rewards.claim',uid,{'campaign':key,'coins':prize['coins'],'rank':winner['rank']})
             return {'saved':True,'coins':str(prize['coins'])}
+    def stop_repeat(self,uid,key):
+        with self.control.db() as db:
+            db.execute('BEGIN IMMEDIATE')
+            if self.control.role(db,uid)!='owner':raise HTTPException(403,'Owner required')
+            r=db.execute("SELECT payload FROM account_reward_campaigns WHERE id=? AND status='active'",(key,)).fetchone()
+            if not r:raise HTTPException(409,'Only an active campaign can stop its next repeat')
+            p=json.loads(r[0]);p['repeat']='none';db.execute('UPDATE account_reward_campaigns SET payload=? WHERE id=?',(json.dumps(p),key))
+            self.control.audit(db,uid,'rewards.stop_repeat',key,{});return {'saved':True}
+    def tick(self):
+        with self.control.db() as db:
+            db.execute('BEGIN IMMEDIATE');self.finalize(db,int(time.time()))
+            campaigns=[dict(r) for r in db.execute("SELECT * FROM account_reward_campaigns WHERE status<>'cancelled' ORDER BY created_at DESC LIMIT 1000")]
+        count=0
+        for row in campaigns:
+            p=json.loads(row['payload'])
+            if not p.get('auto_claim'):continue
+            with self.control.db() as db:
+                if p['category']=='recharge':uids=[r['uid'] for r in score_rows(db,'recharge',p['starts_at'],min(int(time.time())+1,p['ends_at'])) if r['score']>=p['threshold']]
+                else:uids=[r[0] for r in db.execute('SELECT uid FROM account_reward_winners WHERE campaign=? AND claimed_at IS NULL',(row['id'],))]
+                eligible=[u for u in uids if db.execute("SELECT 1 FROM account_wallet_links WHERE firebase_uid=? AND status='active'",(u,)).fetchone() and visible(db,u)]
+            for uid in eligible[:200]:
+                if count>=500:return count
+                try:
+                    result=self.claim(uid,row['id']);count+=not result.get('duplicate',False)
+                except HTTPException:continue
+        return count
+
     def board(self,uid,metric,period):
         now=datetime.now(timezone.utc);start=now.replace(hour=0,minute=0,second=0,microsecond=0)
         if period=='weekly':start-=timedelta(days=start.weekday())
@@ -182,3 +222,6 @@ def attach_rewards(app,profiles,actor,staff):
     async def create(data:CampaignInput,request:Request):return await asyncio.to_thread(service.save,await staff(request),data)
     @app.delete('/sovera/control/rewards/{key}')
     async def cancel(key:uuid.UUID,request:Request):return await asyncio.to_thread(service.cancel,await staff(request),str(key))
+
+    @app.post('/sovera/control/rewards/{key}/stop-repeat')
+    async def stop(key:uuid.UUID,request:Request):return await asyncio.to_thread(service.stop_repeat,await staff(request),str(key))

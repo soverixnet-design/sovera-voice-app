@@ -54,6 +54,7 @@ class Rooms:
             CREATE INDEX IF NOT EXISTS account_effect_room_time
               ON account_room_effects(room_id,created_at DESC,id DESC);
             ''')
+            db.execute('CREATE TABLE IF NOT EXISTS account_room_moderation(room TEXT PRIMARY KEY,status TEXT NOT NULL,reason TEXT NOT NULL,actor TEXT NOT NULL,updated_at INTEGER NOT NULL)')
             columns={r['name'] for r in db.execute('PRAGMA table_info(account_rooms)')}
             if 'image_url' not in columns:
                 db.execute('ALTER TABLE account_rooms ADD COLUMN image_url TEXT')
@@ -74,6 +75,8 @@ class Rooms:
         if not p: raise HTTPException(409,'Save your profile first')
         return p
     def exists(self,db,room):
+        moderation=db.execute('SELECT status,reason FROM account_room_moderation WHERE room=?',(room,)).fetchone()
+        if moderation and moderation[0]!='open':raise HTTPException(403,'Room unavailable: '+moderation[1])
         if not db.execute('SELECT 1 FROM account_rooms WHERE id=?',(room,)).fetchone():
             raise HTTPException(404,'Room not found')
     def directory(self):
@@ -83,7 +86,7 @@ class Rooms:
                 p.country,p.avatar_url,(SELECT count(*) FROM account_presence a
                 WHERE a.room_id=r.id AND a.seen_at>?) AS occupants
                 FROM account_rooms r JOIN account_profiles p ON p.firebase_uid=r.owner_uid
-                ORDER BY r.created_at DESC LIMIT 100''',(self.clock()-90,)).fetchall()]
+                WHERE NOT EXISTS(SELECT 1 FROM account_room_moderation m WHERE m.room=r.id AND m.status<>'open') ORDER BY r.created_at DESC LIMIT 100''',(self.clock()-90,)).fetchall()]
     def save(self,uid,data,room=None):
         if data.seats not in (5,6,9,12,15): raise HTTPException(422,'Choose 5, 6, 9, 12 or 15 seats')
         with self.db() as db:
@@ -101,6 +104,7 @@ class Rooms:
                     db.execute('UPDATE account_rooms SET image_url=? WHERE id=?',(data.image_url,room))
                 db.execute('UPDATE account_rooms SET name=?,seats=?,room_frame=? WHERE id=?',(data.name,data.seats,data.room_frame if data.room_frame is not None else existing['room_frame'],room))
             elif existing:
+                self.exists(db,existing['id'])
                 return dict(existing)
             else:
                 room=str(uuid.uuid4())

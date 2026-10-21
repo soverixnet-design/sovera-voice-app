@@ -1,3 +1,4 @@
+import 'firebase_programs.dart';
 import 'firebase_rewards.dart';
 import 'firebase_original_coin_sellers.dart';
 import 'package:flutter/material.dart';
@@ -207,6 +208,8 @@ class _FirebaseServerWalletPageState extends State<FirebaseServerWalletPage>{
             style:TextStyle(color:Colors.orangeAccent)),
       ])),
       const SizedBox(height:16),
+      FilledButton.icon(onPressed:()=>Navigator.push(context,MaterialPageRoute<void>(builder:(_)=>FirebaseProgramsPage(api:widget.api,initialSection:'recharge'))),icon:const Icon(Icons.payments_rounded),label:const Text('Recharge offers & payment status')),
+      const SizedBox(height:12),
       FilledButton.icon(onPressed:()=>Navigator.push(context,MaterialPageRoute<void>(builder:(_)=>FirebaseRewardsPage(api:widget.api,initialTab:'recharge'))),icon:const Icon(Icons.redeem_rounded),label:const Text('Recharge Rewards')),
       const SizedBox(height:12),
       FilledButton.icon(onPressed:()=>Navigator.push(context,MaterialPageRoute<void>(builder:(_)=>FirebaseOriginalCoinSellers(api:widget.api))),icon:const Icon(Icons.storefront_rounded),label:const Text('Coin seller list')),

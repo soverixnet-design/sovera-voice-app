@@ -18,6 +18,7 @@ LIMIT=9007199254740991
 class CodeInput(BaseModel):
     model_config=ConfigDict(extra='forbid')
     code:str=Field(pattern=r'^[a-f0-9]{64}$')
+    otp:str=Field(default='',max_length=32)
 
 class RechargeInput(BaseModel):
     model_config=ConfigDict(extra='forbid',str_strip_whitespace=True)
@@ -48,6 +49,8 @@ class Control:
             CREATE TABLE IF NOT EXISTS account_control_audit(id INTEGER PRIMARY KEY AUTOINCREMENT,actor TEXT NOT NULL,action TEXT NOT NULL,target TEXT NOT NULL,payload TEXT NOT NULL,created_at INTEGER NOT NULL);
             CREATE TABLE IF NOT EXISTS account_control_recharges(request_id TEXT PRIMARY KEY,actor TEXT NOT NULL,target TEXT NOT NULL,amount INTEGER NOT NULL,note TEXT NOT NULL,balance INTEGER NOT NULL,created_at INTEGER NOT NULL);
             ''')
+            from .control_security import schema
+            schema(db)
 
     def db(self):
         # All writes use an explicit transaction under this context manager.
@@ -62,6 +65,9 @@ class Control:
         return connection()
 
     def role(self,db,uid):
+        if db.execute("SELECT 1 FROM sqlite_master WHERE name='account_staff_policy'").fetchone():
+            expiry=db.execute('SELECT expires_at FROM account_staff_policy WHERE uid=?',(uid,)).fetchone()
+            if expiry and expiry[0] and expiry[0]<=int(time.time()):raise HTTPException(403,'Staff access expired')
         staff=db.execute('SELECT role FROM account_staff WHERE uid=?',(uid,)).fetchone()
         if staff:return staff['role']
         if db.execute('SELECT 1 FROM account_control_agents WHERE uid=?',(uid,)).fetchone():return 'agent'
@@ -77,13 +83,20 @@ class Control:
             db.execute('INSERT INTO account_control_codes VALUES(?,?,?)',(digest(code),uid,now+300))
             return {'code':code,'expires_at':now+300,'url':ORIGIN}
 
-    def login(self,code):
+    def login(self,code,otp=''):
+        with self.db() as throttle:
+            now=int(time.time());throttle.execute('DELETE FROM account_control_factor_attempts WHERE created_at<?',(now-900,))
+            key=digest(code)
+            if throttle.execute('SELECT COUNT(*) FROM account_control_factor_attempts WHERE key=?',(key,)).fetchone()[0]>=8:raise HTTPException(429,'Too many code attempts. Request a new access code')
+            throttle.execute('INSERT INTO account_control_factor_attempts VALUES(?,?)',(key,now))
         with self.db() as db:
             db.execute('BEGIN IMMEDIATE')
             now=int(time.time())
             row=db.execute('SELECT uid FROM account_control_codes WHERE hash=? AND expires>?',(digest(code),now)).fetchone()
             if not row:raise HTTPException(401,'Invalid or expired code')
             self.role(db,row['uid'])
+            from .control_security import check_factor
+            check_factor(db,row['uid'],otp)
             db.execute('DELETE FROM account_control_codes WHERE hash=?',(digest(code),))
             db.execute('DELETE FROM account_control_sessions WHERE expires<=?',(now,))
             token=secrets.token_hex(32)
@@ -96,6 +109,8 @@ class Control:
             row=db.execute('SELECT uid FROM account_control_sessions WHERE hash=? AND expires>?',(digest(token),int(time.time()))).fetchone()
             if not row:raise HTTPException(401,'Session expired')
             self.role(db,row['uid'])
+            policy=db.execute('SELECT expires_at FROM account_staff_policy WHERE uid=?',(row['uid'],)).fetchone()
+            if policy and policy[0] and policy[0]<=int(time.time()):raise HTTPException(403,'Staff access expired')
             if db.execute('SELECT 1 FROM account_bans WHERE uid=?',(row['uid'],)).fetchone():raise HTTPException(403,'Account banned')
             return row['uid']
 
@@ -198,7 +213,15 @@ def attach_control(app,profiles,actor):
                 return JSONResponse({'detail':'Admin domain required'},status_code=403)
             if request.method not in ('GET','HEAD') and request.headers.get('origin')!=ORIGIN:
                 return JSONResponse({'detail':'Admin origin required'},status_code=403)
-        return await call_next(request)
+        if request.url.path.startswith('/sovera/control/') and request.url.path not in ('/sovera/control/login','/sovera/control/password-login'):
+            try:
+                uid=await asyncio.to_thread(service.actor,request.cookies.get(COOKIE))
+                from .control_security import permit
+                with service.db() as db:permit(db,uid,request.url.path)
+            except HTTPException as e:return JSONResponse({'detail':e.detail},status_code=e.status_code)
+        response=await call_next(request)
+        await asyncio.to_thread(security.mark,request.cookies.get(COOKIE),request.headers.get('user-agent',''),request.client.host if request.client else '')
+        return response
 
     @app.post('/sovera/account/staff/access-code')
     async def access_code(authorization:str|None=Header(default=None)):
@@ -206,14 +229,14 @@ def attach_control(app,profiles,actor):
 
     @app.post('/sovera/control/login')
     async def login(data:CodeInput):
-        token=await asyncio.to_thread(service.login,data.code)
+        token=await asyncio.to_thread(service.login,data.code,data.otp)
         response=JSONResponse({'signed_in':True})
         response.set_cookie(COOKIE,token,max_age=1800,secure=True,httponly=True,samesite='strict',path='/')
         return response
 
     @app.post('/sovera/control/password-login')
     async def password_login(data:PasswordInput):
-        token=await asyncio.to_thread(passwords.login,data.username,data.password)
+        token=await asyncio.to_thread(passwords.login,data.username,data.password,data.otp)
         response=JSONResponse({'signed_in':True})
         response.set_cookie(COOKIE,token,max_age=1800,secure=True,httponly=True,samesite='strict',path='/')
         return response
@@ -270,3 +293,12 @@ def attach_control(app,profiles,actor):
 
     from .rewards import attach_rewards
     attach_rewards(app,profiles,actor,staff_actor)
+
+    from .control_security import attach_security
+    security=attach_security(app,profiles,staff_actor)
+
+    from .operations import attach_operations
+    attach_operations(app,profiles,staff_actor)
+
+    from .programs import attach_programs
+    attach_programs(app,profiles,actor,staff_actor)

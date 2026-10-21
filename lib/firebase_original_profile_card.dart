@@ -21,6 +21,7 @@ class FirebaseOriginalProfileCard extends StatelessWidget {
     return CatalogPortrait(avatarUrl:avatar as String?,size:180);
   }
 
+  String get membershipLabel {final v=profile?['vip'];if(v is! Map)return 'Not active';return '${v['kind'].toString().toUpperCase()} ${v['level']}';}
   Widget rank(String label,IconData icon,Color color)=>Container(
     width:90,padding:const EdgeInsets.symmetric(vertical:15,horizontal:6),
     decoration:BoxDecoration(border:Border.all(color:color.withValues(alpha:.5)),
@@ -29,7 +30,7 @@ class FirebaseOriginalProfileCard extends StatelessWidget {
       boxShadow:[BoxShadow(color:Colors.black.withValues(alpha:.3),blurRadius:14,offset:const Offset(0,7))]),
     child:Column(children:[
       Icon(icon,color:color,size:25),const SizedBox(height:8),
-      Text(label=='VIP'?'Not active':'Lv. ${profile?[label=='Wealth'?'wealth_level':'charm_level']??'—'}',style:TextStyle(fontSize:15,fontWeight:FontWeight.w800,color:color)),
+      Text(label=='VIP'?membershipLabel:'Lv. ${profile?[label=='Wealth'?'wealth_level':'charm_level']??'—'}',style:TextStyle(fontSize:15,fontWeight:FontWeight.w800,color:color)),
       const SizedBox(height:5),Text(label,style:const TextStyle(fontSize:11,color:Colors.white70)),
     ]));
 

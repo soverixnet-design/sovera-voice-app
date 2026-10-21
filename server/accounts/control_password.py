@@ -11,6 +11,7 @@ class PasswordInput(BaseModel):
     model_config=ConfigDict(extra='forbid')
     username:str=Field(min_length=3,max_length=64)
     password:str=Field(min_length=1,max_length=128)
+    otp:str=Field(default='',max_length=32)
 
 def username_key(value):
     value=value.strip().lower()
@@ -49,7 +50,7 @@ class Passwords:
             db.execute('DELETE FROM account_control_login_attempts WHERE username=?',(username,))
             self.control.audit(db,uid,'password.set',uid,{'username':username})
 
-    def login(self,username,password):
+    def login(self,username,password,otp=''):
         try:username=username_key(username)
         except ValueError:username='invalid'
         now=int(time.time())
@@ -71,6 +72,8 @@ class Passwords:
             current=db.execute('SELECT * FROM account_control_passwords WHERE username=?',(username,)).fetchone()
             if not current or current['password_hash']!=row['password_hash']:raise HTTPException(401,'Sign in again')
             self.control.role(db,row['uid'])
+            from .control_security import check_factor
+            check_factor(db,row['uid'],otp)
             token=secrets.token_hex(32)
             db.execute('DELETE FROM account_control_sessions WHERE expires<=?',(now,))
             db.execute('INSERT INTO account_control_sessions VALUES(?,?,?)',(hashlib.sha256(token.encode()).hexdigest(),row['uid'],now+1800))

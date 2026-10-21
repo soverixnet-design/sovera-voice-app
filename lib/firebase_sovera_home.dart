@@ -1,3 +1,4 @@
+import 'firebase_programs.dart';
 import 'sovera_icons.dart';
 import 'firebase_rewards.dart';
 import 'firebase_members.dart';
@@ -298,11 +299,12 @@ class _FirebaseSoveraHomeState extends State<FirebaseSoveraHome>{
     for(final item in <(IconData,String,VoidCallback)>[
       (Icons.account_balance_wallet_rounded,'Wallet',wallet),
       (Icons.redeem_rounded,'Ranking & Event Rewards',rankings),
+      (Icons.workspace_premium_rounded,'VIP & SVIP',()=>go(FirebaseProgramsPage(api:api))),
       (Icons.savings_rounded,'Recharge Rewards',()=>go(FirebaseRewardsPage(api:api,initialTab:'recharge'))),
       (Icons.storefront_rounded,'Coin seller list',
         ()=>go(FirebaseOriginalCoinSellers(api:api))),
       (Icons.card_giftcard_rounded,'Invite & referrals',
-        ()=>feature('Referrals','The referral award server API is not connected yet.')),
+        ()=>go(FirebaseProgramsPage(api:api,initialSection:'referral'))),
       (Icons.people_outline_rounded,'People & following',
         ()=>go(FirebaseMembersPage(api:api))),
       (Icons.auto_awesome_rounded,'My frames & entries',

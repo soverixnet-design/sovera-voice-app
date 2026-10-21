@@ -22,7 +22,7 @@ class FirebaseProfileApi {
     if (access == null || access.isEmpty) throw const ProfileApiError('Please sign in again.');
     final route = Uri.parse('${endpoint.path}$suffix');
     final req = http.Request(method, endpoint.replace(path:route.path,query:route.hasQuery?route.query:null))..followRedirects = false;
-    req.headers.addAll({'Authorization': 'Bearer $access', 'Content-Type': 'application/json'});
+    req.headers.addAll({'Authorization': 'Bearer $access', 'Content-Type': 'application/json','X-Sovera-Client':'Sovera Android/iOS 0.19.0'});
     if (fields != null) req.body = jsonEncode(fields);
     final response = await http.Response.fromStream(await client.send(req).timeout(const Duration(seconds: 15)))
         .timeout(const Duration(seconds: 15));
