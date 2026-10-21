@@ -1,0 +1,15 @@
+create role anon;
+create role authenticated;
+create role service_role bypassrls;
+create schema auth;create schema extensions;create schema storage;
+grant usage on schema auth,extensions,public to authenticated,anon,service_role;
+create function auth.uid() returns uuid language sql stable as $$select nullif(current_setting('request.jwt.claim.sub',true),'')::uuid$$;
+create function extensions.digest(v text,algorithm text) returns bytea language sql immutable as $$select sha256(convert_to(v,'UTF8'))$$;
+create table auth.users(id uuid primary key,email text);
+create table storage.buckets(id text primary key,name text,public boolean,file_size_limit bigint,allowed_mime_types text[]);
+create table public.sovera_profiles(id uuid primary key references auth.users(id),uid bigint generated always as identity(start with 100001) unique,display_name text not null default 'User',avatar_url text,bio text not null default '',country text not null default '',member_role text default 'user',created_at timestamptz default now(),constraint sovera_uid_six_digits check(uid between 100001 and 999999));
+alter table public.sovera_profiles enable row level security;
+grant select on public.sovera_profiles to authenticated;
+grant insert(id,display_name,avatar_url,bio,country),update(display_name,avatar_url,bio,country) on public.sovera_profiles to authenticated;
+create policy own_profile on public.sovera_profiles to authenticated using(id=auth.uid()) with check(id=auth.uid());
+grant all on public.sovera_profiles to service_role;

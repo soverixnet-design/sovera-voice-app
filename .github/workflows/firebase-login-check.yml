@@ -1,0 +1,130 @@
+name: Firebase Google and email sign-in check
+on:
+  workflow_dispatch:
+  push:
+    branches: [admin-control-preview]
+    paths:
+      - lib/firebase_login_main.dart
+      - test/firebase_login_test.dart
+      - lib/firebase_profile.dart
+      - lib/room_card_art.dart
+      - assets/room-frames/**
+      - lib/firebase_voice.dart
+      - server/accounts/**
+      - server/voice/**
+      - lib/firebase_rooms.dart
+      - lib/firebase_duel.dart
+      - lib/firebase_global_game.dart
+      - lib/firebase_food_wheel.dart
+      - lib/firebase_greedy_wheel.dart
+      - lib/firebase_sovera_home.dart
+      - lib/firebase_original_profile_card.dart
+      - lib/firebase_original_social.dart
+      - lib/firebase_original_coin_sellers.dart
+      - lib/effects_studio.dart
+      - lib/firebase_server_wallet.dart
+      - lib/sovera_visuals.dart
+      - lib/country_picker.dart
+      - assets/games/food-wheel.html
+      - pubspec.yaml
+      - test/firebase_rooms_test.dart
+      - test/firebase_duel_test.dart
+      - test/firebase_global_game_test.dart
+      - test/firebase_food_wheel_test.dart
+      - test/firebase_greedy_wheel_test.dart
+      - test/firebase_sovera_home_test.dart
+      - test/firebase_server_wallet_test.dart
+      - test/firebase_profile_test.dart
+      - .github/workflows/firebase-login-check.yml
+permissions:
+  contents: read
+jobs:
+  android:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+      - run: flutter create --platforms=android,ios --org com.sovera --project-name sovera .
+      - run: python3 scripts/configure_mobile_auth.py
+      - name: Set Android Firebase minimum SDK
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          p = Path('android/app/build.gradle.kts')
+          p.write_text(p.read_text().replace('minSdk = flutter.minSdkVersion', 'minSdk = 24'))
+          PY
+      - run: flutter pub get
+      - run: dart run flutter_launcher_icons
+      - run: dart format lib/firebase_login_main.dart test/firebase_login_test.dart
+      - run: flutter analyze
+      - name: Enforce Firebase Auth only; Sovera data via account server
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          ui=('firebase_login_main.dart','firebase_sovera_home.dart',
+              'firebase_rooms.dart','firebase_profile.dart',
+              'firebase_greedy_wheel.dart','firebase_server_wallet.dart',
+              'sovera_visuals.dart','country_picker.dart',
+              'firebase_original_profile_card.dart','firebase_original_social.dart',
+              'firebase_original_coin_sellers.dart')
+          forbidden=('supabase_flutter', 'firebase_database',
+              'cloud_firestore', 'firebase_storage',
+              "import 'main.dart'", 'FirebaseDatabase.instance',
+              'FirebaseFirestore.instance')
+          for name in ui:
+              text=Path('lib',name).read_text()
+              for bad in forbidden:
+                  assert bad not in text, f'{name} must not depend on {bad}'
+          print('FIREBASE_AUTH_ONLY_SERVER_DATA_OK')
+          PY
+      - run: flutter test test/firebase_login_test.dart test/firebase_profile_test.dart test/firebase_rooms_test.dart test/firebase_duel_test.dart test/firebase_global_game_test.dart test/firebase_food_wheel_test.dart test/firebase_sovera_home_test.dart test/firebase_greedy_wheel_test.dart test/firebase_server_wallet_test.dart
+      - run: flutter build apk --debug --target lib/firebase_login_main.dart
+      - name: Record this APK's public signing fingerprints
+        run: |
+          python3 - <<'PY'
+          import os, subprocess
+          from pathlib import Path
+          tools = sorted((Path(os.environ['ANDROID_HOME']) / 'build-tools').glob('*/apksigner'))
+          result = subprocess.run([str(tools[-1]), 'verify', '--print-certs',
+              'build/app/outputs/flutter-apk/app-debug.apk'], check=True, text=True, capture_output=True)
+          public = '\n'.join(line for line in result.stdout.splitlines() if 'certificate SHA-' in line)
+          print(public)
+          Path('build/firebase-signing-fingerprints.txt').write_text(public + '\n')
+          PY
+      - name: Build smaller Food Wheel release preview (Firebase entry point)
+        run: flutter build apk --release --target lib/firebase_login_main.dart
+      - name: Verify and fingerprint release preview
+        run: |
+          python3 - <<'PY'
+          import os, subprocess, zipfile
+          from pathlib import Path
+          apk=Path('build/app/outputs/flutter-apk/app-release.apk')
+          assert apk.stat().st_size>5_000_000
+          with zipfile.ZipFile(apk) as z:
+              assert z.testzip() is None
+              assert 'assets/flutter_assets/assets/games/food-wheel.html' in z.namelist()
+              wheel=z.read('assets/flutter_assets/assets/games/food-wheel.html')
+              assert b'Food Wheel' in wheel and b'SoveraWheelBridge' in wheel
+          signers=sorted((Path(os.environ['ANDROID_HOME'])/'build-tools').glob('*/apksigner'))
+          result=subprocess.run([str(signers[-1]),'verify','--print-certs',str(apk)],
+                                check=True,text=True,capture_output=True)
+          print('\n'.join(x for x in result.stdout.splitlines() if 'certificate SHA-' in x))
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: sovera-food-wheel-android-release-preview
+          path: build/app/outputs/flutter-apk/app-release.apk
+      - uses: actions/upload-artifact@v4
+        with:
+          name: sovera-firebase-login-check-not-full-app
+          path: |
+            build/app/outputs/flutter-apk/app-debug.apk
+            build/firebase-signing-fingerprints.txt
+            pubspec.lock

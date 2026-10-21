@@ -1,3 +1,13 @@
+import 'public_identity.dart';
+import 'compact_gifts.dart';
+import 'package:livekit_client/livekit_client.dart' as rtc;
+import 'voice_connection.dart';
+import 'room_presence.dart';
+import 'startup_access.dart';
+import 'country_picker.dart';
+import 'dart:async';
+import 'community_services.dart';
+import 'admin_control.dart';
 import 'member_profile.dart';
 import 'room_media.dart';
 import 'referral.dart';
@@ -40,7 +50,7 @@ class Sovera extends StatelessWidget {
     theme: ThemeData.dark(useMaterial3: true).copyWith(
       scaffoldBackgroundColor: ink, colorScheme: const ColorScheme.dark(primary: violet, secondary: cyan),
       snackBarTheme: const SnackBarThemeData(behavior: SnackBarBehavior.floating),
-    ), home: preview ? const Home() : const AuthGate(),
+    ), home: preview ? const Home() : const StartupAccess(child:AuthGate()),
   );
 }
 
@@ -95,7 +105,7 @@ class _HomeState extends State<Home> {
  ('The Sovera Hall of Fame','Explore ranking designs and room honors.',Icons.emoji_events_rounded,gold),
  ('Something worth celebrating','Explore upcoming community features.',Icons.celebration_rounded,pink),
  ];
- @override void initState(){super.initState();if(widget.profile!=null)filter='All';displayName=widget.profile?['display_name'] as String? ?? 'Preview guest';bio=widget.profile?['bio'] as String? ?? '';}
+ @override void initState(){super.initState();if(widget.profile!=null){filter='All';WidgetsBinding.instance.addPostFrameCallback((_){claimDaily();});}displayName=widget.profile?['display_name'] as String? ?? 'Preview guest';bio=widget.profile?['bio'] as String? ?? '';effectProfileName.value=displayName;effectProfileId.value=publicIdentity(widget.profile);}
  @override void dispose(){search.dispose();pageScroll.dispose();super.dispose();}
  void selectTab(int value){setState((){tab=value;if(value==0)banner=0;});WidgetsBinding.instance.addPostFrameCallback((_){if(mounted&&pageScroll.hasClients)pageScroll.jumpTo(0);});}
  void go(Widget screen)=>Navigator.push(context,MaterialPageRoute<void>(builder:(_)=>screen));
@@ -104,7 +114,10 @@ class _HomeState extends State<Home> {
  Future<String?> ask(String name,{String initial='',int maxLength=100,bool allowEmpty=false})=>showDialog<String>(context:context,builder:(_)=>TextEntryDialog(title:name,initial:initial,maxLength:maxLength,allowEmpty:allowEmpty));
  Future<void> createRoom()async{if(widget.profile!=null){if(tab!=0){selectTab(0);await WidgetsBinding.instance.endOfFrame;}await cloudRooms.currentState?.myRoom();return;}final name=await ask('Name your preview room',maxLength:40);if(!mounted||name==null)return;setState(()=>rooms[name]='Your room');go(VoiceRoom(name:name));}
  Widget quick(IconData icon,String label,VoidCallback onTap,Color color)=>Expanded(child:InkWell(onTap:onTap,borderRadius:BorderRadius.circular(20),child:Padding(padding:const EdgeInsets.all(6),child:Column(children:[Jewel(icon,color:color,size:46),const SizedBox(height:9),Text(label,style:const TextStyle(fontSize:11,fontWeight:FontWeight.w600))]))));
+ bool get communityReady=>widget.profile?.containsKey('onboarded')==true;
+ Future<void> claimDaily()async{if(!communityReady)return;try{final r=await communityAction('daily.claim');if(mounted&&r['enabled']==true&&r['already_claimed']!=true)notice('Daily reward received · ${r['coins']} Coins');}catch(_){/* The reward can be retried from the profile. */}}
  Future<void> editProfile() async {
+ if(widget.profile!=null&&communityReady){final row=await Navigator.push<Map<String,dynamic>>(context,MaterialPageRoute(builder:(_)=>ProfileSetupPage(profile:widget.profile!)));if(mounted&&row!=null)setState((){displayName=row['display_name'] as String;effectProfileName.value=displayName;bio=row['bio'] as String;});return;}
  final name=await ask('Display name',initial:displayName,maxLength:40);
  if(!mounted||name==null)return;
  final about=await ask('Bio',initial:bio,maxLength:150,allowEmpty:true);
@@ -113,10 +126,10 @@ class _HomeState extends State<Home> {
   try {
    final row=await soveraClient.from('sovera_profiles').update({'display_name':name,'bio':about}).eq('id',widget.profile!['id'] as String).select('display_name,bio').single();
    if(!mounted)return;
-   setState((){displayName=row['display_name'] as String;bio=row['bio'] as String;});
+   setState((){displayName=row['display_name'] as String;effectProfileName.value=displayName;bio=row['bio'] as String;});
    notice('Profile saved.');
   }catch(_){if(mounted)notice('Profile was not saved. Check your connection and retry.');}
- }else{setState((){displayName=name;bio=about;});}
+ }else{setState((){displayName=name;effectProfileName.value=displayName;bio=about;});}
  }
  Widget roomGrid(){
  if(widget.profile!=null)return CloudRooms(key:cloudRooms,query:query,filter:filter);
@@ -138,17 +151,19 @@ class _HomeState extends State<Home> {
  if(widget.profile==null)Padding(padding:const EdgeInsets.only(bottom:12),child:OutlinedButton.icon(onPressed:()=>go(const SoveraLoginPage()),icon:const Icon(Icons.login_rounded),label:const Text('Sign in / Create account'))),
  ValueListenableBuilder<RoomDraft?>(valueListenable:minimizedRoom,builder:(context,draft,_)=>draft==null?const SizedBox.shrink():Padding(padding:const EdgeInsets.only(bottom:12),child:ListTile(tileColor:cyan.withValues(alpha:.12),shape:RoundedRectangleBorder(borderRadius:BorderRadius.circular(18)),leading:const Icon(Icons.open_in_full_rounded,color:cyan),title:const Text('Return to room'),subtitle:Text(draft.name),trailing:const Icon(Icons.chevron_right_rounded),onTap:(){minimizedRoom.value=null;go(VoiceRoom(name:draft.name,roomId:draft.roomId,ownerId:draft.ownerId,initialSeats:draft.seats,draft:draft));}))),
  if(tab==0)...[
+ const PublishedCommunityContent(kind:'banner'),
  TextField(controller:search,onChanged:(value)=>setState(()=>query=value),decoration:InputDecoration(hintText:'Search rooms',prefixIcon:const Icon(Icons.search_rounded),suffixIcon:query.isEmpty?null:IconButton(tooltip:'Clear room search',onPressed:(){search.clear();setState(()=>query='');},icon:const Icon(Icons.close_rounded)),filled:true,fillColor:Colors.white10,border:OutlineInputBorder(borderRadius:BorderRadius.circular(20),borderSide:BorderSide.none))),const SizedBox(height:18),
  SizedBox(height:280+80*(MediaQuery.textScalerOf(context).scale(1)-1),child:PageView.builder(itemCount:banners.length,onPageChanged:(value)=>setState(()=>banner=value),itemBuilder:(context,index){final b=banners[index];return Padding(padding:const EdgeInsets.only(right:4),child:InkWell(onTap:()=>index==0?createRoom():go(index==1?const Rankings():const Events()),child:Glass(tint:b.$4,child:Row(children:[Expanded(child:Column(crossAxisAlignment:CrossAxisAlignment.start,mainAxisAlignment:MainAxisAlignment.center,children:[const Text('SOVERA COMMUNITY',maxLines:1,overflow:TextOverflow.ellipsis,style:TextStyle(fontSize:9,letterSpacing:2,color:Colors.white60)),const SizedBox(height:10),Text(b.$1,maxLines:3,overflow:TextOverflow.ellipsis,style:const TextStyle(fontSize:22,fontWeight:FontWeight.w800,height:1.1)),const SizedBox(height:10),Text(b.$2,maxLines:3,overflow:TextOverflow.ellipsis,style:const TextStyle(fontSize:11,color:Colors.white60))])),const SizedBox(width:10),Column(mainAxisAlignment:MainAxisAlignment.center,children:[const BrandLogo(size:62),const SizedBox(height:12),Jewel(b.$3,color:b.$4,size:42)])]))));})),
  const SizedBox(height:10),Row(mainAxisAlignment:MainAxisAlignment.center,children:[for(int i=0;i<banners.length;i++)Container(width:banner==i?20:6,height:6,margin:const EdgeInsets.symmetric(horizontal:3),decoration:BoxDecoration(color:banner==i?pink:Colors.white30,borderRadius:BorderRadius.circular(4)))]),const SizedBox(height:14),
  Row(children:[quick(Icons.emoji_events_rounded,'Rankings',()=>go(const Rankings()),gold),quick(Icons.celebration_rounded,'Events',()=>go(const Events()),pink),quick(Icons.add_home_rounded,'My room',createRoom,cyan),quick(Icons.sports_esports_rounded,'Games',()=>go(const GamesHub()),violet)]),
  const SizedBox(height:14),Wrap(spacing:8,children:['All','Following','New'].map((name)=>ChoiceChip(label:Text(name),selected:filter==name,onSelected:(_)=>setState(()=>filter=name))).toList()),const SizedBox(height:14),roomGrid(),
  ],
- if(tab==1)...[title('Moments'),FilledButton.icon(onPressed:()async{final text=await ask('Write a local preview post',maxLength:500);if(mounted&&text!=null)setState(()=>posts.insert(0,text));},icon:const Icon(Icons.edit_rounded),label:const Text('Write a moment')),const SizedBox(height:18),if(posts.isEmpty)const Glass(child:Text('Your community stories will appear here. Preview posts stay in this session.')),for(final post in posts)Padding(padding:const EdgeInsets.only(bottom:12),child:Glass(child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[Text(displayName,style:const TextStyle(fontWeight:FontWeight.bold)),const SizedBox(height:10),Text(post)])))],
+ if(tab==1&&communityReady)...[title('Moments'),const SavedMoments()],
+ if(tab==1&&!communityReady)...[title('Moments'),FilledButton.icon(onPressed:()async{final text=await ask('Write a local preview post',maxLength:500);if(mounted&&text!=null)setState(()=>posts.insert(0,text));},icon:const Icon(Icons.edit_rounded),label:const Text('Write a moment')),const SizedBox(height:18),if(posts.isEmpty)const Glass(child:Text('Your community stories will appear here. Preview posts stay in this session.')),for(final post in posts)Padding(padding:const EdgeInsets.only(bottom:12),child:Glass(child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[Text(displayName,style:const TextStyle(fontWeight:FontWeight.bold)),const SizedBox(height:10),Text(post)])))],
  if(tab==2)...[title('Messages'),for(final item in [(Icons.support_agent_rounded,'Official support',cyan),(Icons.campaign_rounded,'Official notices',gold),(Icons.account_balance_wallet_rounded,'Recharge support',pink)])Padding(padding:const EdgeInsets.only(bottom:12),child:InkWell(onTap:()=>go(item.$2=='Official notices'?const Notices():widget.profile!=null?SavedSupportPage(title:item.$2):SupportPage(title:item.$2)),child:Glass(tint:item.$3,child:Row(children:[Jewel(item.$1,color:item.$3,size:46),const SizedBox(width:14),Expanded(child:Text(item.$2,style:const TextStyle(fontWeight:FontWeight.bold))),const Icon(Icons.chevron_right_rounded)])))),const SizedBox(height:20),const Text('Chats',style:TextStyle(fontSize:20,fontWeight:FontWeight.bold)),const SizedBox(height:12),widget.profile==null?const Text('Sign in to read private conversations.',style:TextStyle(color:Colors.white54)):FilledButton.icon(onPressed:()=>go(DirectInboxPage(viewerId:widget.profile!['id'] as String)),icon:const Icon(Icons.forum_rounded),label:const Text('Open private chats'))],
- if(tab==3)...[title('My profile'),ProfileIdentityCard(profile:widget.profile,name:displayName,bio:bio,onEdit:editProfile),const SizedBox(height:22),const SocialProfileCards(),const SizedBox(height:22),
+ if(tab==3)...[title('My profile'),if(widget.profile!=null)AdminControlEntry(userId:widget.profile!['id'] as String),ProfileIdentityCard(profile:widget.profile,name:displayName,bio:bio,onEdit:editProfile),const SizedBox(height:18),if(widget.profile!=null)AccountWalletCard(onOpen:()=>go(WalletPage(profile:widget.profile))),const SizedBox(height:18),
  InkWell(onTap:()=>go(ResellerCenter(profile:widget.profile)),borderRadius:BorderRadius.circular(26),child:Glass(tint:gold,child:Row(children:[const Jewel(Icons.storefront_rounded,color:gold,size:48),const SizedBox(width:14),const Expanded(child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[Text('Reseller center',style:TextStyle(fontSize:18,fontWeight:FontWeight.bold)),SizedBox(height:5),Text('Access, coin quota and applications',style:TextStyle(fontSize:11,color:Colors.white60))])),const Icon(Icons.chevron_right_rounded,color:gold)]))),
- const SizedBox(height:16),for(final item in [(Icons.account_balance_wallet_rounded,'Wallet'),(Icons.storefront_rounded,'Coin seller list'),(Icons.card_giftcard_rounded,'Invite & referrals'),(Icons.people_outline_rounded,'People & following'),(Icons.workspace_premium_rounded,'Frames & effects'),(Icons.add_home_rounded,'My room'),(Icons.settings_outlined,'Settings')])ListTile(leading:Icon(item.$1,color:gold),title:Text(item.$2),trailing:const Icon(Icons.chevron_right_rounded),onTap:(){switch(item.$2){case 'Invite & referrals':go(ReferralPage(profile:widget.profile));break;case 'Wallet':go(WalletPage(profile:widget.profile));break;case 'Coin seller list':go(CoinSellerList(profile:widget.profile));break;case 'People & following':go(MemberDirectory(profile:widget.profile==null?null:{...widget.profile!,'display_name':displayName,'bio':bio}));break;case 'Frames & effects':go(const EffectsStudio());break;case 'Settings':go(const AppSettings());break;case 'My room':createRoom();break;default:break;}}),Text(widget.profile==null?'Profile edits are local and reset when the app restarts.':'Profile edits are saved to your Supabase account.',style:const TextStyle(fontSize:11,color:Colors.white54)),if(widget.profile!=null) TextButton.icon(onPressed:() async { try { await soveraClient.auth.signOut(scope:SignOutScope.local); } catch(_) {notice('Could not sign out. Please retry.');} },icon:const Icon(Icons.logout_rounded),label:const Text('Sign out'))],
+ const SizedBox(height:16),SocialProfileCards(connected:communityReady),if(communityReady)...[ListTile(leading:const Icon(Icons.card_giftcard_rounded,color:gold),title:const Text('My store items'),onTap:()=>go(const CommunityInventory())),TextButton.icon(onPressed:claimDaily,icon:const Icon(Icons.redeem_rounded),label:const Text('Check daily login reward'))],const SizedBox(height:16),for(final item in [(Icons.account_balance_wallet_rounded,'Wallet'),(Icons.storefront_rounded,'Coin seller list'),(Icons.card_giftcard_rounded,'Invite & referrals'),(Icons.people_outline_rounded,'People & following'),(Icons.workspace_premium_rounded,'Frames & effects'),(Icons.add_home_rounded,'My room'),(Icons.settings_outlined,'Settings')])ListTile(leading:Icon(item.$1,color:gold),title:Text(item.$2),trailing:const Icon(Icons.chevron_right_rounded),onTap:(){switch(item.$2){case 'Invite & referrals':go(ReferralPage(profile:widget.profile));break;case 'Wallet':go(WalletPage(profile:widget.profile));break;case 'Coin seller list':go(CoinSellerList(profile:widget.profile));break;case 'People & following':go(MemberDirectory(profile:widget.profile==null?null:{...widget.profile!,'display_name':displayName,'bio':bio}));break;case 'Frames & effects':go(const EffectsStudio());break;case 'Settings':go(const AppSettings());break;case 'My room':createRoom();break;default:break;}}),Text(widget.profile==null?'Profile edits are local and reset when the app restarts.':'Profile edits are saved to your Supabase account.',style:const TextStyle(fontSize:11,color:Colors.white54)),if(widget.profile!=null) TextButton.icon(onPressed:() async { try { await soveraClient.auth.signOut(scope:SignOutScope.local); } catch(_) {notice('Could not sign out. Please retry.');} },icon:const Icon(Icons.logout_rounded),label:const Text('Sign out'))],
  ]))))),
  bottomNavigationBar:NavigationBar(backgroundColor:const Color(0xFF1B2448),selectedIndex:tab,onDestinationSelected:selectTab,destinations:const[NavigationDestination(icon:Icon(Icons.home_rounded),label:'Home'),NavigationDestination(icon:Icon(Icons.auto_awesome_rounded),label:'Moments'),NavigationDestination(icon:Icon(Icons.chat_bubble_outline_rounded),label:'Messages'),NavigationDestination(icon:Icon(Icons.person_outline_rounded),label:'Me')]),
  );
@@ -179,7 +194,7 @@ class Events extends StatelessWidget{
 }
 class Notices extends StatelessWidget{
  const Notices({super.key});
- @override Widget build(BuildContext context)=>const FeaturePage(title:'Official notices',icon:Icons.campaign_rounded,description:'Welcome to the Sovera design preview.\n\nOfficial announcements and notification history will appear here after the admin service is connected.');
+ @override Widget build(BuildContext context)=>Scaffold(appBar:AppBar(title:const Text('Official notices')),body:const SingleChildScrollView(padding:EdgeInsets.all(20),child:PublishedCommunityContent(kind:'notice')));
 }
 
 class SupportPage extends StatefulWidget{
@@ -193,7 +208,7 @@ class _SupportPageState extends State<SupportPage>{
 }
 class AppSettings extends StatelessWidget{
  const AppSettings({super.key});
- @override Widget build(BuildContext context)=>Scaffold(appBar:AppBar(title:const Text('Settings')),body:ListView(padding:const EdgeInsets.all(16),children:[const Center(child:BrandLogo(size:76)),const SizedBox(height:20),for(final item in [(Icons.language_rounded,'Language','This preview currently supports English. Full Bangla translation and saved language selection are pending.'),(Icons.mic_rounded,'Audio settings','Microphone permission, voice quality and audio routing will be available when the RTC engine is connected.'),(Icons.block_rounded,'Blocked users','User blocking is not connected yet.'),(Icons.shield_outlined,'Privacy','Facebook and Google sign-in use Supabase. Profile edits, room settings, room follows and submitted support tickets are saved to your account. Voice and payments are not connected. Local room chat and moment drafts reset after restart. A production privacy policy is still required.'),(Icons.description_outlined,'Terms','This is an early-access build with account storage and visual previews. Purchases, cash rewards and live voice are not enabled. Production terms have not been published.'),(Icons.delete_outline_rounded,'Delete account','Account deletion is not available in this build. An authenticated deletion flow is still required.')])ListTile(leading:Icon(item.$1,color:gold),title:Text(item.$2),trailing:const Icon(Icons.chevron_right_rounded),onTap:()=>Navigator.push(context,MaterialPageRoute<void>(builder:(_)=>FeaturePage(title:item.$2,description:item.$3,icon:item.$1)))),const ListTile(leading:Icon(Icons.info_outline_rounded),title:Text('Sovera 0.13.1 · Early access'),subtitle:Text('Account and room storage connected · voice pending'))]));
+ @override Widget build(BuildContext context)=>Scaffold(appBar:AppBar(title:const Text('Settings')),body:ListView(padding:const EdgeInsets.all(16),children:[const Center(child:BrandLogo(size:76)),const SizedBox(height:20),for(final item in [(Icons.language_rounded,'Language','This preview currently supports English. Full Bangla translation and saved language selection are pending.'),(Icons.mic_rounded,'Audio settings','Microphone permission, voice quality and audio routing will be available when the RTC engine is connected.'),(Icons.block_rounded,'Blocked users','User blocking is not connected yet.'),(Icons.shield_outlined,'Privacy','Facebook and Google sign-in use Supabase. Profile edits, room settings, room follows and submitted support tickets are saved to your account. Voice and payments are not connected. Local room chat and moment drafts reset after restart. A production privacy policy is still required.'),(Icons.description_outlined,'Terms','This is an early-access build with account storage and visual previews. Purchases, cash rewards and live voice are not enabled. Production terms have not been published.'),(Icons.delete_outline_rounded,'Delete account','Account deletion is not available in this build. An authenticated deletion flow is still required.')])ListTile(leading:Icon(item.$1,color:gold),title:Text(item.$2),trailing:const Icon(Icons.chevron_right_rounded),onTap:()=>Navigator.push(context,MaterialPageRoute<void>(builder:(_)=>FeaturePage(title:item.$2,description:item.$3,icon:item.$1)))),const ListTile(leading:Icon(Icons.info_outline_rounded),title:Text('Sovera 0.15.0 · Early access'),subtitle:Text('Account and room storage connected · voice pending'))]));
 }
 
 class BrandLogo extends StatelessWidget {
@@ -221,7 +236,7 @@ class RoyalAvatar extends StatelessWidget {
  final double size; final String label; final bool active;
  const RoyalAvatar({super.key, this.size = 66, this.label = '', this.active = false});
  @override
- Widget build(BuildContext context) => FramePreviewAdapter(size:size+28,enabled:active,child:SizedBox(width: size+24, height: size+28, child: Stack(alignment: Alignment.center, children: [
+ Widget build(BuildContext context) => FramePreviewAdapter(size:size+28,portraitSize:size,enabled:active,child:SizedBox(width: size+24, height: size+28, child: Stack(alignment: Alignment.center, children: [
  Positioned(left: 0, child: Transform.rotate(angle: -.4, child: Icon(Icons.eco_rounded, color: gold, size: size*.55))),
  Positioned(right: 0, child: Transform.flip(flipX: true, child: Transform.rotate(angle: -.4, child: Icon(Icons.eco_rounded, color: gold, size: size*.55)))),
  Container(width: size, height: size, decoration: BoxDecoration(shape: BoxShape.circle, gradient: const LinearGradient(colors: [gold, Color(0xFF8F542A), Color(0xFFFFE7BA)]), boxShadow: [BoxShadow(color: gold.withValues(alpha: .25), blurRadius: 14)]), padding: const EdgeInsets.all(3), child: CircleAvatar(backgroundColor: const Color(0xFF15131B), child: active ? const BrandLogo(size: 42) : Icon(Icons.chair_alt_rounded, color: gold, size: size*.4))),
@@ -248,7 +263,7 @@ class _RankingsState extends State<Rankings> {
  ]));
 }
 class RoomDraft{
- final String name;final String? roomId,ownerId;final int seats;final int? mySeat,partnerSeat;final SeatBond bond;final bool muted;final List<String> messages;
+ final String name;final String? roomId,ownerId;final int seats;final int? mySeat,partnerSeat;final SeatBond bond;final bool muted;final List<RoomChatMessage> messages;
  const RoomDraft({required this.name,this.roomId,this.ownerId,required this.seats,this.mySeat,this.partnerSeat,required this.bond,required this.muted,required this.messages});
 }
 final minimizedRoom=ValueNotifier<RoomDraft?>(null);
@@ -260,56 +275,187 @@ class VoiceRoom extends StatefulWidget {
  @override
  State<VoiceRoom> createState() => _VoiceRoomState();
 }
-class _VoiceRoomState extends State<VoiceRoom> {
+class _VoiceRoomState extends State<VoiceRoom> with WidgetsBindingObserver {
+ Timer? seatTimer;
+ final seatGiftAnchors=<int,GlobalKey>{};
+ final flyingGiftOverlays=<OverlayEntry>{};
+ bool seatBusy=false, seatActive=true;
+ Map<int,String> liveSeats={};
+ Future<VoiceSeatState> seatRequest(String action,{int? seat})=>requestVoiceSeat(roomId:widget.roomId!,accessToken:soveraClient.auth.currentSession?.accessToken,action:action,seat:seat);
+ void applySeats(VoiceSeatState state){
+  if(!mounted||roomClosing)return;
+  final lost=mySeat!=null&&state.mine==null;
+  setState((){seats=state.count;mySeat=state.mine;liveSeats=state.occupants;if(state.mine==null)micMuted=true;});
+  if(lost)unawaited(stopMicrophone());
+ }
+ Future<void> stopMicrophone()async{
+  try{await audioRoom?.localParticipant?.setMicrophoneEnabled(false);}catch(_){}
+  if(mounted&&!roomClosing)setState(()=>micMuted=true);
+ }
+ Future<void> syncSeats()async{
+  if(widget.roomId==null||seatBusy||roomClosing||!seatActive||audioRoom?.connectionState!=rtc.ConnectionState.connected)return;
+  seatBusy=true;
+  try{applySeats(await seatRequest(mySeat==null?'state':'renew'));}
+  catch(_){await stopMicrophone();if(mounted&&!roomClosing)setState(()=>mySeat=null);}
+  finally{seatBusy=false;}
+ }
+ Future<void> chooseLiveSeat(int index)async{
+  if(seatBusy||roomClosing)return;
+  if(audioRoom?.connectionState!=rtc.ConnectionState.connected){notice('Wait for live audio to connect.');return;}
+  final occupant=liveSeats[index];
+  if(occupant!=null){await profile(index);return;}
+  setState(()=>seatBusy=true);
+  try{
+   if(!await requestMicrophoneAccess()){if(mounted)notice('Allow microphone access to speak.');return;}
+   await stopMicrophone();
+   final result=await seatRequest('take',seat:index);
+   if(!mounted||roomClosing||!seatActive){await seatRequest('leave');return;}
+   applySeats(result);
+   // Wait for the server's permission update before requesting microphone access.
+   for(var attempt=0;attempt<20&&mounted&&!roomClosing&&seatActive;attempt++){
+    if(audioRoom?.localParticipant?.permissions.canPublish==true)break;
+    await Future<void>.delayed(const Duration(milliseconds:100));
+   }
+   if(mounted&&!roomClosing&&seatActive&&mySeat==index)await toggleMic();
+  }catch(error){if(mounted&&!roomClosing)notice(error is VoiceConnectionException?error.message:'Could not take this seat.');}
+  finally{if(mounted&&!roomClosing)setState(()=>seatBusy=false);else seatBusy=false;}
+ }
+ Future<void> releaseSeat()async{
+  await stopMicrophone();
+  if(widget.roomId==null)return;
+  try{final result=await seatRequest('leave');applySeats(result);}
+  catch(_){if(mounted&&!roomClosing)setState(()=>mySeat=null);}
+ }
+ rtc.Room? audioRoom;
+ bool audioConnecting=false, micChanging=false, roomClosing=false;
+ String? audioError;
+ Future<void> connectAudio()async{
+  if(widget.roomId==null||audioConnecting||roomClosing)return;
+  setState((){audioConnecting=true;audioError=null;micMuted=true;});
+  rtc.Room? candidate;
+  try{
+   final credentials=await requestVoiceCredentials(roomId:widget.roomId!,accessToken:soveraClient.auth.currentSession?.accessToken);
+   if(!mounted||roomClosing)return;
+   final old=audioRoom;audioRoom=null;
+   if(old!=null){old.removeListener(audioChanged);await old.disconnect();await old.dispose();}
+   candidate=rtc.Room();
+   await candidate.connect(credentials.url,credentials.token);
+   if(!mounted||roomClosing){await candidate.disconnect();await candidate.dispose();return;}
+   audioRoom=candidate;candidate=null;audioRoom!.addListener(audioChanged);
+   RoomPresence.instance.enter(widget.roomId!);
+   if(mounted&&!roomClosing){setState(()=>mySeat=null);unawaited(syncSeats());seatTimer?.cancel();seatTimer=Timer.periodic(const Duration(seconds:8),(_)=>syncSeats());}
+  }catch(error){
+   if(candidate!=null){await candidate.disconnect();await candidate.dispose();}
+   if(mounted&&!roomClosing)audioError=error is VoiceConnectionException?error.message:'Could not connect to voice. Tap Retry.';
+  }finally{if(mounted&&!roomClosing)setState(()=>audioConnecting=false);}
+ }
+ void audioChanged(){if(mounted&&!roomClosing)setState((){if(audioRoom?.localParticipant?.permissions.canPublish!=true)micMuted=true;});}
+ Future<void> closeAudio()async{
+  seatTimer?.cancel();
+  RoomPresence.instance.leave(widget.roomId);
+  final room=audioRoom;audioRoom=null;
+  if(room!=null){
+   room.removeListener(audioChanged);
+   try{await room.localParticipant?.setMicrophoneEnabled(false);}catch(_){}
+   try{await room.disconnect();}catch(_){}
+   try{await room.dispose();}catch(_){}
+  }
+  if(widget.roomId!=null){try{await seatRequest('leave');}catch(_){}}
+ }
+ String get audioStatus{
+  if(audioConnecting)return 'Connecting live audio…';
+  if(audioError!=null)return audioError!;
+  final state=audioRoom?.connectionState;
+  if(state==rtc.ConnectionState.connected)return audioRoom?.localParticipant?.permissions.canPublish==true?'Live audio connected':'Live audio connected · Listening';
+  if(state==rtc.ConnectionState.reconnecting)return 'Reconnecting live audio…';
+  return 'Live audio disconnected';
+ }
+ Timer? presenceTimer;
+ Future<void> pingPresence()async{if(widget.roomId==null||soveraClient.auth.currentUser==null)return;try{await communityAction('presence.ping',{'room_id':widget.roomId});}catch(_){}}
+ Future<void> leavePresence()async{if(widget.roomId==null)return;try{await communityAction('presence.leave',{'room_id':widget.roomId});}catch(_){}}
+ @override void didChangeAppLifecycleState(AppLifecycleState state){
+ if(state==AppLifecycleState.resumed){seatActive=true;pingPresence();presenceTimer?.cancel();presenceTimer=Timer.periodic(const Duration(seconds:25),(_)=>pingPresence());syncSeats();}
+ else if(state==AppLifecycleState.paused||state==AppLifecycleState.detached){seatActive=false;presenceTimer?.cancel();leavePresence();if(widget.roomId!=null)unawaited(releaseSeat());}
+ }
+
  int seats=9;bool micMuted=true; int? partnerSeat; SeatBond bond=SeatBond.friendship; bool savingSeats=false; int? mySeat; String? selectedGift;
- final messages=<String>[]; final input=TextEditingController();
- @override void initState(){super.initState();seats=widget.draft?.seats??widget.initialSeats;mySeat=widget.draft?.mySeat;partnerSeat=widget.draft?.partnerSeat;bond=widget.draft?.bond??SeatBond.friendship;micMuted=widget.draft?.muted??true;messages.addAll(widget.draft?.messages??[]);
+ final messages=<RoomChatMessage>[]; final input=TextEditingController();
+ Timer? arrivalTimer;
+ bool showTagArrival=false;
+ @override void initState(){super.initState();WidgetsBinding.instance.addObserver(this);pingPresence();if(widget.roomId!=null)presenceTimer=Timer.periodic(const Duration(seconds:25),(_)=>pingPresence());seats=widget.draft?.seats??widget.initialSeats;mySeat=widget.draft?.mySeat;partnerSeat=widget.draft?.partnerSeat;bond=widget.draft?.bond??SeatBond.friendship;micMuted=widget.draft?.muted??true;messages.addAll(widget.draft?.messages??[]);
+  showTagArrival=widget.draft==null&&previewNameTag.value?.tagAsset!=null;
+  if(showTagArrival)arrivalTimer=Timer(const Duration(seconds:6),(){if(mounted)setState(()=>showTagArrival=false);});
   WidgetsBinding.instance.addPostFrameCallback((_){
+   if(widget.roomId!=null)connectAudio();
    final entry=previewEntryEffect.value;
    if(mounted&&entry!=null&&ModalRoute.of(context)?.isCurrent==true)showEntryPreview(context,entry);
   });
  }
+ Future<void> editRoomCountry()async{
+ final code=await showDialog<String>(context:context,builder:(_)=>const RoomCountryDialog());
+ if(code==null||!mounted)return;
+ try{await soveraClient.from('sovera_rooms').update({'country':code}).eq('id',widget.roomId!).eq('owner_id',soveraClient.auth.currentUser!.id).select('id').single();if(mounted)notice('Room country saved.');}
+ catch(_){if(mounted)notice('Could not save room country. Please retry.');}
+ }
  bool get canEdit=>widget.roomId==null||soveraClient.auth.currentUser?.id==widget.ownerId;
  void notice(String text) => ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(text)));
  @override
- void dispose(){input.dispose();super.dispose();}
+ void dispose(){arrivalTimer?.cancel();for(final entry in flyingGiftOverlays){entry.remove();}flyingGiftOverlays.clear();roomClosing=true;unawaited(closeAudio());WidgetsBinding.instance.removeObserver(this);presenceTimer?.cancel();leavePresence();input.dispose();super.dispose();}
  @override
  Widget build(BuildContext context) => Scaffold(backgroundColor: const Color(0xFF0C0D0F),
  appBar:AppBar(backgroundColor:const Color(0xFF10182A),automaticallyImplyLeading:false,leadingWidth:44,leading:RoomTool(label:'Back',icon:Icons.arrow_back_ios_new_rounded,color:violet,onTap:()=>Navigator.maybePop(context)),titleSpacing:0,title:Row(children:[RoomPhoto(roomId:widget.roomId,canEdit:canEdit,size:32),const SizedBox(width:6),Expanded(child:Text(widget.name,maxLines:1,overflow:TextOverflow.ellipsis,style:const TextStyle(fontSize:14,fontWeight:FontWeight.bold)))]),actions:[
  RoomTool(label:'Minimize room',icon:Icons.unfold_less_rounded,color:cyan,onTap:minimize),
  RoomTool(label:'Frames & effects',icon:Icons.auto_awesome_rounded,color:violet,onTap:()=>Navigator.push(context,MaterialPageRoute<void>(builder:(_)=>const EffectsStudio()))),
+ if(canEdit&&widget.roomId!=null)RoomTool(label:'Room country',icon:Icons.flag_rounded,color:cyan,onTap:editRoomCountry),
  RoomTool(label:'Seat settings',icon:Icons.tune_rounded,color:gold,onTap:canEdit&&!savingSeats?settings:null),
  RoomTool(label:'Leave room',icon:Icons.logout_rounded,color:pink,onTap:(){minimizedRoom.value=null;if(Navigator.canPop(context)){Navigator.pop(context);}else{Navigator.pushReplacement(context,MaterialPageRoute<void>(builder:(_)=>const Home()));}}),
  ]),
  body: SafeArea(child: Center(child: ConstrainedBox(constraints: const BoxConstraints(maxWidth:640),child: Column(children:[
  Expanded(child: ListView(padding:const EdgeInsets.symmetric(horizontal:18,vertical:12),children:[
- Wrap(spacing:8,runSpacing:8,crossAxisAlignment:WrapCrossAlignment.center,children:[ActionChip(avatar:const Icon(Icons.emoji_events_rounded,color:gold,size:18),label:const Text('Room honors'),onPressed:()=>Navigator.push(context,MaterialPageRoute<void>(builder:(_)=>const Rankings()))),Text(widget.roomId==null?'OFFLINE PREVIEW':'ROOM SAVED · NO AUDIO',maxLines:2,style:const TextStyle(color:Colors.white38,fontSize:10))]),
+ Wrap(spacing:8,runSpacing:8,crossAxisAlignment:WrapCrossAlignment.center,children:[ActionChip(avatar:const Icon(Icons.emoji_events_rounded,color:gold,size:18),label:const Text('Room honors'),onPressed:()=>Navigator.push(context,MaterialPageRoute<void>(builder:(_)=>const Rankings()))),Text(widget.roomId==null?'OFFLINE PREVIEW':'LIVE VOICE ROOM',maxLines:2,style:const TextStyle(color:Colors.white38,fontSize:10))]),
  const SizedBox(height:6),
+ if(showTagArrival)Padding(padding:const EdgeInsets.symmetric(vertical:8),child:Glass(tint:cyan,padding:const EdgeInsets.all(10),child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[const Text('Joined the room',style:TextStyle(fontSize:10,color:Colors.white60)),CosmeticIdentityLine(name:effectProfileName.value,userId:effectProfileId.value,tag:previewNameTag.value)]))),
  Align(alignment:Alignment.center,child:TextButton.icon(onPressed:connections,icon:const Icon(Icons.handshake_rounded,color:cyan),label:const Text('Friendship & CP preview'))),
  LayoutBuilder(builder:(context,constraints){
  final seatSize=(constraints.maxWidth/roomSeatColumns-24).clamp(36.0,64.0);
  final height=seatSize+62+25*(MediaQuery.textScalerOf(context).scale(1)-1);
  final linked=mySeat!=null&&partnerSeat!=null&&adjacentSeats(mySeat!,partnerSeat!,seats);
  return Stack(children:[
- GridView.builder(shrinkWrap:true,physics:const NeverScrollableScrollPhysics(),itemCount:seats,gridDelegate:SliverGridDelegateWithFixedCrossAxisCount(crossAxisCount:roomSeatColumns,mainAxisExtent:height),itemBuilder:(context,index)=>Semantics(label:'Seat ${index+1}',button:true,child:InkWell(onTap:(){if(mySeat==index&&widget.roomId!=null){profile(index);return;}setState((){mySeat=mySeat==index?null:index;if(mySeat==null||mySeat==partnerSeat)partnerSeat=null;});},onLongPress:()=>profile(index),borderRadius:BorderRadius.circular(24),child:Column(children:[RoomSeatAvatar(size:seatSize,occupied:mySeat==index||partnerSeat==index,muted:mySeat==index&&micMuted),Text(mySeat==index?'You':partnerSeat==index?'Partner preview':'${index+1}',maxLines:1,overflow:TextOverflow.ellipsis,textAlign:TextAlign.center,style:const TextStyle(color:Colors.white60,fontSize:11))])))),
+ GridView.builder(shrinkWrap:true,physics:const NeverScrollableScrollPhysics(),itemCount:seats,gridDelegate:SliverGridDelegateWithFixedCrossAxisCount(crossAxisCount:roomSeatColumns,mainAxisExtent:height),itemBuilder:(context,index)=>Semantics(label:'Seat ${index+1}',button:true,child:InkWell(onTap:(){if(widget.roomId!=null){chooseLiveSeat(index);return;}setState((){mySeat=mySeat==index?null:index;if(mySeat==null||mySeat==partnerSeat)partnerSeat=null;});},onLongPress:()=>profile(index),borderRadius:BorderRadius.circular(24),child:Column(children:[RoomSeatAvatar(key:seatGiftAnchors.putIfAbsent(index,()=>GlobalKey()),size:seatSize,occupied:widget.roomId==null?(mySeat==index||partnerSeat==index):liveSeats.containsKey(index),muted:mySeat==index&&micMuted),Text(mySeat==index?'You':widget.roomId!=null&&liveSeats.containsKey(index)?'Member':partnerSeat==index?'Partner preview':'${index+1}',maxLines:1,overflow:TextOverflow.ellipsis,textAlign:TextAlign.center,style:const TextStyle(color:Colors.white60,fontSize:11))])))),
  if(linked)Positioned(left:constraints.maxWidth*((mySeat!%roomSeatColumns+partnerSeat!%roomSeatColumns+1)/(roomSeatColumns*2))-18,top:(mySeat!~/roomSeatColumns)*height+seatSize/2,child:SeatLinkMarker(bond:bond)),
  ]);
  }),
  if(partnerSeat!=null)const Text('Local relationship preview · No real request or gift sent',textAlign:TextAlign.center,style:TextStyle(color:Colors.white54,fontSize:10)),
- if(mySeat!=null)Text(micMuted?'Mic indicator: muted · Live audio unavailable':'Mic indicator: unmuted preview · Live audio unavailable',textAlign:TextAlign.center,style:TextStyle(color:micMuted?pink:cyan,fontSize:10)),
+ if(widget.roomId!=null)Row(mainAxisAlignment:MainAxisAlignment.center,children:[Flexible(child:Text(audioStatus,textAlign:TextAlign.center,style:const TextStyle(color:Colors.white70,fontSize:11))),if(!audioConnecting&&(audioError!=null||audioRoom?.connectionState==rtc.ConnectionState.disconnected))TextButton(onPressed:connectAudio,child:const Text('Retry'))]),
+ if(widget.roomId!=null&&mySeat!=null)TextButton.icon(onPressed:seatBusy?null:releaseSeat,icon:const Icon(Icons.logout_rounded,size:16),label:Text(micMuted?'Leave seat · Microphone muted':'Leave seat · Speaking')),
+ if(mySeat!=null&&widget.roomId==null)Text(micMuted?'Mic indicator: muted · Live audio unavailable':'Mic indicator: unmuted preview · Live audio unavailable',textAlign:TextAlign.center,style:TextStyle(color:micMuted?pink:cyan,fontSize:10)),
  const SizedBox(height:16),const Text('Local chat preview',style:TextStyle(color:gold,fontWeight:FontWeight.bold)),
  const SizedBox(height:12),const Text('Welcome to Sovera. Take a seat and explore the room design.',style:TextStyle(color:Colors.white54,fontSize:12)),const SizedBox(height:12),
- for(final m in messages)Padding(padding:const EdgeInsets.only(bottom:8),child:Glass(tint:gold,padding:const EdgeInsets.all(12),child:Text('You: $m'))),
+ for(final m in messages)Padding(padding:const EdgeInsets.only(bottom:8),child:RoomChatBubble(message:m)),
  ])),
- Padding(padding:const EdgeInsets.fromLTRB(10,6,10,14),child:Row(children:[IconButton(tooltip:micMuted?'Unmute preview':'Mute preview',onPressed:toggleMic,icon:Icon(micMuted?Icons.mic_off_rounded:Icons.mic_rounded,color:micMuted?pink:cyan)),Expanded(child:TextField(controller:input,maxLength:300,decoration:const InputDecoration(hintText:'Local message…',counterText:'',border:InputBorder.none),onSubmitted:(_)=>send())),IconButton(tooltip:'Send local message',onPressed:send,icon:const Icon(Icons.send_rounded,color:gold)),IconButton.filled(tooltip:'Preview gifts',onPressed:gifts,style:IconButton.styleFrom(backgroundColor:const Color(0xFFB6642B)),icon:const Icon(Icons.card_giftcard_rounded)),IconButton(tooltip:'Games',onPressed:()=>Navigator.push(context,MaterialPageRoute<void>(builder:(_)=>const GamesHub())),icon:const Icon(Icons.grid_view_rounded,color:gold))])),
+ Padding(padding:const EdgeInsets.fromLTRB(10,6,10,14),child:Row(children:[IconButton(tooltip:widget.roomId==null?(micMuted?'Unmute preview':'Mute preview'):(micMuted?'Unmute microphone':'Mute microphone'),onPressed:micChanging?null:toggleMic,icon:Icon(micMuted?Icons.mic_off_rounded:Icons.mic_rounded,color:micMuted?pink:cyan)),Expanded(child:TextField(controller:input,maxLength:300,decoration:const InputDecoration(hintText:'Local message…',counterText:'',border:InputBorder.none),onSubmitted:(_)=>send())),IconButton(tooltip:'Send local message',onPressed:send,icon:const Icon(Icons.send_rounded,color:gold)),IconButton.filled(tooltip:'Preview gifts',onPressed:gifts,style:IconButton.styleFrom(backgroundColor:const Color(0xFFB6642B)),icon:const Icon(Icons.card_giftcard_rounded))])),
  ])))),
  );
- void toggleMic(){if(mySeat==null){notice('Take a seat first to preview your microphone indicator.');return;}setState(()=>micMuted=!micMuted);}
+ Future<void> toggleMic()async{
+ if(widget.roomId==null){if(mySeat==null){notice('Take a seat first to preview your microphone indicator.');return;}setState(()=>micMuted=!micMuted);return;}
+ if(micChanging)return;
+ final room=audioRoom;
+ if(room?.connectionState!=rtc.ConnectionState.connected){notice('Connect to live audio first.');return;}
+ final participant=room?.localParticipant;
+ if(participant==null||!participant.permissions.canPublish){notice('Listening only. Speaking permission has not been enabled by the server.');return;}
+ if(mySeat==null){notice('Take an authorized seat before speaking.');return;}
+ setState(()=>micChanging=true);
+ final enable=micMuted;
+ try{await participant.setMicrophoneEnabled(enable);if(mounted&&!roomClosing)setState(()=>micMuted=!enable);}
+ catch(_){if(mounted&&!roomClosing)notice('Microphone could not start. Check microphone permission and try again.');}
+ finally{if(mounted&&!roomClosing)setState(()=>micChanging=false);}
+ }
  void minimize(){
  if(!Navigator.canPop(context)){notice('Open a room from Home to minimize it.');return;}
  minimizedRoom.value=RoomDraft(name:widget.name,roomId:widget.roomId,ownerId:widget.ownerId,seats:seats,mySeat:mySeat,partnerSeat:partnerSeat,bond:bond,muted:micMuted,messages:List.unmodifiable(messages));Navigator.pop(context);
  }
  Future<void> connections()async{
+ if(widget.roomId!=null){notice('Relationship seat previews are available in offline preview rooms.');return;}
  int own=mySeat??0;SeatBond draft=bond;
  if(!List.generate(seats,(i)=>i).any((i)=>adjacentSeats(own,i,seats)))own=0;
  int peer=partnerSeat??(own%roomSeatColumns==roomSeatColumns-1?own-1:own+1);
@@ -325,7 +471,7 @@ class _VoiceRoomState extends State<VoiceRoom> {
  if(!mounted||applied==null)return;
  setState((){if(applied){mySeat=own;partnerSeat=peer;bond=draft;}else{partnerSeat=null;}});
  }
- void send(){if(input.text.trim().isEmpty)return;setState((){messages.add(input.text.trim());input.clear();});}
+ void send(){if(input.text.trim().isEmpty)return;setState((){messages.add(RoomChatMessage(text:input.text.trim(),name:effectProfileName.value,userId:effectProfileId.value,tag:previewNameTag.value));input.clear();});}
  Future<void> settings()async{
  if(!canEdit||savingSeats)return;
  int draft=seats;
@@ -343,17 +489,33 @@ class _VoiceRoomState extends State<VoiceRoom> {
  }else{setState((){seats=value;if(mySeat!=null&&mySeat!>=seats)mySeat=null;if(partnerSeat!=null&&partnerSeat!>=seats)partnerSeat=null;});notice('Seat layout saved for this preview session.');}
  }
  Future<void> profile(int index)async{
- if(mySeat==index&&widget.roomId!=null){final user=soveraClient.auth.currentUser;if(user!=null){await Navigator.push(context,MaterialPageRoute<void>(builder:(_)=>MemberProfilePage(targetId:user.id,viewerId:user.id)));return;}}
+ if(widget.roomId!=null){
+  final target=liveSeats[index];final viewer=soveraClient.auth.currentUser?.id;
+  if(target!=null&&viewer!=null){await Navigator.push(context,MaterialPageRoute<void>(builder:(_)=>MemberProfilePage(targetId:target,viewerId:viewer)));}
+  else{notice('This seat is empty. Tap it to join.');}
+  return;
+ }
+
+
  await showModalBottomSheet<void>(context:context,isScrollControlled:true,showDragHandle:true,backgroundColor:const Color(0xFF1B191C),builder:(context)=>SafeArea(child:SingleChildScrollView(padding:const EdgeInsets.all(24),child:Column(mainAxisSize:MainAxisSize.min,children:[RoyalAvatar(size:96,active:mySeat==index),Text(mySeat==index?'You':'Empty seat ${index+1}',style:const TextStyle(fontSize:24,fontWeight:FontWeight.bold)),const SizedBox(height:12),Text(mySeat==index?'Your seat preview · audio is not connected':'This seat is empty. Tap it to preview sitting here.',style:const TextStyle(color:Colors.white54)),const SizedBox(height:22),const SizedBox.shrink(),const SizedBox(height:20),if(mySeat==index)FilledButton(onPressed:(){Navigator.pop(context);gifts();},child:const Text('Open gift collection'))]))));
  }
- void previewGift(BuildContext sheet){
- if(selectedGift==null)return;
- showDialog<void>(context:sheet,builder:(_)=>GiftAnimationCard(name:selectedGift!));
+ Future<void> gifts()async{
+ final recipients=widget.roomId==null?<int,String>{if(mySeat!=null)mySeat!:'preview-self',if(partnerSeat!=null)partnerSeat!:'preview-partner'}:Map<int,String>.from(liveSeats);
+ final selected=await showModalBottomSheet<GiftSeatSelection>(context:context,isScrollControlled:true,showDragHandle:true,backgroundColor:const Color(0xFF111113),builder:(_)=>CompactGiftSheet(recipients:recipients));
+ if(!mounted||selected==null)return;
+ await WidgetsBinding.instance.endOfFrame;
+ if(!mounted)return;
+ if(widget.roomId!=null&&liveSeats[selected.seat]!=selected.userId){notice('That user left the seat. Choose a recipient again.');return;}
+ final anchor=seatGiftAnchors[selected.seat]?.currentContext?.findRenderObject();
+ final overlay=Overlay.of(context,rootOverlay:true);
+ final overlayBox=overlay.context.findRenderObject();
+ if(anchor is! RenderBox||overlayBox is! RenderBox||!anchor.attached||!overlayBox.attached){notice('Scroll to the selected seat and try again.');return;}
+ final target=anchor.localToGlobal(anchor.size.center(Offset.zero),ancestor:overlayBox);
+ if(target.dy<0||target.dy>overlayBox.size.height){notice('Scroll to the selected seat and try again.');return;}
+ late OverlayEntry entry;
+ entry=OverlayEntry(builder:(_)=>FlyingSeatGift(gift:selected.gift,start:Offset(overlayBox.size.width*.82,overlayBox.size.height-60),end:target,onDone:(){if(flyingGiftOverlays.remove(entry))entry.remove();}));
+ flyingGiftOverlays.add(entry);overlay.insert(entry);
  }
- void gifts()=>showModalBottomSheet<void>(context:context,isScrollControlled:true,showDragHandle:true,backgroundColor:const Color(0xFF111113),builder:(context)=>StatefulBuilder(builder:(context,update)=>SafeArea(child:SizedBox(height:MediaQuery.sizeOf(context).height*.72,child:Padding(padding:const EdgeInsets.all(18),child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
- Container(padding:const EdgeInsets.all(14),decoration:BoxDecoration(gradient:const LinearGradient(colors:[Color(0xFFFFA323),Color(0xFFED541F)]),borderRadius:BorderRadius.circular(18)),child:const Row(children:[Icon(Icons.card_giftcard_rounded),SizedBox(width:10),Expanded(child:Text('Sovera Gift Collection',maxLines:2,overflow:TextOverflow.ellipsis,style:TextStyle(fontWeight:FontWeight.bold))),SizedBox(width:8),BrandLogo(size:32)])),
- const SizedBox(height:14),const Text('Preview only · no coins will be spent',style:TextStyle(color:Colors.white54,fontSize:12)),const SizedBox(height:14),
- const SizedBox(height:16),Expanded(child:GridView.count(crossAxisCount:MediaQuery.sizeOf(context).width<360||MediaQuery.textScalerOf(context).scale(1)>1.3?2:3,mainAxisSpacing:10,crossAxisSpacing:10,childAspectRatio:MediaQuery.textScalerOf(context).scale(1)>1.3 ? 0.65 : 0.85,children:[for(final item in [(Icons.favorite_rounded,'Heart',pink),(Icons.diamond_rounded,'Diamond',cyan),(Icons.castle_rounded,'Castle',gold),(Icons.local_florist_rounded,'Rose',pink),(Icons.directions_car_rounded,'Royal car',gold),(Icons.auto_awesome_rounded,'Starlight',violet),(Icons.handshake_rounded,'Holding hands',cyan),(Icons.favorite_rounded,'CP Heart',pink)])InkWell(onTap:()=>update(()=>selectedGift=item.$2),child:Container(decoration:BoxDecoration(color:selectedGift==item.$2?gold.withValues(alpha:.18):Colors.white.withValues(alpha:.03),border:Border.all(color:selectedGift==item.$2?gold:Colors.white12),borderRadius:BorderRadius.circular(16)),child:Column(mainAxisAlignment:MainAxisAlignment.center,children:[Jewel(item.$1,color:item.$3,size:48),const SizedBox(height:10),Text(item.$2,style:const TextStyle(fontSize:11)),const Text('Preview',style:TextStyle(fontSize:10,color:gold))])))])),
- const SizedBox(height:12),Wrap(spacing:12,runSpacing:8,alignment:WrapAlignment.spaceBetween,crossAxisAlignment:WrapCrossAlignment.center,children:[const Text('Coins · —',style:TextStyle(color:gold)),FilledButton(onPressed:selectedGift==null?null:()=>previewGift(context),style:FilledButton.styleFrom(backgroundColor:const Color(0xFFF07D2A)),child:const Text('View selection'))]),
- ]))))));
+
 }
+

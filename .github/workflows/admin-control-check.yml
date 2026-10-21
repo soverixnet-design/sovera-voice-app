@@ -1,0 +1,165 @@
+name: Admin control integration checks
+on:
+  push:
+    branches: [admin-control-preview]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  greedy_wallet:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: npm install --no-save --prefix server/greedy better-sqlite3@12.11.1 ws@8.18.3
+      - run: node server/greedy/test_wallet.js
+      - run: node server/greedy/test_limits.js
+      - run: python -m py_compile server/greedy/deploy.py
+  voice_server:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: pip install Pillow==12.3.0 fastapi==0.146.0 httpx==0.28.1 PyJWT==2.15.1 livekit-api==1.2.2
+      - run: python server/voice/test_seats.py
+      - run: python server/voice/test_firebase_auth.py
+      - run: python -m unittest server.accounts.test_greedy_wallet server.accounts.test_broadcasts -v
+      - run: python -m unittest server.accounts.test_community -v
+      - run: python -m unittest server.accounts.test_rewards server.accounts.test_members server.accounts.test_auto_wallet server.accounts.test_messaging server.accounts.test_control server.accounts.test_catalog server.accounts.test_legacy_wallet -v
+      - run: python -m unittest server.accounts.test_operations server.accounts.test_control_password server.accounts.test_control_installer -v
+      - run: node --check admin/selfhost/app.js
+      - run: python -m unittest server.food.test_food server.food.test_identity server.accounts.test_accounts server.accounts.test_profile_media server.accounts.test_room_photos server.accounts.test_room_controls server.accounts.test_voice server.accounts.test_duel server.accounts.test_global_games server.accounts.test_food_wheel server.accounts.test_greedy_access server.accounts.test_wallet -v
+  admin:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - run: npm ci
+        working-directory: admin/tests
+      - run: npm test
+        working-directory: admin/tests
+      - run: node selfhost-dom-test.mjs
+        working-directory: admin/tests
+      - run: node --check admin/web/app.js
+  android:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          flutter-version: '3.47.7'
+          cache: true
+      - run: flutter create --platforms=android,ios --org com.sovera --project-name sovera .
+      - run: python3 scripts/configure_mobile_auth.py
+      - run: flutter pub get
+      - run: dart run flutter_launcher_icons
+      - run: dart format lib test
+      - run: flutter analyze
+      - run: flutter test
+      - uses: actions/upload-artifact@v4
+        with:
+          name: frame-tag-layout-review
+          path: build/design-review/frame-tag-fit.png
+      # Release the Firebase-authenticated Sovera SERVER app, not legacy
+      # lib/main.dart (which starts the former Supabase runtime).
+      - name: Install Android NDK with bounded download retries
+        shell: bash
+        run: |
+          for attempt in 1 2 3; do
+            if "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --install 'ndk;28.2.13676358'; then exit 0; fi
+            if [ ! -f "$ANDROID_HOME/ndk/28.2.13676358/source.properties" ]; then
+              rm -rf "$ANDROID_HOME/ndk/28.2.13676358"
+            fi
+            echo "NDK download failed on attempt $attempt; retrying"
+          done
+          exit 1
+      - run: flutter build apk --release --split-per-abi --target lib/firebase_login_main.dart
+      - uses: actions/upload-artifact@v4
+        with:
+          name: sovera-arm64-release-preview-not-production
+          path: build/app/outputs/flutter-apk/app-arm64-v8a-release.apk
+      - uses: actions/upload-artifact@v4
+        with:
+          name: sovera-armv7-release-preview-not-production
+          path: build/app/outputs/flutter-apk/app-armeabi-v7a-release.apk
+
+  publish:
+    needs: [android, admin, voice_server, greedy_wallet]
+    if: github.ref == 'refs/heads/admin-control-preview'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: sovera-arm64-release-preview-not-production
+          path: release/arm64
+      - uses: actions/download-artifact@v4
+        with:
+          name: sovera-armv7-release-preview-not-production
+          path: release/armv7
+      - name: Publish verified build as a release candidate
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_COMMIT: ${{ github.sha }}
+        run: |
+          cp release/arm64/app-arm64-v8a-release.apk release/Sovera-0.19.0-arm64.apk
+          cp release/armv7/app-armeabi-v7a-release.apk release/Sovera-0.19.0-armv7.apk
+          sed "s/__ROOM_SOURCE_COMMIT__/$RELEASE_COMMIT/g" server/accounts/update_room.sh > release/update_room.sh
+          sha256sum release/*.apk > release/SHA256SUMS.txt
+          tag="v0.19.0-rc.${GITHUB_RUN_NUMBER}"
+          cat > release/notes.md <<'NOTES'
+          Sovera 0.19.0 release candidate
+
+          - Admin authenticator 2FA, recovery codes, session revocation and expiring capability restrictions.
+          - Central room moderation, support routing, activity reports and CSV exports.
+          - Owner-published VIP/SVIP, qualified referrals, manually verified payment orders and agency Coin settlements.
+          - Recurring rewards, scheduled in-app notices and verified SQLite backup maintenance.
+          - Original transparent 3D diamond gift, Coin gift, live/muted microphone, messages and notice icons.
+          - Server-scored ranking, event and recharge reward campaigns with exactly-once claims and timed catalog prizes.
+          - 3D podium, real leaderboards and owner-published immutable reward rules.
+          - Permanent public member IDs, real follow/friend/visitor counts and tappable room member profiles.
+          - Owner account moderation, audited Coin additions/removals, paginated wallet/gift history and profile edits.
+          - Agency directory, join requests and manager approvals without global staff privileges.
+          - Full-room entry scenes with independently rendered seat frames.
+          - Opt-in automatic native server wallets for authenticated accounts, with imported balances and frozen status preserved.
+          - Android microphone/media playback foreground service with ongoing mute/leave notification.
+          - Persistent in-app room session: minimizing or navigating back keeps the same voice and seat subtree alive.
+          - Raised minimize/leave controls and a floating return-to-room card; explicit leave releases the seat.
+          - Owner-approved coin seller directory with actual balances and private seller conversations.
+          - Private official receipts for recharges, seller status and collection grants; targeted admin messages and global updates.
+          - Raised wallet balance cards and compact profile identity with gallery avatar, country, gender and copyable ID.
+          - Independent gallery-uploaded room covers, raised room cards and a single compact room identity.
+          - Sovera teal/navy seat action dialog with server-enforced owner and admin permissions.
+          - App-wide ten-second right-to-left winner and gift celebration banners, driven by confirmed server transactions.
+          - Gift box shows your verified server wallet Coins, refreshes while open and never substitutes a dummy balance.
+          - Persistent per-seat/all-seat locks enforced by the voice server.
+          - Room owners can assign/revoke room admins without granting global admin or wallet access.
+          - Simplified room header, game picker and direct gift box.
+          - Gallery photo upload and optional gender, birthday and signature.
+          - Compact mic grid with 15-seat support, auto audio join, seat-tap publishing and mute/unmute.
+          - Direct gift grid and seeded animated gifts editable by the owner.
+          - Atomic Diamond-to-Coin exchange at 100 Diamonds = 70 Coins.
+          - Removed the old one-million round cap; wallet balance and exact arithmetic remain enforced.
+          - Persistent low-data mode, smaller still artwork and public image caching.
+          - Private reports, block/unblock controls and blocked-member audio suppression.
+          - Wallet categories, receipts and older-history pagination.
+          - Bounded voice reconnect attempts with microphone paused after reconnect.
+
+          Automated Flutter, account/voice server, admin and Greedy wallet checks passed.
+          Real two-device audio and installation/Google sign-in still need device verification.
+          Existing VPS needs the attached update_room.sh for new API features.
+          NOTES
+          gh release create "$tag" release/Sovera-0.19.0-arm64.apk release/Sovera-0.19.0-armv7.apk release/SHA256SUMS.txt release/update_room.sh --target "$RELEASE_COMMIT" --title "Sovera 0.19.0 - Professional Admin & Member Benefits" --prerelease --notes-file release/notes.md

@@ -27,7 +27,7 @@ class EffectSound with WidgetsBindingObserver {
           ? 'ice'
           : lower.contains('dragon') ||
                 lower.contains('tiger') ||
-                lower.contains('lion')
+                lower.contains('lion') || lower.contains('royal') || lower.contains('crown') || lower.contains('horses')
           ? 'royal'
           : 'sparkle';
       await player.play(AssetSource('sounds/$asset.wav'), volume: .32);
@@ -61,13 +61,15 @@ class EffectSound with WidgetsBindingObserver {
 }
 
 class RoomPhoto extends StatefulWidget {
-  final String? roomId;
-  final bool canEdit;
+  final String? roomId,photoPath;
+  final bool canEdit, pathLoaded;
   final double size;
   const RoomPhoto({
     super.key,
     this.roomId,
+    this.photoPath,
     this.canEdit = false,
+    this.pathLoaded = false,
     this.size = 48,
   });
   @override
@@ -83,15 +85,22 @@ class _RoomPhotoState extends State<RoomPhoto> {
     load();
   }
 
+  @override
+  void didUpdateWidget(covariant RoomPhoto oldWidget){super.didUpdateWidget(oldWidget);if(oldWidget.roomId!=widget.roomId||oldWidget.photoPath!=widget.photoPath){photo=null;load();}}
+
   Future<void> load() async {
     if (widget.roomId == null) return;
     try {
+      var path=widget.photoPath;
+      if(path==null&&widget.pathLoaded)return;
+      if(path==null){
       final row = await soveraClient
           .from('sovera_rooms')
           .select('photo_path')
           .eq('id', widget.roomId!)
           .single();
-      final path = row['photo_path'] as String?;
+      path = row['photo_path'] as String?;
+      }
       if (path == null) return;
       final data = await soveraClient.storage
           .from('sovera-room-photos')
@@ -344,3 +353,4 @@ class _GiftAnimationCardState extends State<GiftAnimationCard>
     );
   }
 }
+

@@ -29,8 +29,11 @@ void main(){
   await tester.pumpWidget(const MaterialApp(home:VoiceRoom(name:'Preview')));await tester.pumpAndSettle();
   await tester.tap(find.byTooltip('Preview gifts'));await tester.pumpAndSettle();
   expect(find.text('0 Coins'),findsNothing);expect(find.text('Send'),findsNothing);expect(find.text('Exclusive'),findsNothing);
-  await tester.tap(find.text('Heart'));await tester.pumpAndSettle();await tester.tap(find.text('View selection'));await tester.pump();await tester.pump(const Duration(milliseconds:400));
-  expect(find.text('Heart preview'),findsOneWidget);expect(find.byType(AlertDialog),findsOneWidget);await tester.tap(find.text('Close'));await tester.pumpAndSettle();
+  await tester.tap(find.text('Heart'));await tester.pumpAndSettle();
+  expect(find.text('10 coins'),findsOneWidget);
+  expect(tester.widget<FilledButton>(find.widgetWithText(FilledButton,'Preview to seat')).onPressed,isNull);
+  expect(find.byType(AlertDialog),findsNothing);
+  await tester.pumpWidget(const SizedBox.shrink());await tester.pumpAndSettle();
  });
  testWidgets('Room and Events work on compact screens with large text',(tester)async{
   tester.view.physicalSize=const Size(320,640);tester.view.devicePixelRatio=1;

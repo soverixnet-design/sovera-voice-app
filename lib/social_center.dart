@@ -1,11 +1,13 @@
+import 'community_services.dart';
 import 'package:flutter/material.dart';
 import 'main.dart';
 
 enum SocialSection { friendship, cp, love }
 
 class SocialProfileCards extends StatelessWidget{
- const SocialProfileCards({super.key});
- void open(BuildContext context,SocialSection section)=>Navigator.push<void>(context,MaterialPageRoute(builder:(_)=>SocialCenter(initial:section)));
+ final bool connected;
+ const SocialProfileCards({super.key,this.connected=false});
+ void open(BuildContext context,SocialSection section)=>Navigator.push<void>(context,MaterialPageRoute(builder:(_)=>connected?ConnectionsPage(kind:section==SocialSection.friendship?'friend':section==SocialSection.cp?'cp':'love'):SocialCenter(initial:section)));
  @override Widget build(BuildContext context)=>Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
   const Text('My connections',style:TextStyle(fontSize:20,fontWeight:FontWeight.w800)),
   const SizedBox(height:12),

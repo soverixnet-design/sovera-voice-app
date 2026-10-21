@@ -1,0 +1,27 @@
+name: Publish Firebase login check download
+on:
+  workflow_dispatch:
+  push:
+    branches: [admin-control-preview]
+    paths: ['.github/workflows/publish-firebase-login-check.yml']
+permissions:
+  actions: read
+  contents: write
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+    steps:
+      - name: Download verified sign-in check APK
+        run: gh run download 39288649247 --name sovera-firebase-login-check-not-full-app --dir apk
+      - name: Verify and name the original APK
+        run: |
+          test -s apk/build/app/outputs/flutter-apk/app-debug.apk
+          echo 'b86331e5398a06353d864cc27204af213c5ed04b697809e79cd951f6142ec365  apk/build/app/outputs/flutter-apk/app-debug.apk' | sha256sum -c -
+          unzip -tq apk/build/app/outputs/flutter-apk/app-debug.apk
+          cp apk/build/app/outputs/flutter-apk/app-debug.apk apk/Sovera-Firebase-Login-Check.apk
+      - name: Publish shareable download
+        run: |
+          gh release create v0.18.2-firebase-login-check-20261019 apk/Sovera-Firebase-Login-Check.apk --target 8fde25614f029e988982337dfaf1a768651d1404 --title "Sovera Google and email sign-in check" --notes "Sign-in verification build only. Google and email sign-in use the Sovera Firebase project. The exact APK signing fingerprints have been registered in Firebase. Rooms, wallet, games and the legacy app migration are NOT included. Device sign-in still needs testing. If Android requires uninstalling an existing Sovera app, do not uninstall it just to install this check build."

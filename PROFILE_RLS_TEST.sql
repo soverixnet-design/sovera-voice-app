@@ -1,8 +1,8 @@
 begin;
 insert into auth.users(id) values('bbccddaa-1111-4000-8000-000000000001'),('bbccddaa-1111-4000-8000-000000000002'),('bbccddaa-1111-4000-8000-000000000003');
 -- Explicit fixture IDs leave the real registration sequence untouched.
-insert into public.sovera_profiles(id,uid,display_name) overriding system value values('bbccddaa-1111-4000-8000-000000000001',910001,'Profile test one'),('bbccddaa-1111-4000-8000-000000000002',910002,'Profile test two'),('bbccddaa-1111-4000-8000-000000000003',910003,'Profile test outsider');
-insert into public.sovera_member_cards(user_id,uid,display_name,listed) select id,uid,display_name,true from public.sovera_profiles where uid between 910001 and 910003;
+insert into public.sovera_profiles(id,uid,display_name) overriding system value values('bbccddaa-1111-4000-8000-000000000001',91000001,'Profile test one'),('bbccddaa-1111-4000-8000-000000000002',91000002,'Profile test two'),('bbccddaa-1111-4000-8000-000000000003',91000003,'Profile test outsider');
+insert into public.sovera_member_cards(user_id,uid,display_name,listed) select id,uid,display_name,true from public.sovera_profiles where uid between 91000001 and 91000003;
 set local role authenticated;
 select set_config('request.jwt.claim.sub','bbccddaa-1111-4000-8000-000000000001',true);
 do $$ declare affected int;begin

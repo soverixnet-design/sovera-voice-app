@@ -1,0 +1,290 @@
+[
+  {
+    "kind": "frame",
+    "title": "Phoenix Fire",
+    "path": "assets/effects/phoenix.png",
+    "price": 5000,
+    "avatar_scale": 0.43,
+    "avatar_x": 0.5,
+    "avatar_y": 0.53
+  },
+  {
+    "kind": "frame",
+    "title": "Ice Wings",
+    "path": "assets/effects/ice.png",
+    "price": 5000,
+    "avatar_scale": 0.43,
+    "avatar_x": 0.5,
+    "avatar_y": 0.53
+  },
+  {
+    "kind": "frame",
+    "title": "Royal Dragon",
+    "path": "assets/effects/dragon.png",
+    "price": 5000,
+    "avatar_scale": 0.43,
+    "avatar_x": 0.5,
+    "avatar_y": 0.53
+  },
+  {
+    "kind": "frame",
+    "title": "Sovera VIP7",
+    "path": "assets/effects/vip7.webp",
+    "price": 5000,
+    "avatar_scale": 0.43,
+    "avatar_x": 0.5,
+    "avatar_y": 0.53
+  },
+  {
+    "kind": "entry",
+    "title": "Sovera VIP7 entry",
+    "path": "assets/effects/phoenix-entry.webp",
+    "price": 10000,
+    "avatar_scale": 0.46,
+    "avatar_x": 0.5,
+    "avatar_y": 0.5
+  },
+  {
+    "kind": "medal",
+    "title": "Sovera VIP7 medal",
+    "path": "assets/effects/top-host-medal.webp",
+    "price": 1000,
+    "avatar_scale": 0.46,
+    "avatar_x": 0.5,
+    "avatar_y": 0.5
+  },
+  {
+    "kind": "tag",
+    "title": "Sovera VIP7 tag",
+    "path": "assets/effects/legend-tag.webp",
+    "price": 1000,
+    "avatar_scale": 0.46,
+    "avatar_x": 0.5,
+    "avatar_y": 0.5
+  },
+  {
+    "kind": "frame",
+    "title": "Royal Gold",
+    "path": "assets/effects/royal-gold.webp",
+    "price": 5000,
+    "avatar_scale": 0.61,
+    "avatar_x": 0.5,
+    "avatar_y": 0.52
+  },
+  {
+    "kind": "frame",
+    "title": "Violet Love",
+    "path": "assets/effects/violet-love.webp",
+    "price": 5000,
+    "avatar_scale": 0.59,
+    "avatar_x": 0.5,
+    "avatar_y": 0.53
+  },
+  {
+    "kind": "frame",
+    "title": "Ice Admin",
+    "path": "assets/effects/ice-admin.webp",
+    "price": 5000,
+    "avatar_scale": 0.59,
+    "avatar_x": 0.5,
+    "avatar_y": 0.53
+  },
+  {
+    "kind": "frame",
+    "title": "Golden Dragon",
+    "path": "assets/effects/dragon-gold.webp",
+    "price": 5000,
+    "avatar_scale": 0.59,
+    "avatar_x": 0.5,
+    "avatar_y": 0.51
+  },
+  {
+    "kind": "entry",
+    "title": "Golden Dragon entry",
+    "path": "assets/effects/dragon-queen-entry.webp",
+    "price": 10000,
+    "avatar_scale": 0.46,
+    "avatar_x": 0.5,
+    "avatar_y": 0.5
+  },
+  {
+    "kind": "frame",
+    "title": "Ice Dragon",
+    "path": "assets/effects/ice-dragon.webp",
+    "price": 5000,
+    "avatar_scale": 0.58,
+    "avatar_x": 0.5,
+    "avatar_y": 0.52
+  },
+  {
+    "kind": "entry",
+    "title": "Ice Dragon entry",
+    "path": "assets/effects/ice-king-entry.webp",
+    "price": 10000,
+    "avatar_scale": 0.46,
+    "avatar_x": 0.5,
+    "avatar_y": 0.5
+  },
+  {
+    "kind": "frame",
+    "title": "Violet Phoenix",
+    "path": "assets/effects/violet-phoenix.webp",
+    "price": 5000,
+    "avatar_scale": 0.59,
+    "avatar_x": 0.5,
+    "avatar_y": 0.53
+  },
+  {
+    "kind": "entry",
+    "title": "Castle Flag entry",
+    "path": "assets/effects/castle-entry.webp",
+    "price": 10000,
+    "avatar_scale": 0.46,
+    "avatar_x": 0.5,
+    "avatar_y": 0.5
+  },
+  {
+    "kind": "entry",
+    "title": "Lion Queen entry",
+    "path": "assets/effects/lion-queen-entry.webp",
+    "price": 10000,
+    "avatar_scale": 0.46,
+    "avatar_x": 0.5,
+    "avatar_y": 0.5
+  },
+  {
+    "kind": "entry",
+    "title": "Phoenix Queen entry",
+    "path": "assets/effects/phoenix-queen-entry.webp",
+    "price": 10000,
+    "avatar_scale": 0.46,
+    "avatar_x": 0.5,
+    "avatar_y": 0.5
+  },
+  {
+    "kind": "entry",
+    "title": "Tiger Queen entry",
+    "path": "assets/effects/tiger-queen-entry.webp",
+    "price": 10000,
+    "avatar_scale": 0.46,
+    "avatar_x": 0.5,
+    "avatar_y": 0.5
+  },
+  {
+    "kind": "frame",
+    "title": "Crown Violet",
+    "path": "assets/effects/crown-violet.webp",
+    "price": 5000,
+    "avatar_scale": 0.5,
+    "avatar_x": 0.5,
+    "avatar_y": 0.46
+  },
+  {
+    "kind": "frame",
+    "title": "Royal Horses",
+    "path": "assets/effects/royal-horses-clean.png",
+    "price": 5000,
+    "avatar_scale": 0.43,
+    "avatar_x": 0.5,
+    "avatar_y": 0.44
+  },
+  {
+    "kind": "frame",
+    "title": "Solar Crown",
+    "path": "assets/effects/solar-crown.webp",
+    "price": 5000,
+    "avatar_scale": 0.4,
+    "avatar_x": 0.493,
+    "avatar_y": 0.525
+  },
+  {
+    "kind": "tag",
+    "title": "Solar Crown tag",
+    "path": "assets/effects/solar-nameplate.webp",
+    "price": 1000,
+    "avatar_scale": 0.46,
+    "avatar_x": 0.5,
+    "avatar_y": 0.5
+  },
+  {
+    "kind": "frame",
+    "title": "Sunrise Crown",
+    "path": "assets/effects/sunrise-crown.webp",
+    "price": 5000,
+    "avatar_scale": 0.398,
+    "avatar_x": 0.608,
+    "avatar_y": 0.499
+  },
+  {
+    "kind": "frame",
+    "title": "Rose Crown",
+    "path": "assets/effects/rose-crown.webp",
+    "price": 5000,
+    "avatar_scale": 0.417,
+    "avatar_x": 0.61,
+    "avatar_y": 0.446
+  },
+  {
+    "kind": "tag",
+    "title": "Rose Crown tag",
+    "path": "assets/effects/rose-nameplate.webp",
+    "price": 1000,
+    "avatar_scale": 0.46,
+    "avatar_x": 0.5,
+    "avatar_y": 0.5
+  },
+  {
+    "kind": "medal",
+    "title": "Gold cosmetic medal",
+    "path": "assets/medals/gold.webp",
+    "price": 1000
+  },
+  {
+    "kind": "medal",
+    "title": "Silver cosmetic medal",
+    "path": "assets/medals/silver.webp",
+    "price": 1000
+  },
+  {
+    "kind": "medal",
+    "title": "Bronze cosmetic medal",
+    "path": "assets/medals/bronze.webp",
+    "price": 1000
+  },
+  {
+    "kind": "room_frame",
+    "title": "official room frame",
+    "path": "assets/room-frames/official.webp",
+    "price": 5000
+  },
+  {
+    "kind": "room_frame",
+    "title": "coins-seller room frame",
+    "path": "assets/room-frames/coins-seller.webp",
+    "price": 5000
+  },
+  {
+    "kind": "banner",
+    "title": "Your voice. Your world.",
+    "path": "assets/sovera-logo-transparent.png",
+    "price": 0,
+    "builtin_slide": 0,
+    "subtitle": "Create a room and make it yours."
+  },
+  {
+    "kind": "banner",
+    "title": "Sovera Hall of Fame",
+    "path": "assets/sovera-logo-transparent.png",
+    "price": 0,
+    "builtin_slide": 1,
+    "subtitle": "Greedy Wheel · One server round for everyone."
+  },
+  {
+    "kind": "banner",
+    "title": "Something worth celebrating",
+    "path": "assets/sovera-logo-transparent.png",
+    "price": 0,
+    "builtin_slide": 2,
+    "subtitle": "Voice rooms, gifts and community."
+  }
+]

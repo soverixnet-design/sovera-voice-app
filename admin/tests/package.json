@@ -1,0 +1,21 @@
+{
+  "name": "admin-test",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "node run.mjs && node modules-run.mjs && node dom-test.mjs && node --experimental-strip-types gateway-test.mjs && tsc --noEmit --skipLibCheck --target es2022 --module esnext --lib es2022,dom deno-globals.d.ts ../backend/gateway.ts"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "dependencies": {
+    "@electric-sql/pglite": "0.5.10"
+  },
+  "devDependencies": {
+    "happy-dom": "21.0.3",
+    "typescript": "7.0.2"
+  },
+  "private": true
+}

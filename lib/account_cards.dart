@@ -1,3 +1,6 @@
+import 'public_identity.dart';
+import 'community_services.dart';
+import 'admin_control.dart';
 import 'member_profile.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -12,27 +15,30 @@ class ProfileIdentityCard extends StatefulWidget {
  const ProfileIdentityCard({super.key,this.profile,required this.name,required this.bio,required this.onEdit});
  @override State<ProfileIdentityCard> createState()=>_ProfileIdentityCardState();
 }
-class _ProfileIdentityCardState extends State<ProfileIdentityCard>{
+class _ProfileIdentityCardState extends State<ProfileIdentityCard> with VipExpiryRefresh<ProfileIdentityCard>{
+ @override String get identityRevision=>publicIdentity(widget.profile);
  Future<Map<String,dynamic>?>? levels;
  @override void initState(){super.initState();reload();}
  void reload(){if(widget.profile!=null)levels=soveraClient.from('sovera_profile_levels').select().eq('user_id',widget.profile!['id'] as String).maybeSingle();}
  Future<void> copyId()async{
-  final uid=widget.profile?['uid'];if(uid==null)return;
+  final uid=publicIdentity(widget.profile);if(uid.isEmpty)return;
   await Clipboard.setData(ClipboardData(text:uid.toString()));
   if(mounted)ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content:Text('User ID copied.')));
  }
+ Widget profileFrame({required Widget child})=>widget.profile==null?FramePreviewAdapter(size:170,portraitSize:90,child:child):ValueListenableBuilder<EffectPack?>(valueListenable:previewAvatarFrame,builder:(context,pack,_)=>pack==null?GrantedProfileFrame(uid:widget.profile!['uid'],size:170,child:child):Column(children:[FramePreviewAdapter(size:170,portraitSize:90,child:child),const Text('Local frame preview',style:TextStyle(fontSize:10,color:Colors.white54))]));
  @override Widget build(BuildContext context)=>Glass(tint:cyan,child:Column(children:[
-  FramePreviewAdapter(size:170,child:Stack(alignment:Alignment.bottomRight,children:[
+  profileFrame(child:Stack(alignment:Alignment.bottomRight,children:[
    Container(padding:const EdgeInsets.all(5),decoration:BoxDecoration(shape:BoxShape.circle,border:Border.all(color:gold,width:2),boxShadow:[BoxShadow(color:cyan.withValues(alpha:.18),blurRadius:24)]),child:ClipOval(child:widget.profile?['avatar_url'] is String?Image.network(widget.profile!['avatar_url'] as String,width:90,height:90,fit:BoxFit.cover,errorBuilder:(_,__,___)=>const BrandLogo(size:90)):const BrandLogo(size:90))),
    const CircleAvatar(radius:14,backgroundColor:Color(0xFF292044),child:Icon(Icons.person_rounded,color:gold,size:18)),
   ])),
   if(widget.profile!=null)TextButton.icon(onPressed:()=>Navigator.push(context,MaterialPageRoute<void>(builder:(_)=>MemberProfilePage(targetId:widget.profile!['id'] as String,viewerId:widget.profile!['id'] as String))),icon:const Icon(Icons.account_circle_rounded),label:const Text('Open member profile')),
-  const SizedBox(height:18),Text(widget.name,textAlign:TextAlign.center,style:const TextStyle(fontSize:24,fontWeight:FontWeight.w800)),
+  const SizedBox(height:18),Text('${widget.name} ${countryFlag(widget.profile?['country'])}'.trim(),textAlign:TextAlign.center,style:const TextStyle(fontSize:24,fontWeight:FontWeight.w800)),
   const SizedBox(height:10),
   Wrap(alignment:WrapAlignment.center,crossAxisAlignment:WrapCrossAlignment.center,spacing:4,children:[
-   SelectableText(widget.profile==null?'ID · Sign in to receive your ID':'ID · ${widget.profile!['uid']}',style:const TextStyle(color:cyan,fontWeight:FontWeight.w600,fontSize:13)),
+   SelectableText(widget.profile==null?'ID · Sign in to receive your ID':'ID · ${publicIdentity(widget.profile)}',style:const TextStyle(color:cyan,fontWeight:FontWeight.w600,fontSize:13)),
    if(widget.profile!=null)IconButton(tooltip:'Copy user ID',onPressed:copyId,icon:const Icon(Icons.copy_rounded,color:cyan,size:18)),
   ]),
+  VipIdentityBadge(value:activeVipId(widget.profile)),
   const SizedBox(height:20),
   FutureBuilder<Map<String,dynamic>?>(future:levels,builder:(context,snapshot){
    final row=snapshot.data;
@@ -100,7 +106,7 @@ class _ResellerCenterState extends State<ResellerCenter>{
   Glass(tint:gold,child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
    const Row(children:[Jewel(Icons.storefront_rounded,color:gold,size:48),SizedBox(width:14),Expanded(child:Text('Grow with Sovera',style:TextStyle(fontSize:22,fontWeight:FontWeight.w800)))]),
    const SizedBox(height:16),const Text('Manage your reseller status and assigned coin quota from one place.',style:TextStyle(color:Colors.white70,height:1.5)),
-   const SizedBox(height:14),Text(widget.profile==null?'Sign in to apply for reseller access.':'Your user ID · ${widget.profile!['uid']}',style:const TextStyle(color:gold,fontWeight:FontWeight.w600)),
+   const SizedBox(height:14),Text(widget.profile==null?'Sign in to apply for reseller access.':'Your user ID · ${publicIdentity(widget.profile)}',style:const TextStyle(color:gold,fontWeight:FontWeight.w600)),
   ])),
   const SizedBox(height:18),
   if(loading)const Center(child:CircularProgressIndicator())
