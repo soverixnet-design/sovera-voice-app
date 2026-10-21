@@ -1,3 +1,4 @@
+import 'package:flutter/services.dart';
 import 'package:flutter/material.dart';
 import 'firebase_catalog.dart';
 import 'sovera_visuals.dart' show Glass,cyan,gold,violet;
@@ -16,18 +17,19 @@ class FirebaseOriginalProfileCard extends StatelessWidget {
   Widget portrait(){
     final avatar=profile?['avatar_url'];
     final frame=catalogAsset(profile?['equipped'],'frame');
-    if(frame!=null)return CatalogPortrait(asset:frame,avatarUrl:avatar as String?,size:242);
-    return CatalogPortrait(avatarUrl:avatar as String?,size:242);
+    if(frame!=null)return CatalogPortrait(asset:frame,avatarUrl:avatar as String?,size:180);
+    return CatalogPortrait(avatarUrl:avatar as String?,size:180);
   }
 
   Widget rank(String label,IconData icon,Color color)=>Container(
-    width:93,padding:const EdgeInsets.symmetric(vertical:15,horizontal:6),
+    width:90,padding:const EdgeInsets.symmetric(vertical:15,horizontal:6),
     decoration:BoxDecoration(border:Border.all(color:color.withValues(alpha:.5)),
       borderRadius:BorderRadius.circular(19),
-      color:color.withValues(alpha:.08)),
+      gradient:LinearGradient(colors:[color.withValues(alpha:.28),const Color(0xff192137)]),
+      boxShadow:[BoxShadow(color:Colors.black.withValues(alpha:.3),blurRadius:14,offset:const Offset(0,7))]),
     child:Column(children:[
       Icon(icon,color:color,size:25),const SizedBox(height:8),
-      Text('Lv. —',style:TextStyle(fontSize:15,fontWeight:FontWeight.w800,color:color)),
+      Text(label=='VIP'?'Not active':'Lv. —',style:TextStyle(fontSize:15,fontWeight:FontWeight.w800,color:color)),
       const SizedBox(height:5),Text(label,style:const TextStyle(fontSize:11,color:Colors.white70)),
     ]));
 
@@ -41,14 +43,17 @@ class FirebaseOriginalProfileCard extends StatelessWidget {
     return Glass(tint:cyan,child:Column(children:[
       Center(child:portrait()),
       const SizedBox(height:7),
-      Text('$name ${countryFlag(country)}'.trim(),
+      Text(name,
         textAlign:TextAlign.center,
         style:const TextStyle(fontSize:24,fontWeight:FontWeight.w800)),
       const SizedBox(height:9),
-      for(final kind in const ['medal','tag'])if(catalogAsset(profile?['equipped'],kind)!=null)SizedBox(height:72,child:CatalogImage(asset:catalogAsset(profile?['equipped'],kind)!)),
-      Text(hasId?'ID · $id':'ID · Waiting for verified server ID',
-        textAlign:TextAlign.center,
-        style:const TextStyle(fontSize:13,color:cyan,fontWeight:FontWeight.w600)),
+      Wrap(alignment:WrapAlignment.center,crossAxisAlignment:WrapCrossAlignment.center,spacing:8,children:[
+        Text(countryFlag(country),style:const TextStyle(fontSize:22)),
+        if(profile?['gender']!=null)Icon(profile?['gender']=='female'?Icons.female:profile?['gender']=='male'?Icons.male:Icons.person_outline,color:violet),
+        Text(hasId?'ID · $id':'ID · Waiting for verified server ID',style:const TextStyle(fontSize:13,color:cyan,fontWeight:FontWeight.w600)),
+        if(hasId)IconButton(tooltip:'Copy user ID',onPressed:()async{await Clipboard.setData(ClipboardData(text:id));},icon:const Icon(Icons.copy_rounded,size:18)),
+      ]),
+      for(final kind in const ['medal','tag'])if(catalogAsset(profile?['equipped'],kind)!=null)SizedBox(height:60,child:CatalogImage(asset:catalogAsset(profile?['equipped'],kind)!)),
       const SizedBox(height:19),
       Wrap(alignment:WrapAlignment.center,spacing:8,runSpacing:8,children:[
         rank('Wealth',Icons.diamond_rounded,cyan),
@@ -60,27 +65,6 @@ class FirebaseOriginalProfileCard extends StatelessWidget {
         textAlign:TextAlign.center,
         style:TextStyle(fontSize:11,color:Colors.white54)),
       const SizedBox(height:19),
-      const Text('Style preview',style:TextStyle(fontSize:12,color:Colors.white54)),
-      const SizedBox(height:12),
-      const Text('Medals',style:TextStyle(fontSize:21,fontWeight:FontWeight.w800)),
-      const SizedBox(height:15),
-      Row(children:[
-        for(final asset in const ['assets/medals/gold.webp',
-          'assets/medals/silver.webp','assets/medals/bronze.webp'])
-          Expanded(child:Padding(padding:const EdgeInsets.symmetric(horizontal:3),
-            child:Image.asset(asset,height:95,fit:BoxFit.contain,
-              errorBuilder:(_,__,___)=>const Icon(Icons.military_tech_rounded,
-                color:gold,size:45)))),
-      ]),
-      const SizedBox(height:15),
-      TextButton.icon(onPressed:()=>showDialog<void>(context:context,builder:(ctx)=>
-        AlertDialog(title:const Text('Medal previews'),
-          content:const Text('The original medal designs are available to preview. '
-            'Awards and verified ownership will appear after the server ranking service is connected.'),
-          actions:[TextButton(onPressed:()=>Navigator.pop(ctx),child:const Text('Close'))])),
-        icon:const Icon(Icons.military_tech_rounded),
-        label:const Text('Manage medal previews')),
-      const SizedBox(height:13),
       Container(padding:const EdgeInsets.symmetric(horizontal:15,vertical:7),
         decoration:BoxDecoration(color:violet.withValues(alpha:.19),
           borderRadius:BorderRadius.circular(21)),

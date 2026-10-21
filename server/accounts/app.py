@@ -139,6 +139,8 @@ def create_app(profiles, verify, *, voice=False):
     colors = GlobalColors(profiles.path)
     food_wheel = FoodWheel(profiles.path)
     attach_community(app, profiles, actor)
+    from .messaging import attach_messaging
+    attach_messaging(app, profiles, actor)
     attach_control(app, profiles, actor)
     attach_catalog(app, profiles, actor)
 

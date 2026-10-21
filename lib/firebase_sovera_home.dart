@@ -1,3 +1,4 @@
+import 'firebase_messaging.dart';
 import 'dart:async';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
@@ -147,7 +148,7 @@ class _FirebaseSoveraHomeState extends State<FirebaseSoveraHome>{
       actions:[TextButton(onPressed:()=>Navigator.pop(context),child:const Text('Close'))]));
   }
   void community(String section,String title)=>go(FirebaseCommunity(api:api,section:section,title:title));
-  void notices()=>community('notices','Official notices');
+  void notices()=>go(FirebaseMessageInbox(api:api,official:true));
   Future<void> toggleFollow(String id)async{
     if(followBusy)return;
     setState(()=>followBusy=true);
@@ -272,8 +273,7 @@ class _FirebaseSoveraHomeState extends State<FirebaseSoveraHome>{
     OutlinedButton.icon(onPressed:()=>setState(()=>tab=0),
       icon:const Icon(Icons.meeting_room_outlined),
       label:const Text('Open a room to chat with members')),
-    const Text('Private direct messages are not connected to Firebase yet.',
-      style:TextStyle(color:Colors.white60,fontSize:12)),
+    FilledButton.icon(onPressed:()=>go(FirebaseMessageInbox(api:api)),icon:const Icon(Icons.chat_rounded),label:const Text('Private messages')),
   ]);
   Widget profileTab()=>Column(
     crossAxisAlignment:CrossAxisAlignment.stretch,children:[
@@ -288,7 +288,7 @@ class _FirebaseSoveraHomeState extends State<FirebaseSoveraHome>{
     for(final item in <(IconData,String,VoidCallback)>[
       (Icons.account_balance_wallet_rounded,'Wallet',wallet),
       (Icons.storefront_rounded,'Coin seller list',
-        ()=>go(const FirebaseOriginalCoinSellers())),
+        ()=>go(FirebaseOriginalCoinSellers(api:api))),
       (Icons.card_giftcard_rounded,'Invite & referrals',
         ()=>feature('Referrals','The referral award server API is not connected yet.')),
       (Icons.people_outline_rounded,'People & following',

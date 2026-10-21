@@ -148,12 +148,16 @@ class Catalog:
             if not db.execute('SELECT 1 FROM account_profiles WHERE firebase_uid=?',(data.target_uid,)).fetchone():raise HTTPException(404,'User not found')
             item=self.row(db,data.item_id,False)
             if item['kind'] in ('banner','gift'):raise HTTPException(400,'Only wearable assets can be assigned')
+            owned=db.execute('SELECT 1 FROM account_asset_ownership WHERE uid=? AND item_id=?',(data.target_uid,str(data.item_id))).fetchone()
             if data.revoke:
                 db.execute('DELETE FROM account_asset_ownership WHERE uid=? AND item_id=?',(data.target_uid,str(data.item_id)))
                 db.execute('DELETE FROM account_asset_equipped WHERE uid=? AND item_id=?',(data.target_uid,str(data.item_id)))
             else:
                 db.execute('INSERT OR IGNORE INTO account_asset_ownership VALUES(?,?,?)',(data.target_uid,str(data.item_id),int(time.time())))
                 if data.equip:db.execute('INSERT INTO account_asset_equipped VALUES(?,?,?) ON CONFLICT(uid,kind) DO UPDATE SET item_id=excluded.item_id',(data.target_uid,item['kind'],str(data.item_id)))
+            if bool(owned)==bool(data.revoke):
+                from .messaging import official
+                official(db,'asset:'+str(uuid.uuid4()),data.target_uid,'Collection updated',f"{item['title']} was {'removed from' if data.revoke else 'added to'} your collection by the owner.")
             self.control.audit(db,uid,'catalog.revoke' if data.revoke else 'catalog.grant',data.target_uid,{'item':str(data.item_id)})
             return {'saved':True}
     def select(self,uid,data):

@@ -1,3 +1,4 @@
+import 'firebase_original_coin_sellers.dart';
 import 'package:flutter/material.dart';
 import 'firebase_profile.dart';
 import 'firebase_community.dart' show communityRequestId;
@@ -162,12 +163,12 @@ class _FirebaseServerWalletPageState extends State<FirebaseServerWalletPage>{
       (match)=>'${match[1]},');
   }
   Widget balance(String title,String value,IconData icon,Color color)=>
-    Expanded(child:Column(children:[
+    Expanded(child:Container(padding:const EdgeInsets.all(14),decoration:BoxDecoration(gradient:LinearGradient(colors:[color.withValues(alpha:.24),const Color(0xff192137)]),borderRadius:BorderRadius.circular(22),border:Border.all(color:color.withValues(alpha:.5)),boxShadow:[BoxShadow(color:Colors.black.withValues(alpha:.3),blurRadius:16,offset:const Offset(0,8))]),child:Column(children:[
       Jewel(icon,color:color,size:45),const SizedBox(height:8),
       Text(title,style:const TextStyle(fontSize:12,color:Colors.white70)),
       const SizedBox(height:5),
       FittedBox(fit:BoxFit.scaleDown,child:Text(value,style:const TextStyle(fontSize:20,fontWeight:FontWeight.bold))),
-    ]));
+    ])));
   @override Widget build(BuildContext context)=>Scaffold(
     appBar:AppBar(title:const Text('My Sovera Wallet'),
       actions:[IconButton(tooltip:'Refresh verified balance',
@@ -204,6 +205,8 @@ class _FirebaseServerWalletPageState extends State<FirebaseServerWalletPage>{
           const Text('Wallet frozen · Contact support',
             style:TextStyle(color:Colors.orangeAccent)),
       ])),
+      const SizedBox(height:16),
+      FilledButton.icon(onPressed:()=>Navigator.push(context,MaterialPageRoute<void>(builder:(_)=>FirebaseOriginalCoinSellers(api:widget.api))),icon:const Icon(Icons.storefront_rounded),label:const Text('Coin seller list')),
       if(entries.isNotEmpty)...[
         const SizedBox(height:20),
         const Text('Server transaction history',style:TextStyle(fontSize:18,fontWeight:FontWeight.bold)),

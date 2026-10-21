@@ -38,6 +38,8 @@ class Control:
     def __init__(self,path):
         self.path=str(path)
         self.community=Community(path)
+        from .messaging import Messaging
+        self.messaging=Messaging(path)
         with self.db() as db:
             db.executescript('''
             CREATE TABLE IF NOT EXISTS account_control_codes(hash TEXT PRIMARY KEY,uid TEXT NOT NULL,expires INTEGER NOT NULL);
@@ -146,6 +148,8 @@ class Control:
             now=int(time.time())
             db.execute('INSERT INTO account_wallet_ledger VALUES(?,?,?,?,?,?)',('recharge:'+request,data.target_uid,data.amount,0,'recharge',now))
             db.execute('INSERT INTO account_control_recharges VALUES(?,?,?,?,?,?,?)',(request,uid,data.target_uid,data.amount,data.note,balance+data.amount,now))
+            from .messaging import official
+            official(db,'recharge:'+request,data.target_uid,'Coins received',f'You received {data.amount:,} Coins. Balance after recharge: {balance+data.amount:,} Coins.' + (' Note: '+data.note if data.note else ''))
             self.audit(db,uid,'recharge',data.target_uid,{'amount':data.amount,'request_id':request})
             return dict(db.execute('SELECT * FROM account_control_recharges WHERE request_id=?',(request,)).fetchone())
 
@@ -247,3 +251,15 @@ def attach_control(app,profiles,actor):
 
     @app.post('/sovera/control/publications')
     async def publish(data:Publication,request:Request):return await asyncio.to_thread(service.community.publish,await staff_actor(request),data)
+
+    from .messaging import SellerInput,NoticeInput
+    @app.get('/sovera/control/sellers')
+    async def sellers(request:Request):
+        uid=await staff_actor(request)
+        return {'items':await asyncio.to_thread(service.messaging.sellers,uid)}
+    @app.post('/sovera/control/sellers')
+    async def seller_save(data:SellerInput,request:Request):
+        return await asyncio.to_thread(service.messaging.seller_save,await staff_actor(request),data)
+    @app.post('/sovera/control/official-messages')
+    async def official_message(data:NoticeInput,request:Request):
+        return await asyncio.to_thread(service.messaging.notice,await staff_actor(request),data)
