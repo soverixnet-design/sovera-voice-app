@@ -28,7 +28,7 @@ class SoveraVoiceService : Service() {
             fun button(name: String, code: Int) = PendingIntent.getService(this, code, Intent(this, SoveraVoiceService::class.java).setAction(name), PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
             val builder = if (Build.VERSION.SDK_INT >= 26) Notification.Builder(this, "sovera_voice") else Notification.Builder(this)
             val notification = builder.setSmallIcon(android.R.drawable.ic_btn_speak_now).setContentTitle("Sovera voice room")
-                .setContentText("Room connected · Tap to return").setContentIntent(tap).setOngoing(true)
+                .setContentText("Room connected · Tap to open Sovera").setContentIntent(tap).setOngoing(true)
                 .setCategory(Notification.CATEGORY_CALL).addAction(android.R.drawable.ic_lock_silent_mode, "Mute mic", button("mute", 1))
                 .addAction(android.R.drawable.ic_menu_close_clear_cancel, "Leave room", button("leave", 2)).build()
             if (Build.VERSION.SDK_INT >= 29) {
