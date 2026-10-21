@@ -267,3 +267,6 @@ def attach_control(app,profiles,actor):
 
     from .members import attach_members
     attach_members(app,profiles,actor,staff_actor)
+
+    from .rewards import attach_rewards
+    attach_rewards(app,profiles,actor,staff_actor)

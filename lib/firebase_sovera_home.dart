@@ -1,3 +1,4 @@
+import 'firebase_rewards.dart';
 import 'firebase_members.dart';
 import 'firebase_room_session.dart';
 import 'firebase_messaging.dart';
@@ -160,9 +161,8 @@ class _FirebaseSoveraHomeState extends State<FirebaseSoveraHome>{
     finally{if(mounted)setState(()=>followBusy=false);}
   }
   void wallet()=>go(FirebaseServerWalletPage(api:api));
-  void rankings()=>feature('Rankings',
-    'Greedy game rankings will show only server-verified results after the live game wallet is enabled.');
-  void events()=>community('events','Community events');
+  void rankings()=>go(FirebaseRewardsPage(api:api));
+  void events()=>go(FirebaseRewardsPage(api:api,initialTab:'event'));
   Widget roomCard(Map<String,dynamic> room,int index)=>SoveraRoomCard(room:room,onTap:()=>openRoom(room),followed:followed.contains(room['id']),onFollow:followBusy?null:()=>toggleFollow(room['id'].toString()));
   Widget directory(){
     final visible=rooms.where((r){
@@ -290,12 +290,14 @@ class _FirebaseSoveraHomeState extends State<FirebaseSoveraHome>{
         (Icons.storefront_rounded,'Mall',cyan,()=>go(FirebaseCatalogPage(api:api))),
         (Icons.military_tech_rounded,'Medals',gold,()=>go(FirebaseCatalogPage(api:api,initialKind:'medal'))),
         (Icons.groups_rounded,'Agency',violet,()=>go(FirebaseAgenciesPage(api:api))),
-        (Icons.event_available_rounded,'Task Center',pink,()=>community('events','Task Center & Events')),
+        (Icons.event_available_rounded,'Task Center',pink,()=>go(FirebaseRewardsPage(api:api,initialTab:'event'))),
       ])Expanded(child:Padding(padding:const EdgeInsets.symmetric(horizontal:3),child:InkWell(onTap:item.$4,borderRadius:BorderRadius.circular(20),child:Container(padding:const EdgeInsets.symmetric(horizontal:4,vertical:12),decoration:BoxDecoration(gradient:LinearGradient(colors:[item.$3.withValues(alpha:.32),const Color(0xff20233e)]),borderRadius:BorderRadius.circular(20),border:Border.all(color:item.$3.withValues(alpha:.4)),boxShadow:const [BoxShadow(color:Colors.black38,offset:Offset(0,6),blurRadius:10)]),child:Column(children:[Jewel(item.$1,color:item.$3,size:39),const SizedBox(height:9),FittedBox(child:Text(item.$2,style:const TextStyle(fontWeight:FontWeight.bold,fontSize:11)))]))))),
     ]),
     const SizedBox(height:18),
     for(final item in <(IconData,String,VoidCallback)>[
       (Icons.account_balance_wallet_rounded,'Wallet',wallet),
+      (Icons.redeem_rounded,'Ranking & Event Rewards',rankings),
+      (Icons.savings_rounded,'Recharge Rewards',()=>go(FirebaseRewardsPage(api:api,initialTab:'recharge'))),
       (Icons.storefront_rounded,'Coin seller list',
         ()=>go(FirebaseOriginalCoinSellers(api:api))),
       (Icons.card_giftcard_rounded,'Invite & referrals',

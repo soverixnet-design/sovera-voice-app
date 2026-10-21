@@ -49,7 +49,7 @@ class GiftInput(BuyInput):
 
 def equipped_assets(db,uid):
     if not db.execute("SELECT 1 FROM sqlite_master WHERE name='account_asset_equipped'").fetchone():return {}
-    return {r['kind']:dict(r)|{'url':PUBLIC+r['media_id']} for r in db.execute('SELECT c.* FROM account_asset_equipped e JOIN account_catalog c ON c.id=e.item_id WHERE e.uid=? AND c.active=1',(uid,))}
+    return {r['kind']:dict(r)|{'url':PUBLIC+r['media_id']} for r in db.execute("SELECT c.* FROM account_asset_equipped e JOIN account_catalog c ON c.id=e.item_id WHERE e.uid=? AND c.active=1 AND NOT EXISTS(SELECT 1 FROM account_reward_asset_expiry x WHERE x.uid=e.uid AND x.item_id=e.item_id AND x.expires_at<=strftime('%s','now'))",(uid,))}
 
 class Catalog:
     def __init__(self,path):
@@ -60,6 +60,7 @@ class Catalog:
             CREATE TABLE IF NOT EXISTS account_media(id TEXT PRIMARY KEY,mime TEXT NOT NULL,data BLOB NOT NULL,width INTEGER NOT NULL,height INTEGER NOT NULL,frames INTEGER NOT NULL,created_at INTEGER NOT NULL);
             CREATE TABLE IF NOT EXISTS account_catalog(id TEXT PRIMARY KEY,kind TEXT NOT NULL,title TEXT NOT NULL,media_id TEXT NOT NULL,price INTEGER NOT NULL,active INTEGER NOT NULL,position INTEGER NOT NULL,avatar_scale REAL NOT NULL,avatar_x REAL NOT NULL,avatar_y REAL NOT NULL,updated_at INTEGER NOT NULL);
             CREATE TABLE IF NOT EXISTS account_asset_ownership(uid TEXT NOT NULL,item_id TEXT NOT NULL,created_at INTEGER NOT NULL,PRIMARY KEY(uid,item_id));
+            CREATE TABLE IF NOT EXISTS account_reward_asset_expiry(uid TEXT NOT NULL,item_id TEXT NOT NULL,expires_at INTEGER NOT NULL,PRIMARY KEY(uid,item_id));
             CREATE TABLE IF NOT EXISTS account_asset_equipped(uid TEXT NOT NULL,kind TEXT NOT NULL,item_id TEXT NOT NULL,PRIMARY KEY(uid,kind));
             CREATE TABLE IF NOT EXISTS account_catalog_requests(id TEXT PRIMARY KEY,actor TEXT NOT NULL,payload TEXT NOT NULL,response TEXT NOT NULL);
             CREATE TABLE IF NOT EXISTS account_catalog_events(id INTEGER PRIMARY KEY AUTOINCREMENT,room_id TEXT NOT NULL,sender_uid TEXT NOT NULL,recipient_uid TEXT NOT NULL,item_id TEXT NOT NULL,created_at INTEGER NOT NULL);
@@ -136,7 +137,7 @@ class Catalog:
         with self.control.db() as db:
             if admin:self.manage(db,uid)
             items=[self.public(r) for r in db.execute('SELECT * FROM account_catalog'+('' if admin else ' WHERE active=1')+' ORDER BY position,title,id LIMIT 1000')]
-            owned=[r[0] for r in db.execute('SELECT item_id FROM account_asset_ownership WHERE uid=?',(uid,))]
+            owned=[r[0] for r in db.execute("SELECT item_id FROM account_asset_ownership o WHERE uid=? AND NOT EXISTS(SELECT 1 FROM account_reward_asset_expiry x WHERE x.uid=o.uid AND x.item_id=o.item_id AND x.expires_at<=strftime('%s','now'))",(uid,))]
             equipped=self.equipped(db,uid)
             return {'items':items,'owned':owned,'equipped':equipped}
     def equipped(self,db,uid):
@@ -148,12 +149,14 @@ class Catalog:
             if not db.execute('SELECT 1 FROM account_profiles WHERE firebase_uid=?',(data.target_uid,)).fetchone():raise HTTPException(404,'User not found')
             item=self.row(db,data.item_id,False)
             if item['kind'] in ('banner','gift'):raise HTTPException(400,'Only wearable assets can be assigned')
-            owned=db.execute('SELECT 1 FROM account_asset_ownership WHERE uid=? AND item_id=?',(data.target_uid,str(data.item_id))).fetchone()
+            owned=db.execute("SELECT 1 FROM account_asset_ownership o WHERE uid=? AND item_id=? AND NOT EXISTS(SELECT 1 FROM account_reward_asset_expiry x WHERE x.uid=o.uid AND x.item_id=o.item_id AND x.expires_at<=strftime('%s','now'))",(data.target_uid,str(data.item_id))).fetchone()
             if data.revoke:
                 db.execute('DELETE FROM account_asset_ownership WHERE uid=? AND item_id=?',(data.target_uid,str(data.item_id)))
                 db.execute('DELETE FROM account_asset_equipped WHERE uid=? AND item_id=?',(data.target_uid,str(data.item_id)))
+                db.execute('DELETE FROM account_reward_asset_expiry WHERE uid=? AND item_id=?',(data.target_uid,str(data.item_id)))
             else:
                 db.execute('INSERT OR IGNORE INTO account_asset_ownership VALUES(?,?,?)',(data.target_uid,str(data.item_id),int(time.time())))
+                db.execute('DELETE FROM account_reward_asset_expiry WHERE uid=? AND item_id=?',(data.target_uid,str(data.item_id)))
                 if data.equip:db.execute('INSERT INTO account_asset_equipped VALUES(?,?,?) ON CONFLICT(uid,kind) DO UPDATE SET item_id=excluded.item_id',(data.target_uid,item['kind'],str(data.item_id)))
             if bool(owned)==bool(data.revoke):
                 from .messaging import official
@@ -167,7 +170,7 @@ class Catalog:
             else:
                 item=self.row(db,data.item_id)
                 if item['kind']!=data.kind:raise HTTPException(400,'Wrong category')
-                owned=db.execute('SELECT 1 FROM account_asset_ownership WHERE uid=? AND item_id=?',(uid,str(data.item_id))).fetchone()
+                owned=db.execute("SELECT 1 FROM account_asset_ownership o WHERE uid=? AND item_id=? AND NOT EXISTS(SELECT 1 FROM account_reward_asset_expiry x WHERE x.uid=o.uid AND x.item_id=o.item_id AND x.expires_at<=strftime('%s','now'))",(uid,str(data.item_id))).fetchone()
                 if item['price']>0 and not owned:raise HTTPException(403,'Purchase or owner grant required')
                 db.execute('INSERT INTO account_asset_equipped VALUES(?,?,?) ON CONFLICT(uid,kind) DO UPDATE SET item_id=excluded.item_id',(uid,data.kind,str(data.item_id)))
             return {'equipped':self.equipped(db,uid)}
@@ -194,7 +197,7 @@ class Catalog:
                     if not db.execute('SELECT 1 FROM account_presence WHERE uid=? AND room_id=? AND seen_at>?',(person,room,now-90)).fetchone():raise HTTPException(409,'All recipients must be online in this room')
             else:
                 if item['kind'] in ('banner','gift'):raise HTTPException(400,'Select a wearable item')
-                if db.execute('SELECT 1 FROM account_asset_ownership WHERE uid=? AND item_id=?',(uid,str(data.item_id))).fetchone():
+                if db.execute('SELECT 1 FROM account_asset_ownership o WHERE uid=? AND item_id=? AND NOT EXISTS(SELECT 1 FROM account_reward_asset_expiry x WHERE x.uid=o.uid AND x.item_id=o.item_id)',(uid,str(data.item_id))).fetchone():
                     result={'saved':True,'coins_spent':0,'already_owned':True}
                     db.execute('INSERT INTO account_catalog_requests VALUES(?,?,?,?)',(request,uid,payload,json.dumps(result)));return result
             cost=item['price']*(len(recipients) if room else 1)
@@ -216,7 +219,9 @@ class Catalog:
                     sender,recipient=public_person(db,uid),public_person(db,target)
                     if sender is not None and recipient is not None:
                         emit(db,'gift:'+request+':'+target,'gift',{'sender':sender,'recipient':recipient,'gift':{'title':item['title'],'url':PUBLIC+item['media_id'],'count':1},'coins':str(item['price'])})
-            else:db.execute('INSERT OR IGNORE INTO account_asset_ownership VALUES(?,?,?)',(uid,str(data.item_id),now))
+            else:
+                db.execute('INSERT OR IGNORE INTO account_asset_ownership VALUES(?,?,?)',(uid,str(data.item_id),now))
+                db.execute('DELETE FROM account_reward_asset_expiry WHERE uid=? AND item_id=?',(uid,str(data.item_id)))
             result={'saved':True,'coins_spent':cost,'diamond_each':item['price'] if room else 0,'request_id':request}
             db.execute('INSERT INTO account_catalog_requests VALUES(?,?,?,?)',(request,uid,payload,json.dumps(result)))
             return result
@@ -236,7 +241,7 @@ class Catalog:
             banned=db.execute('SELECT reason,created_at FROM account_bans WHERE uid=?',(target,)).fetchone()
             social={key:db.execute(sql,(target,)).fetchone()[0] for key,sql in {'followers':'SELECT count(*) FROM account_user_follows WHERE target=?','following':'SELECT count(*) FROM account_user_follows WHERE uid=?','visitors':'SELECT count(DISTINCT visitor) FROM account_profile_visits WHERE target=?'}.items()}
             return {'social':social,'banned':dict(banned) if banned else None,'coins':str(coins),'diamonds':str(diamonds),'profile':dict(profile)|legacy_identity(db,target),'presence':dict(presence) if presence else None,'online':bool(presence and presence['seen_at']>time.time()-90),'wallet':dict(wallet) if wallet else None,
-             'equipped':self.equipped(db,target),'owned':[r[0] for r in db.execute('SELECT item_id FROM account_asset_ownership WHERE uid=?',(target,))],
+             'equipped':self.equipped(db,target),'owned':[r[0] for r in db.execute("SELECT item_id FROM account_asset_ownership o WHERE uid=? AND NOT EXISTS(SELECT 1 FROM account_reward_asset_expiry x WHERE x.uid=o.uid AND x.item_id=o.item_id AND x.expires_at<=strftime('%s','now'))",(target,))],
              'rooms':[dict(r) for r in db.execute('SELECT id,name,seats FROM account_rooms WHERE owner_uid=?',(target,))]}
 
 def attach_catalog(app,profiles,actor):
