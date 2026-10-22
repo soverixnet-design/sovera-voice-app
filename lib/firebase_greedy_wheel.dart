@@ -64,6 +64,16 @@ class _FirebaseGreedyWheelPageState extends State<FirebaseGreedyWheelPage>{
         'Game session expired and could not refresh. Your Coins are unchanged.');
     }finally{refreshingGameAccess=false;}
   }
+  @override void dispose(){
+    final game=controller;
+    controller=null;
+    if(game!=null){
+      // Tear down the game document, including WebAudio, timers and sockets.
+      // This controller owns only the game; the room voice connection is separate.
+      game.loadRequest(Uri.parse('about:blank')).catchError((Object _){});
+    }
+    super.dispose();
+  }
   @override void initState(){super.initState();open();}
   Future<void> open()async{
     setState((){loading=true;error=null;});
@@ -87,6 +97,7 @@ class _FirebaseGreedyWheelPageState extends State<FirebaseGreedyWheelPage>{
         ..setBackgroundColor(const Color(0xFF1A0E2B))
         ..setNavigationDelegate(NavigationDelegate(
           onNavigationRequest:(request){
+            if(request.url=='about:blank')return NavigationDecision.navigate;
             final target=Uri.tryParse(request.url);
             return target!=null&&target.scheme=='https'&&
                   target.host==url.host&&target.path.startsWith('/greedy/')
@@ -122,7 +133,8 @@ class _FirebaseGreedyWheelPageState extends State<FirebaseGreedyWheelPage>{
           }catch(_){}
         });
       await ctl.loadRequest(url);
-      if(mounted)setState((){controller=ctl;loading=false;});
+      if(mounted){setState((){controller=ctl;loading=false;});}
+      else{await ctl.loadRequest(Uri.parse('about:blank'));}
     }catch(e){
       if(mounted)setState((){
         error='Greedy Wheel server and Sovera coin wallet have not been verified together yet. No fake coins or bets will run.';

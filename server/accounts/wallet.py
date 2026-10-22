@@ -22,6 +22,8 @@ class WalletStore:
         self.database_path=str(database_path)
         with sqlite3.connect(self.database_path, timeout=10) as db:
             db.executescript("""
+            CREATE TABLE IF NOT EXISTS account_exchange_policy(id INTEGER PRIMARY KEY CHECK(id=1),coins_per_100 INTEGER NOT NULL CHECK(coins_per_100 BETWEEN 1 AND 100));
+            INSERT OR IGNORE INTO account_exchange_policy VALUES(1,70);
             CREATE TABLE IF NOT EXISTS account_wallet_exchanges(
               request_id TEXT PRIMARY KEY,uid TEXT NOT NULL,diamonds INTEGER NOT NULL,
               coins INTEGER NOT NULL,created_at INTEGER NOT NULL);
@@ -90,18 +92,19 @@ class WalletStore:
                     'canSpend':link['status']=='active' and configured(),
                     'canPurchase':link['status']=='active','canGift':link['status']=='active',
                     'is_coin_seller':bool(db.execute("SELECT 1 FROM sqlite_master WHERE name='account_coin_sellers'").fetchone() and db.execute('SELECT 1 FROM account_coin_sellers WHERE uid=?',(uid,)).fetchone()),
+                    'exchange_coins_per_100':db.execute('SELECT coins_per_100 FROM account_exchange_policy WHERE id=1').fetchone()[0],
                     'source':'sovera-server'}
 
     def exchange(self,uid,data):
         if data.diamonds%100:raise HTTPException(400,'Enter Diamonds in multiples of 100')
-        credit=data.diamonds//100*70
         request=str(data.request_id)
         with sqlite3.connect(self.database_path,timeout=10) as db:
             db.execute('BEGIN IMMEDIATE')
             prior=db.execute('SELECT uid,diamonds,coins FROM account_wallet_exchanges WHERE request_id=?',(request,)).fetchone()
             if prior:
-                if prior!=(uid,data.diamonds,credit):raise HTTPException(409,'Exchange request already used')
-                return {'saved':True,'coins_received':str(credit),'diamonds_spent':str(data.diamonds),'request_id':request}
+                if prior[:2]!=(uid,data.diamonds):raise HTTPException(409,'Exchange request already used')
+                return {'saved':True,'coins_received':str(prior[2]),'diamonds_spent':str(data.diamonds),'request_id':request}
+            credit=data.diamonds//100*db.execute('SELECT coins_per_100 FROM account_exchange_policy WHERE id=1').fetchone()[0]
             link=db.execute('SELECT status,verified_at FROM account_wallet_links WHERE firebase_uid=?',(uid,)).fetchone()
             if not link or link[0]!='active' or link[1]<=0:raise HTTPException(409,'Active verified wallet required')
             coins,diamonds=db.execute('SELECT COALESCE(SUM(coin_delta),0),COALESCE(SUM(diamond_delta),0) FROM account_wallet_ledger WHERE firebase_uid=?',(uid,)).fetchone()

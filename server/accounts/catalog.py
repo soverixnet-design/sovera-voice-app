@@ -35,6 +35,7 @@ class GrantInput(BaseModel):
     item_id:uuid.UUID
     equip:bool=True
     revoke:bool=False
+    days:int=Field(strict=True,default=0,ge=0,le=3650)
 class SelectInput(BaseModel):
     model_config=ConfigDict(extra='forbid')
     kind:Literal['frame','entry','medal','tag','room_frame']
@@ -158,11 +159,12 @@ class Catalog:
             else:
                 db.execute('INSERT OR IGNORE INTO account_asset_ownership VALUES(?,?,?)',(data.target_uid,str(data.item_id),int(time.time())))
                 db.execute('DELETE FROM account_reward_asset_expiry WHERE uid=? AND item_id=?',(data.target_uid,str(data.item_id)))
+                if data.days:db.execute('INSERT INTO account_reward_asset_expiry VALUES(?,?,?)',(data.target_uid,str(data.item_id),int(time.time())+data.days*86400))
                 if data.equip:db.execute('INSERT INTO account_asset_equipped VALUES(?,?,?) ON CONFLICT(uid,kind) DO UPDATE SET item_id=excluded.item_id',(data.target_uid,item['kind'],str(data.item_id)))
             if bool(owned)==bool(data.revoke):
                 from .messaging import official
                 official(db,'asset:'+str(uuid.uuid4()),data.target_uid,'Collection updated',f"{item['title']} was {'removed from' if data.revoke else 'added to'} your collection by the owner.")
-            self.control.audit(db,uid,'catalog.revoke' if data.revoke else 'catalog.grant',data.target_uid,{'item':str(data.item_id)})
+            self.control.audit(db,uid,'catalog.revoke' if data.revoke else 'catalog.grant',data.target_uid,{'item':str(data.item_id),'days':data.days})
             return {'saved':True}
     def select(self,uid,data):
         with self.control.db() as db:
@@ -244,7 +246,12 @@ class Catalog:
             coins,diamonds=db.execute('SELECT COALESCE(SUM(coin_delta),0),COALESCE(SUM(diamond_delta),0) FROM account_wallet_ledger WHERE firebase_uid=?',(target,)).fetchone()
             banned=db.execute('SELECT reason,created_at FROM account_bans WHERE uid=?',(target,)).fetchone()
             social={key:db.execute(sql,(target,)).fetchone()[0] for key,sql in {'followers':'SELECT count(*) FROM account_user_follows WHERE target=?','following':'SELECT count(*) FROM account_user_follows WHERE uid=?','visitors':'SELECT count(DISTINCT visitor) FROM account_profile_visits WHERE target=?'}.items()}
-            return {'social':social,'banned':dict(banned) if banned else None,'coins':str(coins),'diamonds':str(diamonds),'profile':dict(profile)|legacy_identity(db,target),'presence':dict(presence) if presence else None,'online':bool(presence and presence['seen_at']>time.time()-90),'wallet':dict(wallet) if wallet else None,
+            sending={}
+            now=int(time.time())
+            for label,seconds in [('daily',86400),('weekly',604800),('monthly',2592000)]:
+                total=db.execute("SELECT COALESCE(-SUM(coin_delta),0) FROM account_wallet_ledger WHERE firebase_uid=? AND kind='gift' AND coin_delta<0 AND created_at>=?",(target,now-seconds)).fetchone()[0]
+                sending[label]=str(total)
+            return {'sending':sending,'social':social,'banned':dict(banned) if banned else None,'coins':str(coins),'diamonds':str(diamonds),'profile':dict(profile)|legacy_identity(db,target),'presence':dict(presence) if presence else None,'online':bool(presence and presence['seen_at']>time.time()-90),'wallet':dict(wallet) if wallet else None,
              'equipped':self.equipped(db,target),'owned':[r[0] for r in db.execute("SELECT item_id FROM account_asset_ownership o WHERE uid=? AND NOT EXISTS(SELECT 1 FROM account_reward_asset_expiry x WHERE x.uid=o.uid AND x.item_id=o.item_id AND x.expires_at<=strftime('%s','now'))",(target,))],
              'rooms':[dict(r) for r in db.execute('SELECT id,name,seats FROM account_rooms WHERE owner_uid=?',(target,))]}
 

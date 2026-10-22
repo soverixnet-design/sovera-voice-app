@@ -35,6 +35,21 @@ class ControlTests(unittest.TestCase):
         return code,response
     def recharge(self,**extra):return RechargeInput(target_uid='alice',amount=70,request_id=uuid.uuid4(),**extra)
 
+    def test_exchange_rate_owner_only_and_retry_preserves_paid_amount(self):
+        self.login()
+        origin={'Origin':'https://admin.soverixnet.com'}
+        self.assertEqual(self.client.put('/sovera/control/exchange-policy',json={'coins_per_100':40},headers=origin).status_code,200)
+        with sqlite3.connect(self.path) as db:
+            db.execute("INSERT INTO account_wallet_ledger VALUES('test-diamonds','alice',0,1000,'verified_import',1)")
+        payload={'diamonds':100,'request_id':str(uuid.uuid4())}
+        auth={'Authorization':'Bearer alice'}
+        first=self.client.post('/sovera/account/wallet/exchange',headers=auth,json=payload)
+        self.assertEqual(first.json()['coins_received'],'40')
+        self.client.put('/sovera/control/exchange-policy',json={'coins_per_100':30},headers=origin)
+        self.assertEqual(self.client.post('/sovera/account/wallet/exchange',headers=auth,json=payload).json()['coins_received'],'40')
+        self.login('support')
+        self.assertEqual(self.client.put('/sovera/control/exchange-policy',json={'coins_per_100':99},headers=origin).status_code,403)
+
     def test_owner_large_recharge_keeps_exact_balance_and_retry(self):
         data=RechargeInput(target_uid='alice',amount=2000000000000,request_id=uuid.uuid4())
         result=self.control.recharge('owner',data)

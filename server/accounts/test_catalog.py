@@ -78,6 +78,19 @@ class CatalogTests(unittest.TestCase):
         with self.control.db() as db:
             self.assertEqual(tuple(db.execute('SELECT price,active FROM account_catalog WHERE id=?',(items[0]['id'],)).fetchone()),(123,0))
 
+    def test_timed_grant_expires_and_can_be_revoked(self):
+        self.setup_catalog();item=self.item(price=50)
+        self.catalog.grant('owner',GrantInput(target_uid='alice',item_id=item['id'],days=3))
+        with self.control.db() as db:
+            expiry=db.execute('SELECT expires_at FROM account_reward_asset_expiry WHERE uid=? AND item_id=?',('alice',item['id'])).fetchone()[0]
+            self.assertGreater(expiry,0)
+            db.execute("UPDATE account_reward_asset_expiry SET expires_at=1 WHERE uid='alice'")
+        self.assertNotIn(item['id'],self.catalog.listing('alice')['owned'])
+        self.assertEqual(self.profiles.get('alice')['equipped'],{})
+        self.catalog.grant('owner',GrantInput(target_uid='alice',item_id=item['id'],days=1))
+        self.catalog.grant('owner',GrantInput(target_uid='alice',item_id=item['id'],revoke=True))
+        self.assertNotIn(item['id'],self.catalog.listing('alice')['owned'])
+
     def test_grants_fit_equipment_hide_and_revoke(self):
         self.setup_catalog();item=self.item(price=50)
         with self.assertRaises(HTTPException):self.catalog.select('alice',SelectInput(kind='frame',item_id=item['id']))

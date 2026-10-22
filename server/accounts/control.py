@@ -27,6 +27,10 @@ class RechargeInput(BaseModel):
     request_id:uuid.UUID
     note:str=Field(default='',max_length=300)
 
+class ExchangePolicyInput(BaseModel):
+    model_config=ConfigDict(extra='forbid')
+    coins_per_100:int=Field(strict=True,ge=1,le=100)
+
 class StaffInput(BaseModel):
     model_config=ConfigDict(extra='forbid')
     target_uid:str=Field(min_length=1,max_length=128)
@@ -256,6 +260,22 @@ def attach_control(app,profiles,actor):
 
     @app.get('/sovera/control/users')
     async def users(request:Request,q:str=Query(default='',max_length=128),offset:int=Query(default=0,ge=0,le=1000000)):return {'items':await asyncio.to_thread(service.users,await staff_actor(request),q,offset)}
+
+    @app.get('/sovera/control/exchange-policy')
+    async def exchange_policy(request:Request):
+        uid=await staff_actor(request)
+        with service.db() as db:
+            if service.role(db,uid)!='owner':raise HTTPException(403,'Owner required')
+            return {'coins_per_100':db.execute('SELECT coins_per_100 FROM account_exchange_policy WHERE id=1').fetchone()[0]}
+
+    @app.put('/sovera/control/exchange-policy')
+    async def set_exchange_policy(data:ExchangePolicyInput,request:Request):
+        uid=await staff_actor(request)
+        with service.db() as db:
+            if service.role(db,uid)!='owner':raise HTTPException(403,'Owner required')
+            db.execute('UPDATE account_exchange_policy SET coins_per_100=? WHERE id=1',(data.coins_per_100,))
+            service.audit(db,uid,'exchange.policy',uid,{'coins_per_100':data.coins_per_100})
+            return {'saved':True}
 
     @app.post('/sovera/control/recharge')
     async def recharge(data:RechargeInput,request:Request):return await asyncio.to_thread(service.recharge,await staff_actor(request),data)

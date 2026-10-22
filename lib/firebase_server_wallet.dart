@@ -65,19 +65,20 @@ class _FirebaseServerWalletPageState extends State<FirebaseServerWalletPage>{
     }
   }
   Future<void> exchange()async{
+    final rate=(wallet?['exchange_coins_per_100'] as num?)?.toInt()??70;
     var draft=pendingExchange?['diamonds']?.toString()??'100';
     var working=false;String? message;
     final saved=await showDialog<bool>(context:context,builder:(context)=>StatefulBuilder(
       builder:(context,update)=>AlertDialog(
         title:const Text('Exchange Diamonds'),
         content:Column(mainAxisSize:MainAxisSize.min,children:[
-          const Text('100 Diamonds = 70 Coins'),
+          Text('100 Diamonds = $rate Coins'),
           const SizedBox(height:12),
           TextFormField(initialValue:draft,readOnly:pendingExchange!=null||working,
             keyboardType:TextInputType.number,maxLength:16,
             decoration:const InputDecoration(labelText:'Diamonds to exchange'),
             onChanged:(value)=>update(()=>draft=value.trim())),
-          Text('You receive: ${((int.tryParse(draft)??0)~/100)*70} Coins'),
+          Text('You receive: ${((int.tryParse(draft)??0)~/100)*rate} Coins'),
           if(message!=null)Text(message!),
         ]),
         actions:[
