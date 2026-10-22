@@ -3,6 +3,7 @@ import unittest
 from fastapi import HTTPException
 from . import test_control
 from .control_password import Passwords,StaffPasswordInput
+from .control import StaffInput
 
 class PasswordTests(unittest.TestCase):
     setUp=test_control.ControlTests.setUp
@@ -50,6 +51,18 @@ class PasswordTests(unittest.TestCase):
         with self.control.db() as db:db.execute("DELETE FROM account_staff WHERE uid='owner'")
         with self.assertRaises(HTTPException):self.passwords.login('soverix','correct-password-2026')
         with self.assertRaises(HTTPException):self.control.actor(token)
+
+    def test_revoke_removes_password_and_session_even_after_restoring_role(self):
+        self.setup_password()
+        self.passwords.provision('owner',StaffPasswordInput(target_uid='agent',username='recharge.agent',password='staff-password-2026'))
+        token=self.passwords.login('recharge.agent','staff-password-2026')
+        self.control.staff('owner',StaffInput(target_uid='agent',role='none',quota=0))
+        with self.assertRaises(HTTPException):self.control.actor(token)
+        with self.assertRaises(HTTPException):self.passwords.login('recharge.agent','staff-password-2026')
+        self.control.staff('owner',StaffInput(target_uid='agent',role='agent',quota=100))
+        with self.assertRaises(HTTPException):self.passwords.login('recharge.agent','staff-password-2026')
+        with self.control.db() as db:
+            self.assertEqual(db.execute("SELECT count(*) FROM account_control_codes WHERE uid='agent'").fetchone()[0],0)
 
     def test_owner_provisions_other_staff_without_exposing_passwords(self):
         self.setup_password()

@@ -197,6 +197,8 @@ class Control:
                 elif data.role!='none':db.execute('INSERT INTO account_staff VALUES(?,?)',(data.target_uid,data.role))
                 db.execute('DELETE FROM account_control_codes WHERE uid=?',(data.target_uid,))
                 db.execute('DELETE FROM account_control_sessions WHERE uid=?',(data.target_uid,))
+                if data.role=='none' and db.execute("SELECT 1 FROM sqlite_master WHERE name='account_control_passwords'").fetchone():
+                    db.execute('DELETE FROM account_control_passwords WHERE uid=?',(data.target_uid,))
                 self.audit(db,uid,'staff.save',data.target_uid,{'role':data.role,'quota':data.quota,'previous_used':used})
             return [dict(r) for r in db.execute('''SELECT uid,role,NULL AS quota,NULL AS used FROM account_staff
               UNION ALL SELECT uid,'agent',quota,used FROM account_control_agents ORDER BY uid''')]
