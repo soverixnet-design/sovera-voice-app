@@ -55,7 +55,7 @@ window.SoveraLive={update(next){
  $('imgBtn').classList.toggle('locked',state.chatEnabled===false);
  const picture=typeof state.imageUrl==='string'&&state.imageUrl.startsWith('https://')?state.imageUrl:null;
  $('rav').replaceChildren();
- if(picture){const img=document.createElement('img');img.src=picture;img.alt='';img.style.cssText='width:100%;height:100%;object-fit:cover;border-radius:13px';$('rav').append(img);}else $('rav').textContent='🎙️';
+ if(picture){const img=document.createElement('img');img.src=picture;img.alt='';img.style.cssText='position:absolute;inset:0;width:38px;height:38px;object-fit:cover;border-radius:13px';$('rav').append(img);}else $('rav').textContent='🎙️';
  $('roomBtn').querySelector('small').textContent='লাইভ ভয়েস রুম';
  $('livePeople').textContent=String(state.people.length);
  $('liveWins').textContent=state.dailyWins??'—';
@@ -110,7 +110,7 @@ function roomSettings(){
  if(state.role!=='owner'){sheet('<h3>'+esc(state.name)+'</h3><p>রুমের সেটিংস শুধু মালিক পরিবর্তন করতে পারেন।</p>');return;}
  sheet('<h3>⚙️ রুম সেটিংস</h3><div class="pic"><button class="act" id="changeCover">📷 রুমের ছবি</button><button class="act" id="changeBackground">🖼️ ব্যাকগ্রাউন্ড</button></div><label class="lbl">রুমের নাম</label><input class="field" id="editName" maxlength="40"><label class="lbl">সিট</label><select class="field" id="editSeats">'+[5,6,9,12,15].map(n=>'<option value="'+n+'">'+n+'</option>').join('')+'</select><label class="lbl">🎨 থিম</label><select class="field" id="editTheme">'+[['mid','মিডনাইট'],['gold','রয়্যাল গোল্ড'],['ocean','ওশান'],['rose','রোজ'],['forest','ফরেস্ট'],['sunset','সানসেট']].map(t=>'<option value="'+t[0]+'">'+t[1]+'</option>').join('')+'</select><label class="lbl"><input type="checkbox" id="editChat"> টেক্সট চ্যাট চালু</label><label class="lbl">ছবি পাঠাতে ন্যূনতম Wealth Level</label><input class="field" type="number" min="0" max="10000" id="editPhotoLevel"><div class="gbar"><button class="send" id="saveRoom">সংরক্ষণ করুন</button></div>');
  $('editName').value=state.name;$('editSeats').value=String(state.seats.length);$('editTheme').value=state.theme||'mid';$('editChat').checked=state.chatEnabled!==false;$('editPhotoLevel').value=String(state.photoLevel||0);
- $('changeCover').onclick=()=>send('roomPhoto');$('changeBackground').onclick=()=>send('roomBackground');
+ $('changeCover').onclick=()=>send('roomPhoto');$('changeBackground').onclick=()=>{if(settingsDraft)settingsDraft.clearBackground=false;close();send('roomBackground');};
  $('saveRoom').onclick=()=>{send('saveSettings',{name:$('editName').value.trim(),seats:Number($('editSeats').value),theme:$('editTheme').value,chatEnabled:$('editChat').checked,photoLevel:Number($('editPhotoLevel').value)});close();};
 }
 function adminSheet(){
@@ -154,7 +154,7 @@ function renderGifts(){
   send('sendGift',{itemId:giftId,recipients:[...giftRecipients],quantity:giftQuantity,price:selected.price});
  };
 }
-const ER=[['😂','হাসি'],['😍','ভালোবাসা'],['😎','কুল'],['🔥','আগুন'],['👏','হাততালি'],['🎉','পার্টি'],['😭','কান্না'],['😡','রাগ'],['🥳','উৎসব'],['😘','চুমু'],['🤩','বাহ!'],['👍','দারুণ'],['🙏','ধন্যবাদ'],['💯','১০০'],['😴','ঘুম'],['💖','হৃদয়']];
+const ER=[['😂','হাসি'],['😍','ভালোবাসা'],['😎','কুল'],['🔥','আগুন'],['👏','হাততালি'],['🎉','পার্টি'],['😭','কান্না'],['😡','রাগ'],['🥳','উৎসব'],['😘','চুমু'],['🤩','বাহ!'],['👍','দারুণ'],['🙏','ধন্যবাদ'],['💯','১০০'],['😴','ঘুম'],['💖','হৃদয়'],['😊', 'মিষ্টি হাসি'],['😇', 'ভালো মানুষ'],['🤣', 'অট্টহাসি'],['😜', 'দুষ্টুমি'],['🤗', 'আলিঙ্গন'],['🤭', 'লাজুক'],['🤔', 'ভাবনা'],['😱', 'অবাক'],['🙈', 'লজ্জা'],['🥰', 'স্নেহ'],['😢', 'দুঃখ'],['😤', 'অভিমান'],['💋', 'চুমু'],['💐', 'ফুল'],['🌹', 'গোলাপ'],['✨', 'ঝলক'],['🌟', 'তারা'],['👑', 'রাজা'],['🎁', 'উপহার'],['🎂', 'জন্মদিন'],['🎶', 'সঙ্গীত'],['💃', 'নাচ'],['🕺', 'নাচি'],['🤝', 'বন্ধু']];
 function emojiSheet(){
  sheet('<h3>😊 ইমোজি বক্স</h3><div class="etabs"><button id="seatEmojiTab" class="'+(!emojiTab?'sel':'')+'">🎭 সিটে দেখান</button><button id="textEmojiTab" class="'+(emojiTab?'sel':'')+'">💬 মেসেজে</button></div><div class="lbl">'+(!emojiTab?'আপনার সিটে অ্যানিমেশনসহ দেখাবে':'মেসেজ বক্সে বসবে')+'</div><div class="gifts em">'+ER.map((e,i)=>'<button class="gf" data-emoji="'+i+'"><span>'+e[0]+'</span>'+e[1]+'</button>').join('')+'</div>');
  $('seatEmojiTab').onclick=()=>{emojiTab=0;emojiSheet();};$('textEmojiTab').onclick=()=>{emojiTab=1;emojiSheet();};
@@ -195,7 +195,7 @@ function themeSheet(){
  const themes=[['mid','মিডনাইট','#6d28d9'],['gold','রয়্যাল গোল্ড','#b45309'],['ocean','ওশান','#0369a1'],['rose','রোজ','#be185d'],['forest','ফরেস্ট','#15803d'],['sunset','সানসেট','#ea580c']];
  sheet('<h3><button class="back" id="themeBack">‹</button>🎨 রুমের থিম</h3><div class="themes">'+themes.map(t=>'<button class="th '+(settingsDraft.theme===t[0]?'sel':'')+'" data-theme="'+t[0]+'" style="background:linear-gradient(160deg,'+t[2]+',#100a20)">'+t[1]+'</button>').join('')+'</div><button class="act" id="changeBackground">🖼️ গ্যালারি থেকে ব্যাকগ্রাউন্ড</button><button class="act" id="clearBackground">ছবি সরিয়ে থিমে ফিরুন</button><button class="send" id="saveTheme">সংরক্ষণ করুন</button>');
  $('themeBack').onclick=settingsSheet;document.querySelectorAll('[data-theme]').forEach(b=>b.onclick=()=>{settingsDraft.theme=b.dataset.theme;settingsDraft.clearBackground=true;themeSheet();});
- $('changeBackground').onclick=()=>send('roomBackground');$('clearBackground').onclick=()=>{settingsDraft.clearBackground=true;toast('সংরক্ষণ করলে ব্যাকগ্রাউন্ড সরবে');};$('saveTheme').onclick=saveDraft;
+ $('changeBackground').onclick=()=>{if(settingsDraft)settingsDraft.clearBackground=false;close();send('roomBackground');};$('clearBackground').onclick=()=>{settingsDraft.clearBackground=true;toast('সংরক্ষণ করলে ব্যাকগ্রাউন্ড সরবে');};$('saveTheme').onclick=saveDraft;
 }
 function seatSettings(){
  sheet('<h3><button class="back" id="seatBack">‹</button>🪑 সিট ব্যবস্থা</h3><div class="lbl">মোট সিট (হোস্টসহ)</div><div class="step"><button id="minusSeat">−</button><b>'+settingsDraft.seats+'</b><button id="plusSeat">+</button></div><div class="lbl">কমপক্ষে ৫টি, সর্বোচ্চ ২১টি</div><div class="fr">'+[['grad','রঙিন'],['gold','গোল্ড'],['neon','নিয়ন'],['sq','চৌকো']].map(f=>'<button data-style="'+f[0]+'" class="'+(settingsDraft.seatStyle===f[0]?'sel':'')+'"><div class="pv"></div>'+f[1]+'</button>').join('')+'</div><button class="send" id="saveSeats">সংরক্ষণ করুন</button>');

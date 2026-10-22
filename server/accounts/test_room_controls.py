@@ -54,7 +54,7 @@ class RoomControlTests(unittest.TestCase):
         self.store.save('bob',ProfileInput(display_name='Bob',country='BD'))
         rooms=Rooms(self.path);room=rooms.save('alice',RoomInput(name='Real room',seats=21,seat_style='neon'))['id']
         controls=RoomControls(rooms)
-        data=ReactionInput(emoji='😂',request_id=uuid.uuid4())
+        data=ReactionInput(emoji='🥰',request_id=uuid.uuid4())
         with self.assertRaises(HTTPException):controls.react('bob',room,data)
         rooms.presence('alice',room)
         first=controls.react('alice',room,data)

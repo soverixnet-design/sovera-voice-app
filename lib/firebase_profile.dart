@@ -31,6 +31,12 @@ class FirebaseProfileApi {
     if(response.statusCode==429) throw const ProfileApiError('Please wait a moment before sending again.');
     if(response.statusCode==409 && response.body.contains('Save your profile first')) throw const ProfileApiError('Save your profile before opening a room.');
     if(response.statusCode==409){String detail='Request could not be completed.';try{final body=jsonDecode(response.body);if(body is Map&&body['detail'] is String)detail=body['detail'] as String;}catch(_){}throw ProfileApiError(detail,status:409);}
+    if(response.statusCode==404)throw const ProfileApiError('This room feature is unavailable on the server. The server needs an update.',status:404);
+    if(response.statusCode==400||response.statusCode==422||response.statusCode==503){
+      String detail=response.statusCode==503?'The room service is temporarily unavailable. Please retry.':'Please check the room settings or selected photo.';
+      try{final body=jsonDecode(response.body);if(body is Map&&body['detail'] is String)detail=body['detail'] as String;}catch(_){}
+      throw ProfileApiError(detail,status:response.statusCode);
+    }
     if (response.statusCode != 200) throw const ProfileApiError('Profile could not be saved or loaded. Please retry.');
     final data = jsonDecode(response.body);
     if(data is! Map) throw const ProfileApiError('Invalid server response. Please retry.');
@@ -58,7 +64,7 @@ class FirebaseProfileApi {
     if (response.statusCode != 200) throw const ProfileApiError('Photo could not be uploaded. Please retry.');
     final data = jsonDecode(response.body);
     final url = data is Map ? data['avatar_url'] : null;
-    if (url is! String || !(url.startsWith('${endpoint.toString()}/avatar/')||url.startsWith('${endpoint.toString()}/room-photo/'))) throw const ProfileApiError('Invalid photo response.');
+    if (url is! String || !(url.startsWith('${endpoint.toString()}/avatar/')||url.startsWith('${endpoint.toString()}/room-photo/')||url.startsWith('${endpoint.toString()}/chat-photo/'))) throw const ProfileApiError('Invalid photo response.');
     return url;
   }
   Future<Map<String, dynamic>?> load() => request('GET');

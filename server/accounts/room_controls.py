@@ -18,7 +18,7 @@ class RoomAdmin(BaseModel):
 
 class ReactionInput(BaseModel):
     model_config=ConfigDict(extra='forbid')
-    emoji:Literal['😂','😍','😎','🔥','👏','🎉','😭','😡','🥳','😘','🤩','👍','🙏','💯','😴','💖']
+    emoji:Literal['😂','😍','😎','🔥','👏','🎉','😭','😡','🥳','😘','🤩','👍','🙏','💯','😴','💖','😊','😇','🤣','😜','🤗','🤭','🤔','😱','🙈','🥰','😢','😤','💋','💐','🌹','✨','🌟','👑','🎁','🎂','🎶','💃','🕺','🤝']
     request_id:uuid.UUID
 
 class ModerateInput(BaseModel):

@@ -1,3 +1,4 @@
+import 'firebase_profile.dart' show ProfileApiError;
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:webview_flutter/webview_flutter.dart';
@@ -27,8 +28,9 @@ class _RoomDesignViewState extends State<RoomDesignView>{
           if(event.message.length>4096)return;
           final data=jsonDecode(event.message);
           if(data is! Map)return;
+          if(mounted)setState(()=>error=null);
           await widget.onAction(Map<String,dynamic>.from(data));
-        }catch(_){if(mounted)setState(()=>error='Could not complete room action. Please retry.');}
+        }catch(e){if(mounted)setState(()=>error=e is ProfileApiError?e.message:'Room action failed. Check your connection and try again.');}
       })
       ..loadFlutterAsset('assets/room-design/interior.html');
   }
@@ -40,6 +42,6 @@ class _RoomDesignViewState extends State<RoomDesignView>{
   }
   @override Widget build(BuildContext context)=>Stack(children:[
     Positioned.fill(child:WebViewWidget(controller:controller)),
-    if(error!=null)Align(alignment:Alignment.topCenter,child:Material(color:Colors.red.shade900,child:Padding(padding:const EdgeInsets.all(8),child:Text(error!)))),
+    if(error!=null)Align(alignment:Alignment.topCenter,child:Material(color:Colors.red.shade900,child:Padding(padding:const EdgeInsets.all(8),child:Row(mainAxisSize:MainAxisSize.min,children:[Flexible(child:Text(error!)),IconButton(tooltip:'Dismiss',onPressed:()=>setState(()=>error=null),icon:const Icon(Icons.close,color:Colors.white))])))),
   ]);
 }

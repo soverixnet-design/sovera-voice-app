@@ -11,8 +11,11 @@ const {mkdirSync}=require('node:fs');
    const errors=[];page.on('pageerror',e=>errors.push(e.message));
    await page.addInitScript(()=>{window.sent=[];window.SoveraRoom={postMessage:x=>window.sent.push(JSON.parse(x))};});
    await page.goto('file://'+resolve('assets/room-design/interior.html'));
-   const snapshot={uid:'alice',name:'Real room',roomId:'long-private-uuid',people:[{uid:'alice',name:'Alice'},{uid:'bob',name:'Bob'}],seats:Array.from({length:21},(_,i)=>i===0?{uid:'alice',name:'Alice',speaking:true,equipped:{frame:{url:'https://voice.soverixnet.com/sovera/account/media/abcdef',avatar_scale:.46,avatar_x:.5,avatar_y:.5}}}:{uid:i===1?'bob':null,name:i===1?'Bob':null}),messages:[],coins:'1000',dailyWins:'50',role:'owner',connected:true,muted:false,gifts:[{id:'gift',title:'Rose',price:5}],reactions:[],events:[]};
+   const snapshot={uid:'alice',name:'Real room',imageUrl:'https://voice.soverixnet.com/sovera/account/room-photo/portrait',roomId:'long-private-uuid',people:[{uid:'alice',name:'Alice'},{uid:'bob',name:'Bob'}],seats:Array.from({length:21},(_,i)=>i===0?{uid:'alice',name:'Alice',speaking:true,equipped:{frame:{url:'https://voice.soverixnet.com/sovera/account/media/abcdef',avatar_scale:.46,avatar_x:.5,avatar_y:.5}}}:{uid:i===1?'bob':null,name:i===1?'Bob':null}),messages:[],coins:'1000',dailyWins:'50',role:'owner',connected:true,muted:false,gifts:[{id:'gift',title:'Rose',price:5}],reactions:[],events:[]};
    await page.evaluate(x=>window.SoveraLive.update(x),snapshot);
+   const cover=await page.locator('#rav').boundingBox(),coverImage=await page.locator('#rav img').boundingBox();
+   assert.equal(Math.round(cover.width),38);assert.equal(Math.round(cover.height),38);
+   assert.equal(Math.round(coverImage.width),38);assert.equal(Math.round(coverImage.height),38);
    const geometry=await page.locator('.seat[data-i="0"]').evaluate(el=>{
     const av=el.querySelector('.av').getBoundingClientRect(),face=el.querySelector('.face').getBoundingClientRect(),frame=el.querySelector('.equipped-frame').getBoundingClientRect();
     return {av:av.width,face:face.width,frame:frame.width,faceX:face.x+face.width/2,frameX:frame.x+frame.width/2};
@@ -37,6 +40,10 @@ const {mkdirSync}=require('node:fs');
    assert.equal(await page.locator('#roomBtn small').innerText(),'লাইভ ভয়েস রুম');
    await page.locator('#bOwn').click();await page.locator('#muteAll').click();
    assert.equal(await page.evaluate(()=>window.sent.at(-1).kind),'mute_all');
+   await page.locator('#roomBtn').click();await page.locator('#themeSettings').click();
+   await page.locator('[data-theme="ocean"]').click();await page.locator('#changeBackground').click();
+   assert.equal(await page.evaluate(()=>window.sent.at(-1).action),'roomBackground');
+   assert.equal(await page.locator('#bg').evaluate(el=>el.classList.contains('on')),false);
    assert.deepEqual(errors,[]);
    await page.close();
   }

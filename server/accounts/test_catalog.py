@@ -56,10 +56,10 @@ class CatalogTests(unittest.TestCase):
     def test_default_animated_gifts_are_seeded_once_and_keep_owner_changes(self):
         from .seed_gifts import seed
         first=seed(self.path)
-        self.assertEqual(first['added'],12)
+        self.assertEqual(first['added'],16)
         catalog=Catalog(self.path)
         items=[x for x in catalog.listing('owner')['items'] if x['kind']=='gift']
-        self.assertEqual(len(items),12)
+        self.assertEqual(len(items),16)
         from .seed_gifts import ROOM_GIFTS,NAMESPACE
         original=next(x for x in items if x['id']==str(uuid.uuid5(NAMESPACE,'original-room:rose')))
         self.assertEqual(original['price'],5)

@@ -172,6 +172,6 @@ systemctl start sovera-backup.service
 CHANGED=0
 echo 'PROFESSIONAL_ADMIN_BENEFITS_READY' 
 echo "Backup: $BACKUP"
-echo 'Four animated and eight original room gifts seeded once. Owner edits remain in the admin catalog.'
+echo 'Eight animated and eight original room gifts seeded once. Owner edits remain in the admin catalog.'
 echo 'Diamond exchange: 100 Diamonds = 70 Coins.'
 echo 'Former one-million round cap removed. Wallet balance and exact arithmetic checks remain.'

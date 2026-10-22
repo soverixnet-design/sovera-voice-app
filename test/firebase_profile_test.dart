@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'package:image_picker/image_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
@@ -16,6 +17,20 @@ void main() {
       return http.Response(jsonEncode({'profile':profile()}),200);
     }));
     await api.load();await api.save(name:'Shakil',country:'BD',bio:'Hello');expect(tokens,2);
+  });
+  test('uploaded room chat photos keep their verified media URL',()async{
+    const url='https://voice.soverixnet.com/sovera/account/chat-photo/abcdef';
+    final api=FirebaseProfileApi(uid:'alice',token:()async=>'token',client:MockClient((r)async{
+      expect(r.url.path,'/sovera/account/rooms/room/chat-photo');
+      return http.Response(jsonEncode({'avatar_url':url}),200);
+    }));
+    expect(await api.uploadPhoto(XFile.fromData([1,2,3]),suffix:'/rooms/room/chat-photo'),url);
+  });
+  test('room errors preserve the server reason and rollout status',()async{
+    for(final status in [403,422,503]){
+      final api=FirebaseProfileApi(uid:'alice',token:()async=>'token',client:MockClient((r)async=>http.Response('{"detail":"Room permission unavailable"}',status)));
+      await expectLater(api.call('PUT',suffix:'/rooms/room'),throwsA(isA<ProfileApiError>().having((e)=>e.message,'reason','Room permission unavailable')));
+    }
   });
   test('wrong-account response and redirects are rejected',()async{
     for(final response in [http.Response(jsonEncode({'profile':{...profile(),'firebase_uid':'bob'}}),200),http.Response('',302)]) {

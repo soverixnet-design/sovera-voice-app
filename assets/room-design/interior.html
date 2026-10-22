@@ -21,8 +21,8 @@ button{font:inherit;color:inherit}
 .ib{width:38px;height:38px;border-radius:14px;border:1px solid var(--line);background:var(--glass);backdrop-filter:blur(14px);display:grid;place-items:center;cursor:pointer;flex:none;font-size:17px}
 .ib svg{width:19px;height:19px;stroke:#fff;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
 .room{flex:1;min-width:0;display:flex;align-items:center;gap:10px;padding:5px 12px 5px 5px;border-radius:18px;border:1px solid var(--line);background:var(--glass);backdrop-filter:blur(14px);cursor:pointer;text-align:left}
-.rav{width:38px;height:38px;border-radius:13px;background:linear-gradient(135deg,var(--a),var(--b)) center/cover;display:grid;place-items:center;font-size:20px;flex:none}
-.rt{min-width:0;flex:1}.rt b{display:block;font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.rav{position:relative;overflow:hidden;isolation:isolate;width:38px;height:38px;min-width:38px;min-height:38px;max-width:38px;max-height:38px;border-radius:13px;background:linear-gradient(135deg,var(--a),var(--b)) center/cover;display:grid;place-items:center;font-size:20px;flex:none}
+.rav img{position:absolute;inset:0;display:block;width:38px!important;height:38px!important;object-fit:cover;object-position:center}.rt{min-width:0;flex:1}.rt b{display:block;font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .rt small{color:var(--mu);font-size:11px;display:flex;align-items:center;gap:4px}
 .live{width:6px;height:6px;border-radius:50%;background:var(--grn);box-shadow:0 0 8px var(--grn)}
 .stats{display:flex;gap:6px;padding:2px 14px 4px;font-size:11px;color:var(--mu);position:relative;z-index:3;overflow-x:auto;scrollbar-width:none}
@@ -156,6 +156,11 @@ body{display:block}
 @media(max-width:360px){.top{gap:5px;padding-left:8px;padding-right:8px}.ib{width:34px;height:34px}.room{gap:6px;padding-right:7px}.dock{padding-left:7px;padding-right:7px}.irow{gap:5px}.rb{width:36px;height:36px}.mic{width:42px;height:42px}.av{width:52px;height:52px}.host .av{width:78px;height:78px}}
 @media(max-height:650px){.host{margin-bottom:8px}.host .av{width:68px;height:68px}.av{width:46px;height:46px}.grid{gap:10px 4px}.chat{height:clamp(90px,22vh,140px)}.stage{padding-top:5px}}
 @media(prefers-reduced-motion:reduce){.blob,.host .av::before{animation:none}}
+
+.gf span,.rb,.mic{filter:drop-shadow(0 2px 1px rgba(0,0,0,.4))}.ib svg{filter:drop-shadow(0 2px 1px rgba(0,0,0,.4))}.ib,.rb,.act,.send,.gf,.mic{box-shadow:inset 0 1px 1px rgba(255,255,255,.3),inset 0 -3px 2px rgba(0,0,0,.22),0 5px 12px rgba(0,0,0,.24);transition:transform .16s,filter .16s}
+.ib:active,.rb:active,.act:active,.send:active,.gf:active,.mic:active{transform:translateY(2px) scale(.96);filter:brightness(1.15)}
+.rb,.ib{background-image:linear-gradient(145deg,rgba(255,255,255,.13),rgba(0,0,0,.17))}
+@media(prefers-reduced-motion:reduce){*,*::before,*::after{animation-duration:.01ms!important;transition:none!important}}
 </style>
 </head>
 <body>

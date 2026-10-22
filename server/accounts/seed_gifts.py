@@ -8,7 +8,9 @@ from .catalog import Catalog
 from .original_gift_art import image as original_artwork
 
 GIFTS=(('Love Heart',10,(255,70,140)),('Diamond',100,(70,220,255)),
-       ('Royal Crown',500,(255,200,70)),('Lucky Star',1000,(180,110,255)))
+       ('Royal Crown',500,(255,200,70)),('Lucky Star',1000,(180,110,255)),
+       ('Ruby Heart',250,(245,40,75)),('Ocean Diamond',750,(30,145,255)),
+       ('Violet Crown',1500,(190,90,255)),('Golden Star',3000,(255,185,25)))
 NAMESPACE=uuid.UUID('4be4c136-d521-427d-bc6f-8732a342c8d3')
 ROOM_GIFTS=(('rose','Rose',5),('ring','Ring',50),('car','Car',500),
             ('castle','Castle',1000),('lion','Lion',2000),('dragon','Dragon',5000),
@@ -51,12 +53,12 @@ def seed(database):
         key=str(uuid.uuid5(NAMESPACE,title))
         with catalog.control.db() as db:
             if db.execute('SELECT 1 FROM account_catalog WHERE id=?',(key,)).fetchone():continue
-        media=catalog.upload(owner,artwork(index,color))
+        media=catalog.upload(owner,artwork(index%4,color))
         with catalog.control.db() as db:
             db.execute('BEGIN IMMEDIATE')
             if db.execute('SELECT 1 FROM account_catalog WHERE id=?',(key,)).fetchone():continue
             db.execute('INSERT INTO account_catalog VALUES(?,?,?,?,?,?,?,?,?,?,?)',
-                (key,'gift',title,media['id'],price,1,100+index,.46,.5,.5,int(time.time())))
+                (key,'gift',title,media['id'],price,1,(100+index if index<4 else 112+index-4),.46,.5,.5,int(time.time())))
             catalog.control.audit(db,owner,'catalog.seed_gift',key,{'title':title,'price':price})
             added+=1
     for index,(name,title,price) in enumerate(ROOM_GIFTS):
