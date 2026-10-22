@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:typed_data';
 import 'package:image_picker/image_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -24,7 +25,7 @@ void main() {
       expect(r.url.path,'/sovera/account/rooms/room/chat-photo');
       return http.Response(jsonEncode({'avatar_url':url}),200);
     }));
-    expect(await api.uploadPhoto(XFile.fromData([1,2,3]),suffix:'/rooms/room/chat-photo'),url);
+    expect(await api.uploadPhoto(XFile.fromData(Uint8List.fromList([1,2,3])),suffix:'/rooms/room/chat-photo'),url);
   });
   test('room errors preserve the server reason and rollout status',()async{
     for(final status in [403,422,503]){
