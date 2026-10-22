@@ -16,6 +16,7 @@ function seatMenu(i){
 
  if(seat.uid){const gift=button('🎁 উপহার','gifts');gift.onclick=()=>openGifts(seat.uid);a.append(gift);}
  if(state.role==='owner'||state.role==='admin'){
+  if(!seat.uid&&!seat.locked){const invite=button('🎤 মাইকে আমন্ত্রণ','invite');invite.onclick=()=>inviteSheet(i);a.append(invite);}
   const lock=button(seat.locked?'🔓 সিট আনলক':'🔒 সিট লক','seatLock',{seat:i,locked:!seat.locked});a.append(lock);
   if(seat.uid&&seat.uid!==state.uid){
    const muted=(state.mutedUids||[]).includes(seat.uid);
@@ -23,6 +24,10 @@ function seatMenu(i){
     button('⬇️ মাইক থেকে নামান','moderate',{kind:'down',uid:seat.uid}),button('🚫 রুম থেকে বের করুন','moderate',{kind:'kick',uid:seat.uid}));
   }
  }
+}
+function inviteSheet(seat){
+ sheet('<h3>🎤 মাইকে আমন্ত্রণ</h3><div class="acts" id="invitePeople"></div>');
+ for(const p of state.people||[])if(p.uid!==state.uid&&!state.seats.some(s=>s.uid===p.uid))$('invitePeople').append(button(p.name||'রুম সদস্য','invite',{uid:p.uid,seat}));
 }
 function seatHTML(s,i,host){
  const locked=s.locked&&!s.uid,empty=!s.uid&&!locked;
@@ -72,6 +77,10 @@ window.SoveraLive={update(next){
   for(const m of state.messages){const row=document.createElement('div');row.className='msg'+(m.uid===state.uid?' me':'');row.innerHTML='<div class="mav">👤</div><div class="mb"><span class="mn">'+esc(m.name)+'</span><span class="mt">'+esc(m.text)+'</span></div>';if(typeof m.image_url==='string'&&m.image_url.startsWith('https://voice.soverixnet.com/sovera/account/chat-photo/')){const image=document.createElement('img');image.src=m.image_url;image.className='mimg';image.alt='Room photo';image.onclick=e=>{e.stopPropagation();$('vimg').src=m.image_url;$('viewer').classList.add('on');};row.append(image);}row.onclick=()=>send('profile',{uid:m.uid});$('chat').append(row);}
   $('chat').scrollTop=$('chat').scrollHeight;
   if(state.sendPending===false&&state.messages.some(m=>m.uid===state.uid&&m.text===$('txt').value.trim())){$('txt').value='';$('txt').oninput();}
+ }
+ for(const invitation of state.invites||[]){
+  const key='invite:'+invitation.id;
+  if(!seenEffects.has(key)){seenEffects.add(key);sheet('<h3>🎤 মাইকে কথা বলার আমন্ত্রণ</h3><div class="acts" id="acceptInvite"></div>');$('acceptInvite').append(button('সিটে বসুন','take',{seat:invitation.seat}));}
  }
  for(const reaction of state.reactions||[]){
   const key='reaction:'+reaction.id;

@@ -6,6 +6,24 @@ from .room_controls import RoomControls, RoomAdmin, SeatLock
 
 class RoomControlTests(unittest.TestCase):
     setUp=AccountTests.setUp
+    def test_invitation_is_private_permission_checked_and_retry_safe(self):
+        import uuid
+        from .room_controls import InviteInput
+        from .rooms import Rooms,RoomInput
+        for uid in ('alice','bob','charlie'):self.store.save(uid,ProfileInput(display_name=uid,country='BD'))
+        rooms=Rooms(self.path);room=rooms.save('alice',RoomInput(name='Room'))['id']
+        controls=RoomControls(rooms)
+        rooms.presence('alice',room);rooms.presence('bob',room)
+        data=InviteInput(target_uid='bob',seat=2,request_id=uuid.uuid4())
+        with self.assertRaises(HTTPException):controls.invite('charlie',room,data)
+        first=controls.invite('alice',room,data)
+        self.assertEqual(first,controls.invite('alice',room,data))
+        self.assertEqual(controls.state('charlie',room)['invites'],[])
+        self.assertEqual(controls.state('bob',room)['invites'][0]['seat'],2)
+        with self.assertRaises(HTTPException):controls.invite('alice',room,data.model_copy(update={'seat':3}))
+        with self.assertRaises(HTTPException):controls.invite('alice',room,data.model_copy(update={'target_uid':'charlie','request_id':uuid.uuid4()}))
+        controls.moderate('alice',room,__import__('server.accounts.room_controls',fromlist=['ModerateInput']).ModerateInput(action='kick',target_uid='bob'))
+        with self.assertRaises(HTTPException):controls.invite('alice',room,data.model_copy(update={'request_id':uuid.uuid4()}))
     def test_room_scope_owner_admin_and_persistent_locks(self):
         for uid in ('alice','bob','charlie'):
             self.store.save(uid,ProfileInput(display_name=uid,country='BD'))

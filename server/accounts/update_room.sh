@@ -17,7 +17,7 @@ STAGE=$(mktemp -d /opt/sovera-room-stage.XXXXXX)
 chmod 755 "$STAGE"
 BACKUP=
 CHANGED=0
-FILES=(control_password.py control_security.py operations.py programs.py maintenance.py test_operations.py rewards.py test_rewards.py members.py test_members.py test_legacy_wallet.py import_legacy_wallet.py test_auto_wallet.py messaging.py test_messaging.py control.py community.py room_photos.py test_room_photos.py broadcasts.py test_broadcasts.py greedy_wallet.py catalog.py app.py wallet.py rooms.py voice.py room_controls.py test_room_controls.py profile_media.py seed_gifts.py test_profile_media.py test_wallet.py test_catalog.py)
+FILES=(control_password.py control_security.py operations.py programs.py maintenance.py test_operations.py rewards.py test_rewards.py members.py test_members.py test_legacy_wallet.py import_legacy_wallet.py test_auto_wallet.py messaging.py test_messaging.py control.py community.py room_photos.py test_room_photos.py broadcasts.py test_broadcasts.py greedy_wallet.py catalog.py app.py wallet.py rooms.py voice.py room_controls.py test_room_controls.py profile_media.py original_gift_art.py seed_gifts.py test_profile_media.py test_wallet.py test_catalog.py)
 GAMEFILES=(start.js limits.js selftest.js)
 ADMIN=/opt/livekit/caddy_data/sovera-control
 [ -d "$ADMIN" ] || { echo "Existing admin installation required"; exit 1; }
@@ -172,6 +172,6 @@ systemctl start sovera-backup.service
 CHANGED=0
 echo 'PROFESSIONAL_ADMIN_BENEFITS_READY' 
 echo "Backup: $BACKUP"
-echo 'Four animated gifts seeded once. Owner edits remain in the admin catalog.'
+echo 'Four animated and eight original room gifts seeded once. Owner edits remain in the admin catalog.'
 echo 'Diamond exchange: 100 Diamonds = 70 Coins.'
 echo 'Former one-million round cap removed. Wallet balance and exact arithmetic checks remain.'

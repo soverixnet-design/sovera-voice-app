@@ -1,14 +1,18 @@
-"""Add four original animated gifts once, preserving every owner edit."""
+"""Seed animated gifts and the supplied room's eight gifts, preserving owner edits."""
 import io
 import math
 import time
 import uuid
 from PIL import Image,ImageDraw
 from .catalog import Catalog
+from .original_gift_art import image as original_artwork
 
 GIFTS=(('Love Heart',10,(255,70,140)),('Diamond',100,(70,220,255)),
        ('Royal Crown',500,(255,200,70)),('Lucky Star',1000,(180,110,255)))
 NAMESPACE=uuid.UUID('4be4c136-d521-427d-bc6f-8732a342c8d3')
+ROOM_GIFTS=(('rose','Rose',5),('ring','Ring',50),('car','Car',500),
+            ('castle','Castle',1000),('lion','Lion',2000),('dragon','Dragon',5000),
+            ('rocket','Rocket',9900),('crown','Crown',19900))
 
 def artwork(kind,color):
     frames=[]
@@ -55,7 +59,19 @@ def seed(database):
                 (key,'gift',title,media['id'],price,1,100+index,.46,.5,.5,int(time.time())))
             catalog.control.audit(db,owner,'catalog.seed_gift',key,{'title':title,'price':price})
             added+=1
-    return {'added':added,'total':len(GIFTS)}
+    for index,(name,title,price) in enumerate(ROOM_GIFTS):
+        key=str(uuid.uuid5(NAMESPACE,'original-room:'+name))
+        with catalog.control.db() as db:
+            if db.execute('SELECT 1 FROM account_catalog WHERE id=?',(key,)).fetchone():continue
+        media=catalog.upload(owner,original_artwork(name))
+        with catalog.control.db() as db:
+            db.execute('BEGIN IMMEDIATE')
+            if db.execute('SELECT 1 FROM account_catalog WHERE id=?',(key,)).fetchone():continue
+            db.execute('INSERT INTO account_catalog VALUES(?,?,?,?,?,?,?,?,?,?,?)',
+                (key,'gift',title,media['id'],price,1,104+index,.46,.5,.5,int(time.time())))
+            catalog.control.audit(db,owner,'catalog.seed_gift',key,{'title':title,'price':price})
+            added+=1
+    return {'added':added,'total':len(GIFTS)+len(ROOM_GIFTS)}
 
 if __name__=='__main__':
     import argparse,os

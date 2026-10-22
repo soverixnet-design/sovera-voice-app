@@ -56,15 +56,25 @@ class CatalogTests(unittest.TestCase):
     def test_default_animated_gifts_are_seeded_once_and_keep_owner_changes(self):
         from .seed_gifts import seed
         first=seed(self.path)
-        self.assertEqual(first['added'],4)
+        self.assertEqual(first['added'],12)
         catalog=Catalog(self.path)
         items=[x for x in catalog.listing('owner')['items'] if x['kind']=='gift']
-        self.assertEqual(len(items),4)
+        self.assertEqual(len(items),12)
+        from .seed_gifts import ROOM_GIFTS,NAMESPACE
+        original=next(x for x in items if x['id']==str(uuid.uuid5(NAMESPACE,'original-room:rose')))
+        self.assertEqual(original['price'],5)
+        for name,title,price in ROOM_GIFTS:
+            row=next(x for x in items if x['id']==str(uuid.uuid5(NAMESPACE,'original-room:'+name)))
+            self.assertEqual((row['title'],row['price']),(title,price))
+        with self.control.db() as db:
+            db.execute('UPDATE account_catalog SET price=42,active=0 WHERE id=?',(original['id'],))
         with self.control.db() as db:
             db.execute('UPDATE account_catalog SET price=123,active=0 WHERE id=?',(items[0]['id'],))
             frames=db.execute('SELECT frames FROM account_media WHERE id=?',(items[0]['media_id'],)).fetchone()[0]
         self.assertGreater(frames,1)
         self.assertEqual(seed(self.path)['added'],0)
+        with self.control.db() as db:
+            self.assertEqual(tuple(db.execute('SELECT price,active FROM account_catalog WHERE id=?',(original['id'],)).fetchone()),(42,0))
         with self.control.db() as db:
             self.assertEqual(tuple(db.execute('SELECT price,active FROM account_catalog WHERE id=?',(items[0]['id'],)).fetchone()),(123,0))
 

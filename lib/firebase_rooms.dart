@@ -183,7 +183,7 @@ class _FirebaseRoomChatState extends State<FirebaseRoomChat> with WidgetsBinding
   Timer? timer;bool syncing=false,sending=false,savingRoom=false,sendingEffect=false;String? error,pendingId,pendingText;
   String? pendingEffectId,pendingEffectKey;
   String? designCoins,designWins;
-  String designSeatStyle='grad';List<Map<String,dynamic>> designReactions=[],designBanned=[],designGifts=[];List<dynamic> designMuted=[];bool designGiftLoading=false;
+  String designSeatStyle='grad';List<Map<String,dynamic>> designInvites=[],designReactions=[],designBanned=[],designGifts=[];List<dynamic> designMuted=[];bool designGiftLoading=false;
   String? designBackground;String designTheme="mid";bool designChat=true;int designPhotoLevel=0;
   Map<String,dynamic>? pendingPhoto;
   List<Map<String,dynamic>> roomEffects=[],catalogEvents=[],roomPeople=[];
@@ -218,6 +218,7 @@ class _FirebaseRoomChatState extends State<FirebaseRoomChat> with WidgetsBinding
           final metadata=controls['room'];
           if(metadata is Map&&metadata['name'] is String&&metadata['seats'] is int){roomName=metadata['name'] as String;seatCount=metadata['seats'] as int;roomImage=metadata['image_url'] as String?;}
           designSeatStyle=metadata is Map?metadata['seat_style']?.toString()??'grad':'grad';
+          designInvites=(controls['invites'] as List? ?? []).whereType<Map>().map((r)=>Map<String,dynamic>.from(r)).toList();
           designReactions=(controls['reactions'] as List? ?? []).whereType<Map>().map((r)=>Map<String,dynamic>.from(r)).toList();
           designBanned=(controls['banned'] as List? ?? []).whereType<Map>().map((r)=>Map<String,dynamic>.from(r)).toList();
           designMuted=controls['muted_uids'] as List? ?? [];
@@ -392,6 +393,9 @@ class _FirebaseRoomChatState extends State<FirebaseRoomChat> with WidgetsBinding
       finally{if(mounted)setState(()=>sendingEffect=false);}
       return;
     }
+    if(action=='invite'&&(isOwner||roomRole=='admin')&&event['uid'] is String&&seat is int){
+      await widget.api.call('POST',suffix:'$path/invite',fields:{'target_uid':event['uid'],'seat':seat,'request_id':_requestId()});await sync();return;
+    }
     if(action=='reaction'&&event['emoji'] is String){
       await widget.api.call('POST',suffix:'$path/reaction',fields:{'emoji':event['emoji'],'request_id':_requestId()});await sync();return;
     }
@@ -443,7 +447,7 @@ class _FirebaseRoomChatState extends State<FirebaseRoomChat> with WidgetsBinding
     body:SafeArea(child:Stack(children:[
       Positioned.fill(child:FirebaseVoicePanel(onLeaveRoom:widget.onLeave,api:widget.api,roomId:widget.room['id'] as String,seatCount:seatCount,people:roomPeople,blockedUids:blocked,autoConnect:true,roomRole:isOwner?'owner':roomRole,lockedSeats:lockedSeats,onControlsChanged:sync,
         presentation:(context,voice,action)=>RoomDesignView(
-          snapshot:{...voice,'uid':widget.api.uid,'roomId':widget.room['id'],'name':roomName,'imageUrl':roomImage,'sendPending':pendingId!=null,'people':roomPeople,'messages':messages,'coins':designCoins,'dailyWins':designWins,'admins':roomAdmins,'role':isOwner?'owner':roomRole,'backgroundUrl':designBackground,'theme':designTheme,'chatEnabled':designChat,'photoLevel':designPhotoLevel,'seatStyle':designSeatStyle,'reactions':designReactions,'banned':designBanned,'mutedUids':designMuted,'gifts':designGifts,'giftLoading':designGiftLoading,'giftPending':pendingGift,'giftSending':sendingEffect,'events':catalogEvents,'serverNow':catalogServerNow,'error':error??voice['error']},
+          snapshot:{...voice,'uid':widget.api.uid,'roomId':widget.room['id'],'name':roomName,'imageUrl':roomImage,'sendPending':pendingId!=null,'people':roomPeople,'messages':messages,'coins':designCoins,'dailyWins':designWins,'admins':roomAdmins,'role':isOwner?'owner':roomRole,'backgroundUrl':designBackground,'theme':designTheme,'chatEnabled':designChat,'photoLevel':designPhotoLevel,'seatStyle':designSeatStyle,'invites':designInvites,'reactions':designReactions,'banned':designBanned,'mutedUids':designMuted,'gifts':designGifts,'giftLoading':designGiftLoading,'giftPending':pendingGift,'giftSending':sendingEffect,'events':catalogEvents,'serverNow':catalogServerNow,'error':error??voice['error']},
           onAction:(event)=>designAction(event,action)))),
 
       Positioned.fill(child:RoomEntryScene(events:catalogEvents,serverNow:catalogServerNow)),
