@@ -25,6 +25,14 @@ void main(){
   await tester.tap(find.text('Minimize'));await tester.pumpAndSettle();
   expect(find.text('Open room'),findsOneWidget);expect(find.byKey(const ValueKey('restore-active-room')),findsOneWidget);
   expect(joins,1);expect(leaves,0);expect(serverLeaves,0);
+  final chip=find.byKey(const ValueKey('draggable-room-chip'));
+  final before=tester.getTopLeft(chip);
+  await tester.drag(chip,const Offset(-180,-150));await tester.pumpAndSettle();
+  expect(tester.getTopLeft(chip).dx,lessThan(before.dx));
+  expect(joins,1);expect(leaves,0);expect(serverLeaves,0);
+  await tester.drag(chip,const Offset(-2000,-2000));await tester.pumpAndSettle();
+  expect(tester.getTopLeft(chip).dx,greaterThanOrEqualTo(0));
+  expect(tester.getTopLeft(chip).dy,greaterThanOrEqualTo(0));
   await tester.tap(find.byKey(const ValueKey('restore-active-room')));await tester.pumpAndSettle();
   expect(find.text('Seat ID 10000001'),findsOneWidget);expect(joins,1);expect(leaves,0);
   await tester.binding.handlePopRoute();await tester.pumpAndSettle();

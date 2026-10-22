@@ -71,7 +71,7 @@ class _PersistentRoomLayerState extends State<PersistentRoomLayer> {
   @override Widget build(BuildContext context)=>_RoomScope(host:this,child:Stack(children:[
     widget.child,
     if(room!=null)Offstage(offstage:minimized,child:TickerMode(enabled:!minimized,child:HeroControllerScope.none(child:Navigator(key:roomNavigator,onGenerateRoute:(_)=>MaterialPageRoute<void>(builder:(_)=>widget.roomBuilder?.call(widget.api,room!,minimize,()=>leave())??FirebaseRoomChat(useUploadedDesign:true,api:widget.api,room:room!,onMinimize:minimize,onLeave:()=>leave())))))),
-    if(room!=null&&minimized)Positioned(right:14,bottom:90,child:SafeArea(child:Material(color:Colors.transparent,child:InkWell(key:const ValueKey('restore-active-room'),onTap:restore,borderRadius:BorderRadius.circular(24),child:Container(width:174,padding:const EdgeInsets.all(12),decoration:BoxDecoration(gradient:const LinearGradient(begin:Alignment.topLeft,end:Alignment.bottomRight,colors:[Color(0xff397f89),Color(0xff23254b)]),borderRadius:BorderRadius.circular(24),border:Border.all(color:const Color(0xff90fff0),width:1.5),boxShadow:const [BoxShadow(color:Colors.black54,blurRadius:18,offset:Offset(0,9)),BoxShadow(color:Color(0x554debd4),blurRadius:14)]),child:Row(children:[const Icon(Icons.graphic_eq_rounded,color:Color(0xffa9fff2),size:30),const SizedBox(width:9),Expanded(child:Column(mainAxisSize:MainAxisSize.min,crossAxisAlignment:CrossAxisAlignment.start,children:[Text('${room!['name']}',maxLines:1,overflow:TextOverflow.ellipsis,style:const TextStyle(color:Colors.white,fontWeight:FontWeight.bold)),const Text('Return to room',style:TextStyle(color:Colors.white70,fontSize:11))]))])))))),
+    if(room!=null&&minimized)_DraggableRoomChip(child:SafeArea(child:Material(color:Colors.transparent,child:InkWell(key:const ValueKey('restore-active-room'),onTap:restore,borderRadius:BorderRadius.circular(24),child:Container(width:174,padding:const EdgeInsets.all(12),decoration:BoxDecoration(gradient:const LinearGradient(begin:Alignment.topLeft,end:Alignment.bottomRight,colors:[Color(0xff397f89),Color(0xff23254b)]),borderRadius:BorderRadius.circular(24),border:Border.all(color:const Color(0xff90fff0),width:1.5),boxShadow:const [BoxShadow(color:Colors.black54,blurRadius:18,offset:Offset(0,9)),BoxShadow(color:Color(0x554debd4),blurRadius:14)]),child:Row(children:[const Icon(Icons.graphic_eq_rounded,color:Color(0xffa9fff2),size:30),const SizedBox(width:9),Expanded(child:Column(mainAxisSize:MainAxisSize.min,crossAxisAlignment:CrossAxisAlignment.start,children:[Text('${room!['name']}',maxLines:1,overflow:TextOverflow.ellipsis,style:const TextStyle(color:Colors.white,fontWeight:FontWeight.bold)),const Text('Return to room',style:TextStyle(color:Colors.white70,fontSize:11))]))])))))),
     if(leaving)const Positioned.fill(child:ColoredBox(color:Colors.black54,child:Center(child:CircularProgressIndicator()))),
   ]));
 }
@@ -80,4 +80,29 @@ class RoomDepthButton extends StatelessWidget {
   final String tooltip;final IconData icon;final VoidCallback onPressed;final bool exit;
   const RoomDepthButton({super.key,required this.tooltip,required this.icon,required this.onPressed,this.exit=false});
   @override Widget build(BuildContext context)=>Padding(padding:const EdgeInsets.symmetric(horizontal:3,vertical:7),child:Tooltip(message:tooltip,child:Material(color:Colors.transparent,child:InkWell(onTap:onPressed,borderRadius:BorderRadius.circular(13),child:Container(width:38,height:38,decoration:BoxDecoration(gradient:LinearGradient(begin:Alignment.topLeft,end:Alignment.bottomRight,colors:exit?const [Color(0xffbd637d),Color(0xff542a4f)]:const [Color(0xff478c97),Color(0xff263353)]),borderRadius:BorderRadius.circular(13),border:Border.all(color:Colors.white38),boxShadow:const [BoxShadow(color:Colors.black45,blurRadius:6,offset:Offset(0,4))]),child:Icon(icon,size:23,color:Colors.white))))));
+}
+
+class _DraggableRoomChip extends StatefulWidget {
+  final Widget child;
+  const _DraggableRoomChip({required this.child});
+  @override State<_DraggableRoomChip> createState()=>_DraggableRoomChipState();
+}
+class _DraggableRoomChipState extends State<_DraggableRoomChip> {
+  Offset? position;
+  @override Widget build(BuildContext context)=>Positioned.fill(child:LayoutBuilder(builder:(context,box){
+    final media=MediaQuery.of(context);
+    final width=box.maxWidth<174?box.maxWidth:174.0;
+    final maxX=(box.maxWidth-width).clamp(0.0,double.infinity).toDouble();
+    final minY=media.padding.top.clamp(0.0,box.maxHeight).toDouble();
+    final maxY=(box.maxHeight-media.padding.bottom-media.viewInsets.bottom-100).clamp(minY,double.infinity).toDouble();
+    final initial=Offset(maxX-14,maxY-60);
+    final current=position??initial;
+    final safe=Offset(current.dx.clamp(0.0,maxX).toDouble(),current.dy.clamp(minY,maxY).toDouble());
+    return Stack(children:[Positioned(left:safe.dx,top:safe.dy,width:width,child:GestureDetector(
+      key:const ValueKey('draggable-room-chip'),
+      onPanUpdate:(details)=>setState(()=>position=Offset(
+        (safe.dx+details.delta.dx).clamp(0.0,maxX).toDouble(),
+        (safe.dy+details.delta.dy).clamp(minY,maxY).toDouble())),
+      child:widget.child))]);
+  }));
 }
