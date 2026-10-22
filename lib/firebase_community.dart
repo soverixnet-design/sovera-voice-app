@@ -165,8 +165,8 @@ class _FirebaseControlAccessState extends State<FirebaseControlAccess>{
   }
   @override Widget build(BuildContext context)=>Glass(tint:gold,child:Column(crossAxisAlignment:CrossAxisAlignment.stretch,children:[
     const Text('Sovera Control',style:TextStyle(fontSize:23,fontWeight:FontWeight.bold)),
-    const SizedBox(height:10),const Text('Generate a code, open admin.soverixnet.com and paste it to sign in. Each code expires after five minutes and works once.'),
-    const SizedBox(height:12),FilledButton.icon(onPressed:busy?null:generate,icon:const Icon(Icons.key_rounded),label:Text(busy?'Generating…':'Generate admin sign-in code')),
+    const SizedBox(height:10),const Text('Open the admin panel and sign in with your assigned username and password. Owners can create staff logins under Staff access → Staff username & password, after assigning a role. Permissions are checked by the server.'),
+    const SizedBox(height:12),ExpansionTile(title:const Text('Advanced: temporary access code'),children:[const Text('A one-time code is not a staff username or password. Do not share it as permanent access.'),FilledButton.icon(onPressed:busy?null:generate,icon:const Icon(Icons.key_rounded),label:Text(busy?'Generating…':'Generate temporary code'))]),
     if(error!=null)Text(error!,style:TextStyle(color:Colors.orange.shade200)),
     if(code!=null)...[
       const SizedBox(height:12),SelectableText(code!,style:const TextStyle(fontFamily:'monospace',fontSize:12)),
