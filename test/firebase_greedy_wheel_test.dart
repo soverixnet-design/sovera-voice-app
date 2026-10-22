@@ -27,7 +27,8 @@ void main(){
     expect(find.textContaining('No fake coins or bets'),findsOneWidget);
     expect(find.text('Retry secure connection'),findsOneWidget);
     expect(find.text('Greedy Wheel'),findsOneWidget);
-    expect(find.text("Today's total wins · 75000 Coins"),findsOneWidget);
+    expect(find.textContaining("Today's total wins"),findsNothing);
+    expect(find.textContaining("Daily reset at"),findsNothing);
     expect(find.byTooltip('Game wins ranking'),findsOneWidget);
     await tester.pumpWidget(const SizedBox());
   });

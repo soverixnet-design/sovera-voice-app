@@ -1,3 +1,4 @@
+import 'firebase_room_session.dart';
 import 'sovera_icons.dart';
 import 'firebase_community.dart' show FirebaseCommunity;
 import 'dart:async';
@@ -37,7 +38,10 @@ class _FirebaseRewardsPageState extends State<FirebaseRewardsPage>{
     finally{if(mounted)setState(()=>claiming=null);}
   }
   String remaining(int ends){final now=(board?['server_now'] as num?)?.toInt()??DateTime.now().millisecondsSinceEpoch~/1000;final seconds=(ends-now-clock).clamp(0,40000000);return seconds==0?'Finished':'${seconds~/86400}d ${(seconds%86400)~/3600}h ${(seconds%3600)~/60}m ${seconds%60}s';}
-  void member(Map<String,dynamic> p)=>Navigator.push(context,MaterialPageRoute<void>(builder:(_)=>FirebaseMemberProfile(api:widget.api,uid:'${p['uid']}')));
+  void member(Map<String,dynamic> p){
+    if(p['room'] is Map){PersistentRoomLayer.open(context,widget.api,Map<String,dynamic>.from(p['room'] as Map));return;}
+    Navigator.push(context,MaterialPageRoute<void>(builder:(_)=>FirebaseMemberProfile(api:widget.api,uid:'${p['uid']}')));
+  }
   @override Widget build(BuildContext context){
     final rows=(board?['items'] as List? ?? []).map((e)=>Map<String,dynamic>.from(e as Map)).toList();
     return Scaffold(appBar:AppBar(title:const Text('Sovera Rewards'),actions:[IconButton(tooltip:'Refresh',onPressed:loading?null:load,icon:const Icon(Icons.refresh))]),body:RefreshIndicator(onRefresh:load,child:ListView(padding:const EdgeInsets.fromLTRB(16,8,16,32),children:[
@@ -48,7 +52,7 @@ class _FirebaseRewardsPageState extends State<FirebaseRewardsPage>{
       if(error!=null)Padding(padding:const EdgeInsets.symmetric(vertical:14),child:Text(error!,style:const TextStyle(color:Colors.orangeAccent))),
       if(tab=='event')TextButton.icon(onPressed:()=>Navigator.push(context,MaterialPageRoute<void>(builder:(_)=>FirebaseCommunity(api:widget.api,section:'events',title:'Community events'))),icon:const SoveraIcon(Icons.campaign_rounded,size:28),label:const Text('Event announcements')),
       if(tab=='ranking')...[
-        const SizedBox(height:14),Wrap(spacing:6,children:[for(final x in const [('rich','Rich'),('charm','Charm'),('play','Game Wins'),('recharge','Recharge')])ChoiceChip(label:Text(x.$2),selected:metric==x.$1,onSelected:loading?null:(_){setState(()=>metric=x.$1);load();})]),
+        const SizedBox(height:14),Wrap(spacing:6,children:[for(final x in const [('rich','Rich'),('charm','Charm'),('room','Room'),('cp','CP'),('play','Game Wins'),('recharge','Recharge')])ChoiceChip(label:Text(x.$2),selected:metric==x.$1,onSelected:loading?null:(_){setState(()=>metric=x.$1);load();})]),
         Wrap(spacing:8,children:[for(final p in const ['daily','weekly','monthly'])ChoiceChip(label:Text('${p[0].toUpperCase()}${p.substring(1)}'),selected:period==p,onSelected:loading?null:(_){setState(()=>period=p);load();})]),
         const SizedBox(height:12),Text('UTC period · ${remaining((board?['ends_at'] as num?)?.toInt()??0)}',textAlign:TextAlign.center,style:const TextStyle(color:gold)),
         const SizedBox(height:12),if(rows.isNotEmpty)RewardPodium(rows:rows.take(3).toList(),onTap:member),

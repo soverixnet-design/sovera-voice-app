@@ -17,6 +17,8 @@ void main(){
   await tester.pumpWidget(MaterialApp(home:FirebaseRewardsPage(api:api)));await tester.pumpAndSettle();
   expect(find.text('Winner 1'),findsOneWidget);expect(find.text('ID 100001'),findsOneWidget);expect(find.text('Daily'),findsOneWidget);
   await tester.tap(find.text('Daily'));await tester.pumpAndSettle();expect(paths.any((p)=>p.contains('period=daily')),isTrue);
+  await tester.tap(find.text('Room'));await tester.pumpAndSettle();expect(paths.any((p)=>p.contains('metric=room')),isTrue);
+  await tester.tap(find.text('CP'));await tester.pumpAndSettle();expect(paths.any((p)=>p.contains('metric=cp')),isTrue);
   await tester.tap(find.text('Recharge Rewards'));await tester.pumpAndSettle();
   await tester.scrollUntilVisible(find.text('Claim reward'),300,scrollable:find.byType(Scrollable).first);await tester.tap(find.text('Claim reward'));await tester.pumpAndSettle();
   expect(claimed,isTrue);expect(find.text('✓ Reward received'),findsOneWidget);expect(tester.takeException(),isNull);

@@ -204,6 +204,28 @@ class Rewards:
         if period=='monthly':end=(start.replace(day=28)+timedelta(days=4)).replace(day=1)
         else:end=start+timedelta(days=7 if period=='weekly' else 1)
         with self.control.db() as db:
+            if metric in ('room','cp'):
+                bounds=(int(start.timestamp()),int(end.timestamp()))
+                valid=""" FROM account_gift_receipts g
+                    LEFT JOIN account_bans bs ON bs.uid=g.sender
+                    LEFT JOIN account_bans br ON br.uid=g.recipient
+                    WHERE g.created_at>=? AND g.created_at<? AND bs.uid IS NULL AND br.uid IS NULL """
+                items=[]
+                if metric=='room':
+                    scores=db.execute('SELECT g.room,SUM(g.price) AS score'+valid+' GROUP BY g.room ORDER BY score DESC,g.room',bounds).fetchall()
+                    for score in scores:
+                        r=db.execute('SELECT * FROM account_rooms WHERE id=?',(score['room'],)).fetchone()
+                        if r and visible(db,r['owner_uid']):
+                            items.append(self.person(db,r['owner_uid'])|{'name':r['name'],'avatar_url':r['image_url'],'room':dict(r),'equipped':{},'public_id':r['id'],'score':str(score['score'])})
+                else:
+                    scores=db.execute('SELECT MIN(g.sender,g.recipient) AS first,MAX(g.sender,g.recipient) AS second,SUM(g.price) AS score'+valid+' AND g.sender<>g.recipient GROUP BY first,second ORDER BY score DESC,first,second',bounds).fetchall()
+                    for score in scores:
+                        if visible(db,score['first']) and visible(db,score['second']):
+                            a=self.person(db,score['first']);b=self.person(db,score['second'])
+                            items.append(a|{'name':a['name']+' & '+b['name'],'public_id':str(a.get('public_id','—'))+' / '+str(b.get('public_id','—')),'partner':b,'score':str(score['score'])})
+                for rank,item in enumerate(items,1):item['rank']=rank
+                mine=next(({'rank':r['rank'],'score':r['score']} for r in items if r['uid']==uid or r.get('partner',{}).get('uid')==uid),None)
+                return {'items':items[:100],'mine':mine,'ends_at':int(end.timestamp()),'server_now':int(now.timestamp()),'timezone':'UTC'}
             rows=[r for r in score_rows(db,metric,int(start.timestamp()),int(end.timestamp())) if visible(db,r['uid'])]
             mine=next(({'rank':i,'score':str(r['score'])} for i,r in enumerate(rows,1) if r['uid']==uid),None)
             return {'items':[self.person(db,r['uid'])|{'rank':i,'score':str(r['score'])} for i,r in enumerate(rows[:100],1)],'mine':mine,'ends_at':int(end.timestamp()),'server_now':int(now.timestamp()),'timezone':'UTC'}
@@ -213,7 +235,7 @@ def attach_rewards(app,profiles,actor,staff):
     @app.get('/sovera/account/rewards')
     async def listing(request:Request):return await asyncio.to_thread(service.listing,await actor(request.headers.get('authorization')))
     @app.get('/sovera/account/rankings')
-    async def rankings(request:Request,metric:Literal['rich','charm','recharge','play']='rich',period:Literal['daily','weekly','monthly']='weekly'):return await asyncio.to_thread(service.board,await actor(request.headers.get('authorization')),metric,period)
+    async def rankings(request:Request,metric:Literal['rich','charm','recharge','play','room','cp']='rich',period:Literal['daily','weekly','monthly']='weekly'):return await asyncio.to_thread(service.board,await actor(request.headers.get('authorization')),metric,period)
     @app.post('/sovera/account/rewards/{key}/claim')
     async def claim(key:uuid.UUID,request:Request):return await asyncio.to_thread(service.claim,await actor(request.headers.get('authorization')),str(key))
     @app.get('/sovera/control/rewards')

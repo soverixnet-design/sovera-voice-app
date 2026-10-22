@@ -1,5 +1,4 @@
 import 'dart:convert';
-import 'dart:async';
 import 'firebase_rewards.dart';
 import 'sovera_icons.dart';
 import 'package:flutter/material.dart';
@@ -22,25 +21,10 @@ class _FirebaseGreedyWheelPageState extends State<FirebaseGreedyWheelPage>{
   bool loading=true;
   String? error;
   bool refreshingGameAccess=false;
-  String? dailyWins;
-  Timer? dailyTimer;
-  bool dailyLoading=false;
-  Future<void> loadDailyWins()async{
-    if(dailyLoading)return;
-    dailyLoading=true;
-    try{
-      final data=await widget.api.call('GET',suffix:'/rankings?metric=play&period=daily');
-      final mine=data['mine'];
-      if(mounted)setState(()=>dailyWins=mine is Map?mine['score'].toString():'0');
-    }catch(_){if(mounted)setState(()=>dailyWins=null);}
-    finally{dailyLoading=false;}
-  }
   Future<void> showRanking()async{
     await Navigator.of(context).push<void>(MaterialPageRoute(builder:(_)=>
       FirebaseRewardsPage(api:widget.api,initialMetric:'play',initialPeriod:'daily')));
-    if(mounted)await loadDailyWins();
   }
-  @override void dispose(){dailyTimer?.cancel();super.dispose();}
 
   bool walletOpen=false;
 
@@ -80,7 +64,7 @@ class _FirebaseGreedyWheelPageState extends State<FirebaseGreedyWheelPage>{
         'Game session expired and could not refresh. Your Coins are unchanged.');
     }finally{refreshingGameAccess=false;}
   }
-  @override void initState(){super.initState();open();loadDailyWins();dailyTimer=Timer.periodic(const Duration(seconds:15),(_)=>loadDailyWins());}
+  @override void initState(){super.initState();open();}
   Future<void> open()async{
     setState((){loading=true;error=null;});
     try{
@@ -151,11 +135,6 @@ class _FirebaseGreedyWheelPageState extends State<FirebaseGreedyWheelPage>{
     appBar:widget.inRoom?AppBar(title:const Text('Greedy · Room game'),actions:[IconButton(onPressed:showRanking,icon:const SoveraIcon(Icons.emoji_events_rounded,size:32),tooltip:'Game wins ranking')]):
       AppBar(title:const Text('Greedy Wheel'),actions:[IconButton(onPressed:showRanking,icon:const SoveraIcon(Icons.emoji_events_rounded,size:32),tooltip:'Game wins ranking')]),
     body:SafeArea(child:Column(children:[
-      Material(color:const Color(0xff292044),child:ListTile(dense:true,
-        leading:const SoveraIcon(Icons.emoji_events_rounded,size:32),
-        title:Text("Today's total wins · ${dailyWins??'Unavailable'} Coins"),
-        subtitle:const Text('Daily reset at 00:00 UTC · Wallet balance is separate'),
-        trailing:const Icon(Icons.chevron_right),onTap:showRanking)),
       Expanded(child:Stack(children:[
       if(controller!=null&&error==null)Positioned.fill(
         child:WebViewWidget(controller:controller!)),

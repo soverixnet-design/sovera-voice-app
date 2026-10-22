@@ -13,6 +13,24 @@ from .rewards import Rewards,CampaignInput,Prize
 class RewardTests(unittest.TestCase):
     setUp=test_control.ControlTests.setUp
     login=test_control.ControlTests.login
+    def test_room_and_cp_rankings_sum_confirmed_gifts_in_both_directions(self):
+        from .rooms import Rooms,RoomInput
+        rooms=Rooms(self.path);room=rooms.save('alice',RoomInput(name='Rank room'))['id']
+        now=int(time.time())
+        with self.control.db() as db:
+            for sender,target,amount in [('alice','agent',10),('agent','alice',20),('alice','alice',5)]:
+                db.execute('INSERT INTO account_gift_receipts VALUES(?,?,?,?,?,?,?,?)',(str(uuid.uuid4()),sender,target,'gift','Rose',amount,room,now))
+        rewards=Rewards(self.path)
+        cp=rewards.board('alice','cp','daily')
+        self.assertEqual(cp['items'][0]['score'],'30')
+        self.assertEqual(cp['mine']['rank'],1)
+        self.assertEqual(rewards.board('agent','cp','daily')['mine']['score'],'30')
+        board=rewards.board('alice','room','daily')
+        self.assertEqual(board['items'][0]['score'],'35')
+        self.assertEqual(board['items'][0]['room']['id'],room)
+        with self.control.db() as db:db.execute("UPDATE account_gift_receipts SET created_at=?",(now-40*86400,))
+        self.assertEqual(rewards.board('alice','cp','daily')['items'],[])
+
     def campaign(self,category='ranking',metric='rich',items=None,coins=50):
         self.start=int(time.time())+10;self.end=self.start+100
         p=CampaignInput(id=uuid.uuid4(),title='Weekly spotlight',category=category,metric=metric,starts_at=self.start,ends_at=self.end,threshold=20,prizes=[Prize(rank=1,coins=coins,item_ids=items or [],days=7)])

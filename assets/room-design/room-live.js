@@ -33,10 +33,11 @@ function seatHTML(s,i,host){
  const locked=s.locked&&!s.uid,empty=!s.uid&&!locked;
  const asset=s.equipped?.frame;
  const frame=asset&&safeMedia(asset.url);
- const scale=frame?Math.min(1,Math.max(.05,Number(asset.avatar_scale)||.46)):1;
+ const scale=Math.min(1,Math.max(.05,Number(asset?.avatar_scale)||.46));
+ const canvas=frame?Math.min(2.4,.76/scale):1,faceSize=frame?canvas*scale:1;
  const x=Math.min(1-scale/2,Math.max(scale/2,Number(asset?.avatar_x)||.5)),y=Math.min(1-scale/2,Math.max(scale/2,Number(asset?.avatar_y)||.5));
- const faceStyle=frame?'style="inset:auto;width:'+(scale*100)+'%;height:'+(scale*100)+'%;left:'+((x-scale/2)*100)+'%;top:'+((y-scale/2)*100)+'%"':'';
- const frameHTML=frame?'<img class="equipped-frame" alt="" src="'+esc(frame)+'">':'';
+ const faceStyle=frame?'style="inset:auto;width:'+(faceSize*100)+'%;height:'+(faceSize*100)+'%;left:'+((1-faceSize)*50)+'%;top:'+((1-faceSize)*50)+'%"':'';
+ const frameHTML=frame?'<img class="equipped-frame" style="width:'+(canvas*100)+'%;height:'+(canvas*100)+'%;left:'+((.5-canvas*x)*100)+'%;top:'+((.5-canvas*y)*100)+'%" alt="" src="'+esc(frame)+'">':'';
  const url=typeof s.avatar==='string'&&s.avatar.startsWith('https://')?s.avatar:null;
  return '<button class="seat '+(locked?'lock':empty?'empty':s.speaking?'talk':'')+'" data-i="'+i+'"><div class="av"><div class="ring"></div><div class="face" '+faceStyle+'>'+(url?'<img alt="" style="width:100%;height:100%;object-fit:cover;border-radius:50%" src="'+esc(url)+'">':locked?'🔒':empty?'＋':'👤')+'</div>'+frameHTML+'<i class="wave"></i><i class="wave b"></i>'+(host?'<div class="crown">👑</div>':'')+((s.uid===state.uid&&state.muted)||(state.mutedUids||[]).includes(s.uid)?'<div class="badge">🔇</div>':'')+'</div><div class="nm">'+esc(s.name||(locked?'লক':'খালি'))+'</div>'+(host?'<div class="tag">হোস্ট সিট</div>':'')+'</button>';
 }
@@ -166,16 +167,16 @@ function emojiSheet(){
 function seatElement(i){return document.querySelector('.seat[data-i="'+i+'"]');}
 function seatEmoji(index,emoji){
  const seat=seatElement(index);if(!seat)return;
- const r=seat.getBoundingClientRect(),a=$('app').getBoundingClientRect(),el=document.createElement('div');
+ const r=seat.querySelector('.face').getBoundingClientRect(),a=$('app').getBoundingClientRect(),el=document.createElement('div');
  el.className='g';el.textContent=emoji;el.style.fontSize='54px';$('fx').append(el);
- const x=r.left+r.width/2-a.left,y=r.top+36-a.top,T='translate('+x+'px,'+y+'px) translate(-50%,-50%) ';
+ const x=r.left+r.width/2-a.left,y=r.top+r.height/2-a.top,T='translate('+x+'px,'+y+'px) translate(-50%,-50%) ';
  el.animate([{transform:T+'scale(.3)',opacity:0},{transform:T+'scale(1.2)',opacity:1,offset:.2},{transform:T+'rotate(-12deg)',opacity:1,offset:.55},{transform:T+'translateY(-28px) scale(.7)',opacity:0}],{duration:2600,fill:'both'}).onfinish=()=>el.remove();
 }
 function flyGift(event){
  const i=state.seats.findIndex(s=>s.uid===event.recipient_uid),target=i>=0?seatElement(i):null,src=safeMedia(event.asset?.url);
  if(!src)return;
- const a=$('app').getBoundingClientRect(),b=$('bGift').getBoundingClientRect(),t=target?.getBoundingClientRect();
- const endX=t?t.left+t.width/2-a.left:a.width/2,endY=t?t.top+36-a.top:a.height*.45;
+ const a=$('app').getBoundingClientRect(),b=$('bGift').getBoundingClientRect(),t=target?.querySelector('.face')?.getBoundingClientRect();
+ const endX=t?t.left+t.width/2-a.left:a.width/2,endY=t?t.top+t.height/2-a.top:a.height*.45;
  const image=document.createElement('img');image.src=src;image.alt='';image.className='gift-flight';$('fx').append(image);
  image.animate([{transform:'translate('+(b.left-a.left)+'px,'+(b.top-a.top)+'px) scale(.35)',opacity:0},{opacity:1,offset:.15},{transform:'translate('+(endX-42)+'px,'+(endY-42)+'px) scale(1.3)',opacity:1,offset:.75},{transform:'translate('+(endX-42)+'px,'+(endY-55)+'px) scale(.8)',opacity:0}],{duration:2200,fill:'both'}).onfinish=()=>image.remove();
 }
