@@ -1,3 +1,4 @@
+import 'sovera_menu_card.dart';
 import 'firebase_programs.dart';
 import 'sovera_icons.dart';
 import 'firebase_rewards.dart';
@@ -45,6 +46,7 @@ class _FirebaseSoveraHomeState extends State<FirebaseSoveraHome>{
   List<Map<String,dynamic>> publishedBanners=[];
   bool catalogLoaded=false;
   Map<String,dynamic>? profile;
+  Map<String,dynamic>? profileWallet;
   String? error;
   int tab=0,banner=0;
   int unreadMessages=0,unreadOfficial=0;
@@ -77,6 +79,10 @@ class _FirebaseSoveraHomeState extends State<FirebaseSoveraHome>{
     try{
       final data=await api.call('GET',suffix:'/rooms');
       final p=await api.load();
+      Map<String,dynamic>? verifiedWallet;
+      try{final w=await api.call('GET',suffix:'/wallet');
+        if(w['source']=='sovera-server'&&w['verified']==true&&w['coins'] is String&&w['diamonds'] is String)verifiedWallet=w;
+      }catch(_){/* Keep unavailable balances unknown, never substitute a zero. */}
       try{
         final counts=await api.call('GET',suffix:'/unread');
         if(mounted)setState((){unreadMessages=(counts['messages'] as num? ?? 0).toInt();unreadOfficial=(counts['official'] as num? ?? 0).toInt();});
@@ -93,7 +99,7 @@ class _FirebaseSoveraHomeState extends State<FirebaseSoveraHome>{
       if(mounted)setState((){
         if(banners!=null){publishedBanners=banners;catalogLoaded=true;}
         rooms=(data['rooms'] as List).map((e)=>Map<String,dynamic>.from(e as Map)).toList();
-        profile=p;error=null;staffRole=role;
+        profile=p;profileWallet=verifiedWallet;error=null;staffRole=role;
         if(savedFollows!=null){followed..clear()..addAll(savedFollows);}
       });
     }catch(e){if(mounted&&!silent)setState(()=>error=e is ProfileApiError?e.message:'Could not load rooms. Check connection.');}
@@ -297,18 +303,27 @@ class _FirebaseSoveraHomeState extends State<FirebaseSoveraHome>{
     const SizedBox(height:16),
     Row(children:[
       for(final item in <(IconData,String,Color,VoidCallback)>[
-        (Icons.storefront_rounded,'Mall',cyan,()=>go(FirebaseCatalogPage(api:api))),
-        (Icons.military_tech_rounded,'Medals',gold,()=>go(FirebaseCatalogPage(api:api,initialKind:'medal'))),
-        (Icons.groups_rounded,'Agency',violet,()=>go(FirebaseAgenciesPage(api:api))),
-        (Icons.event_available_rounded,'Task Center',pink,()=>go(FirebaseRewardsPage(api:api,initialTab:'event'))),
-      ])Expanded(child:Padding(padding:const EdgeInsets.symmetric(horizontal:3),child:InkWell(onTap:item.$4,borderRadius:BorderRadius.circular(20),child:Container(padding:const EdgeInsets.symmetric(horizontal:4,vertical:12),decoration:BoxDecoration(gradient:LinearGradient(colors:[item.$3.withValues(alpha:.32),const Color(0xff20233e)]),borderRadius:BorderRadius.circular(20),border:Border.all(color:item.$3.withValues(alpha:.4)),boxShadow:const [BoxShadow(color:Colors.black38,offset:Offset(0,6),blurRadius:10)]),child:Column(children:[Jewel(item.$1,color:item.$3,size:39),const SizedBox(height:9),FittedBox(child:Text(item.$2,style:const TextStyle(fontWeight:FontWeight.bold,fontSize:11)))]))))),
+        (Icons.storefront_rounded,'Shop',cyan,()=>go(FirebaseCatalogPage(api:api))),
+        (Icons.military_tech_rounded,'Badges',gold,()=>go(FirebaseCatalogPage(api:api,initialKind:'medal'))),
+        (Icons.filter_frames_rounded,'Frames',violet,()=>go(FirebaseCatalogPage(api:api,initialKind:'frame'))),
+        (Icons.event_available_rounded,'Tasks',pink,()=>go(FirebaseRewardsPage(api:api,initialTab:'event'))),
+      ])Expanded(child:Padding(padding:const EdgeInsets.symmetric(horizontal:3),
+        child:SoveraMenuCard(label:item.$2,icon:item.$1,color:item.$3,onTap:item.$4,compact:true))),
     ]),
     const SizedBox(height:18),
+    SoveraMenuCard(label:'Wallet',icon:Icons.account_balance_wallet_rounded,color:gold,onTap:wallet,
+      trailing:Wrap(alignment:WrapAlignment.end,spacing:12,runSpacing:4,children:[
+        Text('🪙 ${FirebaseServerWalletPageStateFormat.amount(profileWallet?['coins'])}',style:const TextStyle(color:gold,fontWeight:FontWeight.bold)),
+        Text('💎 ${FirebaseServerWalletPageStateFormat.amount(profileWallet?['diamonds'])}',style:const TextStyle(color:cyan,fontWeight:FontWeight.bold)),
+      ])),
     for(final item in <(IconData,String,VoidCallback)>[
-      (Icons.account_balance_wallet_rounded,'Wallet',wallet),
+      (Icons.groups_rounded,'Agency',()=>go(FirebaseAgenciesPage(api:api))),
+      (Icons.auto_awesome_rounded,'Entry animations',()=>go(FirebaseCatalogPage(api:api,initialKind:'entry'))),
+      (Icons.military_tech_rounded,'Badges & medals',()=>go(FirebaseCatalogPage(api:api,initialKind:'medal'))),
       (Icons.redeem_rounded,'Ranking & Event Rewards',rankings),
       (Icons.workspace_premium_rounded,'VIP & SVIP',()=>go(FirebaseProgramsPage(api:api))),
       (Icons.savings_rounded,'Recharge Rewards',()=>go(FirebaseRewardsPage(api:api,initialTab:'recharge'))),
+      if(profileWallet?['is_coin_seller']==true)(Icons.send_rounded,'Seller Coin transfer',()=>go(FirebaseSellerTransferPage(api:api))),
       (Icons.storefront_rounded,'Coin seller list',
         ()=>go(FirebaseOriginalCoinSellers(api:api))),
       (Icons.card_giftcard_rounded,'Invite & referrals',
@@ -324,8 +339,7 @@ class _FirebaseSoveraHomeState extends State<FirebaseSoveraHome>{
         ()=>go(FirebaseStaffPage(api:api,role:staffRole!))),
       (Icons.settings_outlined,'Settings',
         ()=>go(SoveraSettingsPage(support:()=>go(FirebaseCommunity(api:api,section:'support',title:'Official support')),blocked:()=>go(FirebaseCommunity(api:api,section:'blocks',title:'Blocked users'))))),
-    ])ListTile(leading:SoveraIcon(item.$1,color:gold,size:30),title:Text(item.$2),
-      trailing:const Icon(Icons.chevron_right_rounded),onTap:item.$3),
+    ])SoveraMenuCard(label:item.$2,icon:item.$1,onTap:item.$3,color:violet),
     const SizedBox(height:12),
     TextButton.icon(onPressed:()async{
       await FirebaseAuth.instance.signOut();

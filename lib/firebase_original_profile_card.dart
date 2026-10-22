@@ -17,21 +17,21 @@ class FirebaseOriginalProfileCard extends StatelessWidget {
   Widget portrait(){
     final avatar=profile?['avatar_url'];
     final frame=catalogAsset(profile?['equipped'],'frame');
-    if(frame!=null)return CatalogPortrait(asset:frame,avatarUrl:avatar as String?,size:180);
-    return CatalogPortrait(avatarUrl:avatar as String?,size:180);
+    if(frame!=null)return CatalogPortrait(asset:frame,avatarUrl:avatar as String?,size:128);
+    return CatalogPortrait(avatarUrl:avatar as String?,size:128);
   }
 
   String get membershipLabel {final v=profile?['vip'];if(v is! Map)return 'Not active';return '${v['kind'].toString().toUpperCase()} ${v['level']}';}
   Widget rank(String label,IconData icon,Color color)=>Container(
-    width:90,padding:const EdgeInsets.symmetric(vertical:15,horizontal:6),
+    padding:const EdgeInsets.symmetric(vertical:9,horizontal:12),
     decoration:BoxDecoration(border:Border.all(color:color.withValues(alpha:.5)),
-      borderRadius:BorderRadius.circular(19),
-      gradient:LinearGradient(colors:[color.withValues(alpha:.28),const Color(0xff192137)]),
-      boxShadow:[BoxShadow(color:Colors.black.withValues(alpha:.3),blurRadius:14,offset:const Offset(0,7))]),
-    child:Column(children:[
-      Icon(icon,color:color,size:25),const SizedBox(height:8),
-      Text(label=='VIP'?membershipLabel:'Lv. ${profile?[label=='Wealth'?'wealth_level':'charm_level']??'—'}',style:TextStyle(fontSize:15,fontWeight:FontWeight.w800,color:color)),
-      const SizedBox(height:5),Text(label,style:const TextStyle(fontSize:11,color:Colors.white70)),
+      borderRadius:BorderRadius.circular(24),
+      gradient:LinearGradient(colors:[color.withValues(alpha:.35),const Color(0xff192137)]),
+      boxShadow:[BoxShadow(color:Colors.black.withValues(alpha:.3),blurRadius:8,offset:const Offset(0,4))]),
+    child:Row(mainAxisSize:MainAxisSize.min,children:[Icon(icon,color:color,size:18),
+      const SizedBox(width:6),Text(label=='VIP'?membershipLabel:
+        '${label=='Wealth'?'↑ Sending':'↓ Receiving'} Lv.${profile?[label=='Wealth'?'wealth_level':'charm_level']??'—'}',
+        style:TextStyle(fontSize:12,fontWeight:FontWeight.w800,color:color)),
     ]));
 
   @override Widget build(BuildContext context){

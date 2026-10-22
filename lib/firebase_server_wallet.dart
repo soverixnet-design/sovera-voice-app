@@ -1,10 +1,11 @@
+import 'sovera_menu_card.dart';
 import 'firebase_programs.dart';
 import 'firebase_rewards.dart';
 import 'firebase_original_coin_sellers.dart';
 import 'package:flutter/material.dart';
 import 'firebase_profile.dart';
 import 'firebase_community.dart' show communityRequestId;
-import 'sovera_visuals.dart' show Glass, Jewel, gold, cyan;
+import 'sovera_visuals.dart' show Glass, Jewel, gold, cyan, violet;
 
 /// A wallet view whose only source is the Sovera-owned account server.
 /// Firebase Auth supplies identity tokens; it does not store Coins or Diamonds.
@@ -214,15 +215,15 @@ class _FirebaseServerWalletPageState extends State<FirebaseServerWalletPage>{
             style:TextStyle(color:Colors.orangeAccent)),
       ])),
       const SizedBox(height:16),
-      FilledButton.icon(onPressed:()=>openPage(FirebaseProgramsPage(api:widget.api,initialSection:'recharge')),icon:const Icon(Icons.payments_rounded),label:const Text('Recharge offers & payment status')),
+      SoveraMenuCard(label:'Recharge offers & payment status',icon:Icons.payments_rounded,color:gold,onTap:()=>openPage(FirebaseProgramsPage(api:widget.api,initialSection:'recharge'))),
       const SizedBox(height:12),
-      FilledButton.icon(onPressed:()=>openPage(FirebaseRewardsPage(api:widget.api,initialTab:'recharge')),icon:const Icon(Icons.redeem_rounded),label:const Text('Recharge Rewards')),
+      SoveraMenuCard(label:'Recharge Rewards',icon:Icons.redeem_rounded,color:violet,onTap:()=>openPage(FirebaseRewardsPage(api:widget.api,initialTab:'recharge'))),
       const SizedBox(height:12),
       if(seller)...[
-        FilledButton.icon(onPressed:()=>openPage(FirebaseSellerTransferPage(api:widget.api)),icon:const Icon(Icons.send_rounded),label:const Text('Send Coins to a member')),
+        SoveraMenuCard(label:'Send Coins to a member',icon:Icons.send_rounded,color:cyan,onTap:()=>openPage(FirebaseSellerTransferPage(api:widget.api))),
         const SizedBox(height:12),
       ],
-      FilledButton.icon(onPressed:()=>openPage(FirebaseOriginalCoinSellers(api:widget.api)),icon:const Icon(Icons.storefront_rounded),label:const Text('Coin seller list')),
+      SoveraMenuCard(label:'Coin seller list',icon:Icons.storefront_rounded,color:gold,onTap:()=>openPage(FirebaseOriginalCoinSellers(api:widget.api))),
       if(entries.isNotEmpty)...[
         const SizedBox(height:20),
         const Text('Server transaction history',style:TextStyle(fontSize:18,fontWeight:FontWeight.bold)),

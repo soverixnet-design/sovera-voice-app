@@ -30,6 +30,10 @@ void main(){
            'avatar_url':null,'created_at':1001},
         ]}),200);
       }
+      if(request.url.path.endsWith('/wallet')){
+        return http.Response(jsonEncode({'source':'sovera-server','verified':true,
+          'status':'active','coins':'1234567','diamonds':'890','is_coin_seller':false}),200);
+      }
       if(request.url.path.endsWith('/account')){
         return http.Response(jsonEncode({'profile':{
           'firebase_uid':'alice','display_name':'Alice','country':'BD','bio':'Hello',
@@ -70,6 +74,15 @@ void main(){
     expect(find.text('Not active'),findsOneWidget);
     expect(find.text('Followers'),findsOneWidget);
     expect(find.text('Agency'),findsOneWidget);
+    expect(find.text('Shop'),findsOneWidget);
+    expect(find.text('Badges'),findsOneWidget);
+    expect(find.text('Frames'),findsOneWidget);
+    expect(find.text('Tasks'),findsOneWidget);
+    expect(find.text('🪙 1,234,567'),findsOneWidget);
+    expect(find.text('💎 890'),findsOneWidget);
+    expect(find.text('Seller Coin transfer'),findsNothing);
+    expect(find.text('Entry animations'),findsOneWidget);
+    expect(tester.takeException(),isNull);
     expect(find.text('Your profile'),findsNothing);
     expect(find.text('Country'),findsNothing);
     expect(find.text('Save profile'),findsNothing);
