@@ -40,6 +40,7 @@ const {mkdirSync}=require('node:fs');
    assert.equal(await page.locator('#roomBtn small').innerText(),'লাইভ ভয়েস রুম');
    await page.locator('#bOwn').click();await page.locator('#muteAll').click();
    assert.equal(await page.evaluate(()=>window.sent.at(-1).kind),'mute_all');
+   await page.locator('#bg').click({position:{x:1,y:1}});
    await page.locator('#roomBtn').click();await page.locator('#themeSettings').click();
    await page.locator('[data-theme="ocean"]').click();await page.locator('#changeBackground').click();
    assert.equal(await page.evaluate(()=>window.sent.at(-1).action),'roomBackground');
