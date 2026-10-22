@@ -95,10 +95,10 @@ class Rooms:
     def directory(self):
         with self.db() as db:
             from .catalog import equipped_assets
-            return [dict(r)|{'equipped':equipped_assets(db,r['owner_uid'])} for r in db.execute('''SELECT r.*,p.display_name AS owner_name,
+            return [dict(r)|{'equipped':equipped_assets(db,r['owner_uid'])} for r in db.execute('''SELECT r.*,p.display_name AS owner_name,COALESCE(i.public_id,n.public_id) AS public_id,
                 p.country,p.avatar_url,(SELECT count(*) FROM account_presence a
                 WHERE a.room_id=r.id AND a.seen_at>?) AS occupants
-                FROM account_rooms r JOIN account_profiles p ON p.firebase_uid=r.owner_uid
+                FROM account_rooms r JOIN account_profiles p ON p.firebase_uid=r.owner_uid LEFT JOIN account_wallet_imports i ON i.firebase_uid=p.firebase_uid LEFT JOIN account_public_ids n ON n.uid=p.firebase_uid
                 WHERE NOT EXISTS(SELECT 1 FROM account_room_moderation m WHERE m.room=r.id AND m.status<>'open') ORDER BY r.created_at DESC LIMIT 100''',(self.clock()-90,)).fetchall()]
     def save(self,uid,data,room=None):
         if not 5<=data.seats<=21: raise HTTPException(422,'Choose between 5 and 21 seats')

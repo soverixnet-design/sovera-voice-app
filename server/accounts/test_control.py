@@ -35,6 +35,12 @@ class ControlTests(unittest.TestCase):
         return code,response
     def recharge(self,**extra):return RechargeInput(target_uid='alice',amount=70,request_id=uuid.uuid4(),**extra)
 
+    def test_owner_large_recharge_keeps_exact_balance_and_retry(self):
+        data=RechargeInput(target_uid='alice',amount=2000000000000,request_id=uuid.uuid4())
+        result=self.control.recharge('owner',data)
+        self.assertEqual(result['balance'],2000000000010)
+        self.assertEqual(self.control.recharge('owner',data)['balance'],result['balance'])
+
     def test_native_identity_cannot_assign_staff_or_mint_owner_access(self):
         response=self.client.post('/sovera/account/staff/access-code',headers={'Authorization':'Bearer alice'})
         self.assertEqual(response.status_code,403)

@@ -56,7 +56,7 @@ window.SoveraLive={update(next){
  const picture=typeof state.imageUrl==='string'&&state.imageUrl.startsWith('https://')?state.imageUrl:null;
  $('rav').replaceChildren();
  if(picture){const img=document.createElement('img');img.src=picture;img.alt='';img.style.cssText='position:absolute;inset:0;width:38px;height:38px;object-fit:cover;border-radius:13px';$('rav').append(img);}else $('rav').textContent='🎙️';
- $('roomBtn').querySelector('small').textContent='লাইভ ভয়েস রুম';
+ $('roomBtn').querySelector('small').textContent=state.publicId?'ID: '+state.publicId:'লাইভ ভয়েস রুম';
  $('livePeople').textContent=String(state.people.length);
  $('liveWins').textContent=state.dailyWins??'—';
  $('mstat').textContent='🎤 '+state.seats.filter(s=>s.uid).length+'/'+state.seats.length;

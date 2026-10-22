@@ -23,7 +23,7 @@ class CodeInput(BaseModel):
 class RechargeInput(BaseModel):
     model_config=ConfigDict(extra='forbid',str_strip_whitespace=True)
     target_uid:str=Field(min_length=1,max_length=128)
-    amount:int=Field(strict=True,ge=1,le=1000000000)
+    amount:int=Field(strict=True,ge=1,le=LIMIT)
     request_id:uuid.UUID
     note:str=Field(default='',max_length=300)
 
@@ -31,7 +31,7 @@ class StaffInput(BaseModel):
     model_config=ConfigDict(extra='forbid')
     target_uid:str=Field(min_length=1,max_length=128)
     role:str=Field(pattern=r'^(admin|support|agent|none)$')
-    quota:int=Field(strict=True,ge=0,le=1000000000)
+    quota:int=Field(strict=True,ge=0,le=LIMIT)
 
 def digest(value):return hashlib.sha256(value.encode()).hexdigest()
 

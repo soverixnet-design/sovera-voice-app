@@ -323,7 +323,7 @@ class _FirebaseRoomChatState extends State<FirebaseRoomChat> with WidgetsBinding
   void launchGreedy()=>showModalBottomSheet<void>(
     context:context,isScrollControlled:true,useSafeArea:true,
     backgroundColor:const Color(0xFF12172D),
-    builder:(sheetContext)=>SizedBox(height:MediaQuery.sizeOf(sheetContext).height,
+    builder:(sheetContext)=>SizedBox(height:MediaQuery.sizeOf(sheetContext).height*.5,
       child:FirebaseGreedyWheelPage(api:widget.api,inRoom:true)));
   void openGame()=>showModalBottomSheet<void>(context:context,useSafeArea:true,
     backgroundColor:const Color(0xF5101424),builder:(sheetContext)=>Padding(
@@ -447,7 +447,7 @@ class _FirebaseRoomChatState extends State<FirebaseRoomChat> with WidgetsBinding
     body:SafeArea(child:Stack(children:[
       Positioned.fill(child:FirebaseVoicePanel(onLeaveRoom:widget.onLeave,api:widget.api,roomId:widget.room['id'] as String,seatCount:seatCount,people:roomPeople,blockedUids:blocked,autoConnect:true,roomRole:isOwner?'owner':roomRole,lockedSeats:lockedSeats,onControlsChanged:sync,
         presentation:(context,voice,action)=>RoomDesignView(
-          snapshot:{...voice,'uid':widget.api.uid,'roomId':widget.room['id'],'name':roomName,'imageUrl':roomImage,'sendPending':pendingId!=null,'people':roomPeople,'messages':messages,'coins':designCoins,'dailyWins':designWins,'admins':roomAdmins,'role':isOwner?'owner':roomRole,'backgroundUrl':designBackground,'theme':designTheme,'chatEnabled':designChat,'photoLevel':designPhotoLevel,'seatStyle':designSeatStyle,'invites':designInvites,'reactions':designReactions,'banned':designBanned,'mutedUids':designMuted,'gifts':designGifts,'giftLoading':designGiftLoading,'giftPending':pendingGift,'giftSending':sendingEffect,'events':catalogEvents,'serverNow':catalogServerNow,'error':error??voice['error']},
+          snapshot:{...voice,'uid':widget.api.uid,'roomId':widget.room['id'],'publicId':widget.room['public_id'],'name':roomName,'imageUrl':roomImage,'sendPending':pendingId!=null,'people':roomPeople,'messages':messages,'coins':designCoins,'dailyWins':designWins,'admins':roomAdmins,'role':isOwner?'owner':roomRole,'backgroundUrl':designBackground,'theme':designTheme,'chatEnabled':designChat,'photoLevel':designPhotoLevel,'seatStyle':designSeatStyle,'invites':designInvites,'reactions':designReactions,'banned':designBanned,'mutedUids':designMuted,'gifts':designGifts,'giftLoading':designGiftLoading,'giftPending':pendingGift,'giftSending':sendingEffect,'events':catalogEvents,'serverNow':catalogServerNow,'error':error??voice['error']},
           onAction:(event)=>designAction(event,action)))),
 
       Positioned.fill(child:RoomEntryScene(events:catalogEvents,serverNow:catalogServerNow)),
