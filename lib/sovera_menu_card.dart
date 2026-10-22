@@ -30,5 +30,5 @@ class SoveraMenuCard extends StatelessWidget {
               Expanded(child:Text(label,style:const TextStyle(fontWeight:FontWeight.w700))),
               if(trailing!=null)Flexible(child:trailing!),
               const SizedBox(width:6),const Icon(Icons.chevron_right_rounded),
-            ])))));
+            ]))))));
 }
