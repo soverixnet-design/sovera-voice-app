@@ -373,6 +373,11 @@ class _FirebaseRoomChatState extends State<FirebaseRoomChat> with WidgetsBinding
       if(seat!=null&&(seat is! int||seat<0||seat>=seatCount))return;
       await voiceAction(action.toString(),seat as int?);return;
     }
+    if(action=='members'){
+      final result=await widget.api.call('GET',suffix:'$path/people');
+      if(mounted)setState(()=>roomPeople=(result['people'] as List).whereType<Map>().map((p)=>Map<String,dynamic>.from(p)).toList());
+      return;
+    }
     if(action=='minimize'){widget.onMinimize?.call();return;}
     if(action=='leave'){widget.onLeave?.call();return;}
     if(action=='send'&&event['text'] is String){

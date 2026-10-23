@@ -173,6 +173,8 @@ body{display:block}
 @keyframes icon-arrive{from{transform:scale(.8) rotate(-8deg)}to{transform:scale(1) rotate(0)}}
 @media(hover:hover){.ib:hover,.rb:hover,.act:hover,.row:hover,.gf:hover{transform:translateY(-2px);filter:brightness(1.12)}}
 @media(prefers-reduced-motion:reduce){.sheet,.icon3d{animation:none}.ib,.rb,.act,.send,.mic,.row,.gf{transition:none}}
+
+.member-list{display:flex;flex-direction:column;gap:10px;padding:12px 0}.member-card{width:100%;display:flex;align-items:center;gap:12px;text-align:left;padding:12px;border-radius:18px;border:1px solid var(--line);background:linear-gradient(145deg,rgba(166,130,239,.2),rgba(14,10,35,.75));box-shadow:inset 0 1px 1px rgba(255,255,255,.2),0 4px 0 rgba(0,0,0,.25)}.member-card:active{transform:translateY(2px)}.member-avatar{width:48px;height:48px;border-radius:50%;object-fit:cover;flex-shrink:0;background:var(--glass);display:grid;place-items:center;font-size:26px}.member-info{min-width:0;flex:1}.member-info strong{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.member-info small{display:block;color:var(--mu);margin-top:5px}.member-live{font-size:10px;color:var(--grn)}#roomMembers{cursor:pointer;color:var(--mu);font:inherit}
 </style>
 </head>
 <body>
@@ -184,7 +186,7 @@ body{display:block}
     <button class="room" id="roomBtn"><div class="rav" id="rav">🎙️</div><div class="rt"><b id="rname"></b><small><i class="live"></i>Live</small></div><span>⚙️</span></button>
     <button class="ib" id="bOwn" aria-label="Owner">👑</button>
   </div>
-  <div class="stats"><span class="pill">👥 <i id="livePeople">—</i></span><span class="pill">🏆 <i id="liveWins">—</i></span><span class="pill" id="mstat"></span><span class="pill" id="cstat"></span><span class="pill" id="lstat"></span></div>
+  <div class="stats"><button class="pill" id="roomMembers" type="button" aria-label="View room members">👥 <i id="livePeople">—</i></button><span class="pill">🏆 <i id="liveWins">—</i></span><span class="pill" id="mstat"></span><span class="pill" id="cstat"></span><span class="pill" id="lstat"></span></div>
   <div class="stage"><div class="host" id="host"></div><div class="grid" id="grid"></div></div>
   <div class="chatw"><div class="chat" id="chat"></div><button class="newb" id="newb">↓ New message</button></div>
   <div class="dock">

@@ -2,9 +2,10 @@
 const $=id=>document.getElementById(id);
 const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 let state={seats:[],people:[],messages:[]};
+let membersOpen=false,membersSignature='';
 const send=(action,extra={})=>window.SoveraRoom?.postMessage(JSON.stringify({action,...extra}));
-function close(){$('bg').classList.remove('on');giftOpen=false;}
-function sheet(html){giftOpen=false;$('sheet').innerHTML='<div class="grab"></div>'+html;$('bg').classList.add('on');}
+function close(){membersOpen=false;$('bg').classList.remove('on');giftOpen=false;}
+function sheet(html){membersOpen=false;giftOpen=false;$('sheet').innerHTML='<div class="grab"></div>'+html;$('bg').classList.add('on');}
 function button(label,action,extra={}){const b=document.createElement('button');b.className='act';const icon=label.match(/^(\p{Extended_Pictographic}\uFE0F?)\s*/u);if(icon){const art=document.createElement('span');art.className='icon3d';art.textContent=icon[1];b.append(art);const text=document.createElement('span');text.textContent=label.slice(icon[0].length);b.append(text);}else b.textContent=label;b.onclick=()=>{close();send(action,extra);};return b;}
 function seatMenu(i){
  const seat=state.seats[i];if(!seat)return;
@@ -58,6 +59,7 @@ window.SoveraLive={update(next){
  if(picture){const img=document.createElement('img');img.src=picture;img.alt='';img.style.cssText='position:absolute;inset:0;width:38px;height:38px;object-fit:cover;border-radius:13px';$('rav').append(img);}else $('rav').textContent='🎙️';
  $('roomBtn').querySelector('small').textContent=state.publicId?'ID: '+state.publicId:'Live voice room';
  $('livePeople').textContent=String(state.people.length);
+ if(membersOpen&&membersSignature!==JSON.stringify(state.people))membersSheet();
  $('liveWins').textContent=state.dailyWins??'—';
  $('mstat').textContent='🎤 '+state.seats.filter(s=>s.uid).length+'/'+state.seats.length;
  $('cstat').textContent='🪙 '+(state.coins??'—');
@@ -97,6 +99,23 @@ window.SoveraLive={update(next){
 }};
 $('bg').onclick=e=>{if(e.target===$('bg'))close();};
 $('min').onclick=()=>send('minimize');$('exit').onclick=()=>{sheet('<h3>Leave this room?</h3><div class="acts" id="exitActions"></div>');$('exitActions').append(button('🚪 Leave','leave'));};
+function membersSheet(){
+ const people=state.people||[];
+ sheet('<h3>Room members · '+people.length+'</h3><p>Tap a member to view their profile.</p><div class="member-list" id="memberList"></div>');
+ membersOpen=true;membersSignature=JSON.stringify(people);
+ if(!people.length){const empty=document.createElement('p');empty.textContent='No members are currently connected.';$('memberList').append(empty);}
+ for(const p of people){
+  const row=document.createElement('button');row.type='button';row.className='member-card';
+  const avatar=document.createElement(p.avatar_url?.startsWith('https://')?'img':'span');avatar.className='member-avatar';
+  if(avatar.tagName==='IMG'){avatar.src=p.avatar_url;avatar.alt='';avatar.onerror=()=>{avatar.removeAttribute('src');};}else avatar.textContent='👤';
+  const info=document.createElement('span');info.className='member-info';
+  const name=document.createElement('strong');name.textContent=p.name||'Sovera member';
+  const id=document.createElement('small');id.textContent='ID: '+(p.public_id??'Unavailable');
+  info.append(name,id);const status=document.createElement('span');status.className='member-live';status.textContent=p.uid===state.uid?'YOU':'ONLINE';
+  row.append(avatar,info,status);row.onclick=()=>{close();send('profile',{uid:p.uid});};$('memberList').append(row);
+ }
+}
+$('roomMembers').onclick=()=>{membersSheet();send('members');};
 $('mic').onclick=()=>send('mic');$('bGift').onclick=()=>openGifts();$('bMsg').onclick=()=>send('messages');$('bGame').onclick=()=>send('games');$('roomBtn').onclick=roomSettings;
 $('bOwn').onclick=()=>ownerSheet();
 function sendText(){const text=$('txt').value.trim();if(text)send('send',{text});}
