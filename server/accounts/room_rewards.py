@@ -52,7 +52,7 @@ class RoomRewards:
             if first<end:policy=self.policy_at(db,first)
         owner=db.execute('SELECT owner_uid FROM account_rooms WHERE id=?',(room,)).fetchone()
         if not owner:raise HTTPException(404,'Room not found')
-        rows=[dict(r) for r in db.execute('''SELECT g.sender AS uid,SUM(g.price) AS score FROM account_gift_receipts g
+        rows=[dict(r) for r in db.execute('''SELECT g.sender AS uid,SUM(COALESCE((SELECT counted_coins FROM account_gift_receipt_counts rc WHERE rc.request_id=g.request_id AND rc.recipient=g.recipient),g.price)) AS score FROM account_gift_receipts g
           JOIN account_wallet_ledger l ON l.reference='catalog:'||g.request_id AND l.firebase_uid=g.sender AND l.kind='gift' AND l.coin_delta<0
           WHERE g.room=? AND g.created_at>=? AND g.created_at<? GROUP BY g.sender ORDER BY score DESC,g.sender''',(room,max(start,policy['effective_at']),end))]
         total=sum(r['score'] for r in rows)

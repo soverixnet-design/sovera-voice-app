@@ -25,6 +25,7 @@ class ItemInput(BaseModel):
     media_id:str=Field(pattern=r'^[a-f0-9]{64}$')
     price:int=Field(strict=True,ge=0,le=1000000000)
     active:bool=True
+    lucky:bool=False
     position:int=Field(strict=True,default=0,ge=0,le=10000)
     avatar_scale:float=Field(default=.46,ge=.25,le=.8)
     avatar_x:float=Field(default=.5,ge=.2,le=.8)
@@ -77,6 +78,9 @@ class Catalog:
         return row
     def public(self,row):
         data=dict(row);data['url']=PUBLIC+data['media_id'];data['active']=bool(data['active'])
+        with self.control.db() as db:
+            flag=db.execute('SELECT lucky FROM account_catalog_lucky WHERE item_id=?',(data['id'],)).fetchone()
+        data['lucky']=bool(flag and flag[0])
         if data['kind']=='banner':
             with self.control.db() as db:
                 original=db.execute('SELECT slide,subtitle FROM account_builtin_catalog WHERE id=? AND media_id=?',(data['id'],data['media_id'])).fetchone()
@@ -125,6 +129,7 @@ class Catalog:
     def save(self,uid,data):
         with self.control.db() as db:
             db.execute('BEGIN IMMEDIATE');self.manage(db,uid)
+            if data.lucky and data.kind!='gift':raise HTTPException(422,'Only gifts can use lucky counting')
             if not db.execute('SELECT 1 FROM account_media WHERE id=?',(data.media_id,)).fetchone():raise HTTPException(400,'Upload the image first')
             old=db.execute('SELECT kind FROM account_catalog WHERE id=?',(str(data.id),)).fetchone()
             if old and old['kind']!=data.kind:raise HTTPException(409,'An existing item cannot change category')
@@ -133,8 +138,9 @@ class Catalog:
              title=excluded.title,media_id=excluded.media_id,price=excluded.price,active=excluded.active,position=excluded.position,
              avatar_scale=excluded.avatar_scale,avatar_x=excluded.avatar_x,avatar_y=excluded.avatar_y,updated_at=excluded.updated_at''',
              (str(data.id),data.kind,data.title,data.media_id,data.price,int(data.active),data.position,data.avatar_scale,data.avatar_x,data.avatar_y,int(time.time())))
-            self.control.audit(db,uid,'catalog.save',str(data.id),{'kind':data.kind,'price':data.price,'active':data.active})
-            return self.public(self.row(db,data.id,False))
+            db.execute('INSERT INTO account_catalog_lucky VALUES(?,?) ON CONFLICT(item_id) DO UPDATE SET lucky=excluded.lucky',(str(data.id),int(data.lucky)))
+            self.control.audit(db,uid,'catalog.save',str(data.id),{'kind':data.kind,'price':data.price,'active':data.active,'lucky':data.lucky})
+            return self.public(self.row(db,data.id,False))|{'lucky':data.lucky}
     def listing(self,uid,admin=False):
         with self.control.db() as db:
             if admin:self.manage(db,uid)
@@ -218,7 +224,12 @@ class Catalog:
                 db.execute('INSERT INTO account_wallet_ledger VALUES(?,?,?,?,?,?)',('catalog:'+request,uid,-cost,0,'gift' if room else 'exchange',now))
                 for index,person in enumerate(recipients):db.execute('INSERT INTO account_wallet_ledger VALUES(?,?,?,?,?,?)',('catalog:'+request+':'+str(index),person,0,unit_total,'gift',now))
             if room:
-                for target in recipients:
+                flag=db.execute('SELECT lucky FROM account_catalog_lucky WHERE item_id=?',(str(data.item_id),)).fetchone()
+                counted=cost//10 if flag and flag[0] else cost
+                if cost:db.execute('INSERT INTO account_gift_counts VALUES(?,?)',('catalog:'+request,counted))
+                for index,target in enumerate(recipients):
+                    credit=counted//len(recipients)+(1 if index<counted%len(recipients) else 0)
+                    db.execute('INSERT INTO account_gift_receipt_counts VALUES(?,?,?)',(request,target,credit))
                     db.execute('INSERT INTO account_gift_receipts VALUES(?,?,?,?,?,?,?,?)',(request,uid,target,str(data.item_id),item['title'],unit_total,room,now))
                     db.execute('INSERT INTO account_catalog_events(room_id,sender_uid,recipient_uid,item_id,created_at) VALUES(?,?,?,?,?)',(room,uid,target,str(data.item_id),now))
                     from .broadcasts import person as public_person, emit

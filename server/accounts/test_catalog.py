@@ -1,4 +1,5 @@
 import io
+import time
 import sqlite3
 import unittest
 import uuid
@@ -132,6 +133,41 @@ class CatalogTests(unittest.TestCase):
         self.assertTrue(all(e['kind']=='gift' for e in announcements))
         self.assertEqual(announcements[0]['gift']['count'],1)
         self.assertEqual(announcements[0]['gift']['url'],gift['url'])
+    def test_lucky_counts_ten_percent_but_debits_full_price_and_keeps_snapshot(self):
+        from .members import Members
+        from .rewards import score_rows
+        from .room_rewards import RoomRewards,week_start
+        self.setup_catalog();room=self.seed_owner()
+        with self.control.db() as db:db.execute("UPDATE account_wallet_ledger SET coin_delta=200000 WHERE reference='seed-owner'")
+        key=uuid.uuid4()
+        item=ItemInput(id=key,kind='gift',title='Lucky accounting',media_id=self.media['id'],price=100000,lucky=True)
+        self.assertTrue(self.catalog.save('owner',item)['lucky'])
+        rewards=RoomRewards(self.path)
+        data=GiftInput(item_id=key,expected_price=100000,request_id=uuid.uuid4(),recipient_uids=['alice'])
+        result=self.catalog.transact('owner',data,room)
+        self.assertEqual(result['coins_spent'],100000)
+        profile=Members(self.path).profile('owner','owner')
+        self.assertEqual(profile['gift_coins_sent'],'10000');self.assertEqual(profile['wealth_level'],1)
+        from .rewards import Rewards
+        self.assertEqual(Rewards(self.path).board('owner','room','weekly')['items'][0]['score'],'10000')
+        with self.control.db() as db:
+            summary=rewards.summary(db,room,week_start(time.time()))
+            self.assertEqual(summary['gift_coins'],'10000');self.assertEqual(summary['reward_coins'],'1000')
+            self.assertEqual(score_rows(db,'rich',0,int(time.time())+1)[0]['score'],10000)
+            self.assertEqual(db.execute("SELECT SUM(coin_delta) FROM account_wallet_ledger WHERE firebase_uid='owner'").fetchone()[0],100000)
+        self.catalog.save('owner',item.model_copy(update={'lucky':False}))
+        self.assertEqual(self.catalog.transact('owner',data,room),result)
+        self.assertEqual(Members(self.path).profile('owner','owner')['gift_coins_sent'],'10000')
+    def test_lucky_multi_recipient_integer_counts_sum_to_sender_count(self):
+        self.setup_catalog();room=self.seed_owner()
+        gift=self.catalog.save('owner',ItemInput(id=uuid.uuid4(),kind='gift',title='Small Lucky',media_id=self.media['id'],price=6,lucky=True))
+        request=uuid.uuid4();data=GiftInput(item_id=gift['id'],expected_price=6,request_id=request,recipient_uids=['owner','alice'])
+        self.catalog.transact('owner',data,room)
+        with self.control.db() as db:
+            sender=db.execute('SELECT counted_coins FROM account_gift_counts WHERE reference=?',('catalog:'+str(request),)).fetchone()[0]
+            receipts=db.execute('SELECT SUM(counted_coins) FROM account_gift_receipt_counts WHERE request_id=?',(str(request),)).fetchone()[0]
+            self.assertEqual(sender,1);self.assertEqual(receipts,sender)
+
     def test_unverified_recipient_rolls_back_gift_and_entry_heartbeat_is_not_replayed(self):
         self.setup_catalog();room=self.seed_owner();gift=self.item('gift',30)
         with self.assertRaises(HTTPException):self.catalog.transact('owner',GiftInput(item_id=gift['id'],expected_price=30,request_id=uuid.uuid4(),recipient_uids=['support']),room)

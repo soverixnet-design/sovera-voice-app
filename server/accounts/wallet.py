@@ -22,6 +22,9 @@ class WalletStore:
         self.database_path=str(database_path)
         with sqlite3.connect(self.database_path, timeout=10) as db:
             db.executescript("""
+            CREATE TABLE IF NOT EXISTS account_gift_counts(reference TEXT PRIMARY KEY,counted_coins INTEGER NOT NULL CHECK(counted_coins>=0));
+            CREATE TABLE IF NOT EXISTS account_gift_receipt_counts(request_id TEXT NOT NULL,recipient TEXT NOT NULL,counted_coins INTEGER NOT NULL CHECK(counted_coins>=0),PRIMARY KEY(request_id,recipient));
+            CREATE TABLE IF NOT EXISTS account_catalog_lucky(item_id TEXT PRIMARY KEY,lucky INTEGER NOT NULL DEFAULT 0);
             CREATE TABLE IF NOT EXISTS account_exchange_policy(id INTEGER PRIMARY KEY CHECK(id=1),coins_per_100 INTEGER NOT NULL CHECK(coins_per_100 BETWEEN 1 AND 100));
             INSERT OR IGNORE INTO account_exchange_policy VALUES(1,70);
             CREATE TABLE IF NOT EXISTS account_wallet_exchanges(

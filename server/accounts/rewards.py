@@ -60,7 +60,7 @@ def score_rows(db,metric,start,end):
         refunded=" AND NOT EXISTS(SELECT 1 FROM account_payment_orders o WHERE o.id=r.request_id AND o.status='refunded') " if db.execute("SELECT 1 FROM sqlite_master WHERE name='account_payment_orders'").fetchone() else ''
         return list(db.execute('''SELECT r.target AS uid,SUM(r.amount) AS score FROM account_control_recharges r
          WHERE r.created_at>=? AND r.created_at<? '''+refunded+' GROUP BY r.target ORDER BY score DESC,uid',(start,end)))
-    expression={'rich':'-coin_delta','charm':'diamond_delta','play':'coin_delta'}[metric]
+    expression={'rich':"COALESCE((SELECT counted_coins FROM account_gift_counts gc WHERE gc.reference=account_wallet_ledger.reference),-coin_delta)",'charm':'diamond_delta','play':'coin_delta'}[metric]
     kind='game_win' if metric=='play' else 'gift'
     positive='coin_delta<0' if metric=='rich' else 'diamond_delta>0' if metric=='charm' else 'coin_delta>0'
     return list(db.execute(f'''SELECT firebase_uid AS uid,SUM({expression}) AS score FROM account_wallet_ledger
@@ -212,7 +212,7 @@ class Rewards:
                     WHERE g.created_at>=? AND g.created_at<? AND bs.uid IS NULL AND br.uid IS NULL """
                 items=[]
                 if metric=='room':
-                    scores=db.execute('SELECT g.room,SUM(g.price) AS score'+valid+' GROUP BY g.room ORDER BY score DESC,g.room',bounds).fetchall()
+                    scores=db.execute('SELECT g.room,SUM(COALESCE((SELECT counted_coins FROM account_gift_receipt_counts rc WHERE rc.request_id=g.request_id AND rc.recipient=g.recipient),g.price)) AS score'+valid+' GROUP BY g.room ORDER BY score DESC,g.room',bounds).fetchall()
                     for score in scores:
                         r=db.execute('SELECT * FROM account_rooms WHERE id=?',(score['room'],)).fetchone()
                         if r and visible(db,r['owner_uid']):

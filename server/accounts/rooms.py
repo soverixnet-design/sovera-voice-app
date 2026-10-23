@@ -232,7 +232,7 @@ class Rooms:
                 from .room_photos import CHAT_PUBLIC
                 key=data.image_url.removeprefix(CHAT_PUBLIC)
                 if not data.image_url.startswith(CHAT_PUBLIC) or not db.execute('SELECT 1 FROM account_chat_photos WHERE key=? AND room=? AND uid=?',(key,room,uid)).fetchone():raise HTTPException(422,'Upload a photo for this room first')
-                sent=db.execute("SELECT COALESCE(SUM(-coin_delta),0) FROM account_wallet_ledger WHERE firebase_uid=? AND kind='gift' AND coin_delta<0",(uid,)).fetchone()[0]
+                sent=db.execute("SELECT COALESCE(SUM(COALESCE((SELECT counted_coins FROM account_gift_counts gc WHERE gc.reference=account_wallet_ledger.reference),-coin_delta)),0) FROM account_wallet_ledger WHERE firebase_uid=? AND kind='gift' AND coin_delta<0",(uid,)).fetchone()[0]
                 if sent//10000<settings['photo_min_level']:raise HTTPException(403,'Room photo level requirement not met')
             last=db.execute('SELECT max(created_at) FROM account_messages WHERE sender_uid=?',(uid,)).fetchone()[0]
             if last is not None and self.clock()-last<1: raise HTTPException(429,'Wait before sending another message')
