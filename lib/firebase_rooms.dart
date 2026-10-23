@@ -197,6 +197,7 @@ class _FirebaseRoomChatState extends State<FirebaseRoomChat> with WidgetsBinding
   late String roomName;late int seatCount;late String roomFrame;String? roomImage;
   bool get isOwner=>widget.room['owner_uid']==widget.api.uid;
   DateTime? heartbeat;
+  int? chatEntryCursor;
   String get path=>'/rooms/${Uri.encodeComponent(widget.room['id'] as String)}';
   @override void initState(){super.initState();unawaited(RoomScreenAwake.set(screenOwner,true));roomName=widget.room['name'] as String;roomFrame=(widget.room['room_frame']??'none') as String;roomImage=widget.room['image_url'] as String?;seatCount=widget.room['seats'] as int? ?? 9;WidgetsBinding.instance.addObserver(this);SoveraPreferences.lowData.addListener(start);start();}
   void start(){timer?.cancel();sync();timer=Timer.periodic(Duration(seconds:SoveraPreferences.lowData.value?15:5),(_)=>sync());}
@@ -206,7 +207,9 @@ class _FirebaseRoomChatState extends State<FirebaseRoomChat> with WidgetsBinding
     if(syncing)return;syncing=true;
     try{
       if(heartbeat==null||DateTime.now().difference(heartbeat!)>=const Duration(seconds:30)){
-        await widget.api.call('PUT',suffix:'$path/presence');heartbeat=DateTime.now();
+        final joined=await widget.api.call('PUT',suffix:'$path/presence');
+        chatEntryCursor??=(joined['message_cursor'] as num?)?.toInt();
+        heartbeat=DateTime.now();
       }
       try{
         final list=await widget.api.call('GET',suffix:'/community/blocks');
@@ -237,7 +240,8 @@ class _FirebaseRoomChatState extends State<FirebaseRoomChat> with WidgetsBinding
         }catch(_){if(mounted)setState((){designCoins=null;designWins=null;});}
       }
       final data=await widget.api.call('GET',suffix:'$path/messages');
-      if(mounted)setState((){messages..clear()..addAll((data['messages'] as List).map((r)=>Map<String,dynamic>.from(r as Map)));error=null;});
+      chatEntryCursor??=(data['messages'] as List).fold<int>(0,(latest,row)=>max(latest,(row['id'] as num).toInt()));
+      if(mounted)setState((){messages..clear()..addAll((data['messages'] as List).map((r)=>Map<String,dynamic>.from(r as Map)).where((r)=>(r['id'] as num).toInt()>(chatEntryCursor??0)));error=null;});
       try{
         final events=await widget.api.call('GET',suffix:'$path/catalog-events');
         final people=await widget.api.call('GET',suffix:'$path/people');

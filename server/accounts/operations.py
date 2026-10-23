@@ -21,6 +21,9 @@ class RoomPresentation(BaseModel):
     theme:Literal['mid','gold','ocean','rose','forest','sunset']
     chat_enabled:bool
     photo_min_level:int=Field(strict=True,ge=0,le=10000)
+    remove_background:bool=False
+    remove_picture:bool=False
+    appearance_locked:bool|None=None
 
 class RoomModeration(BaseModel):
     model_config=ConfigDict(extra='forbid',str_strip_whitespace=True)
@@ -104,7 +107,7 @@ class Operations:
     def rooms(self,uid,q=''):
         with self.control.db() as db:
             self.staff(db,uid)
-            return [dict(r) for r in db.execute('''SELECT r.id,r.name,r.owner_uid,p.display_name AS owner_name,r.seats,r.theme,r.chat_enabled,r.photo_min_level,COALESCE(m.status,'open') AS status,m.reason,
+            return [dict(r) for r in db.execute('''SELECT r.id,r.name,r.owner_uid,p.display_name AS owner_name,r.seats,r.theme,r.chat_enabled,r.photo_min_level,r.image_url,r.background_url,r.appearance_locked,COALESCE(m.status,'open') AS status,m.reason,
              (SELECT COUNT(*) FROM account_presence a WHERE a.room_id=r.id AND a.seen_at>?) AS occupants
              FROM account_rooms r JOIN account_profiles p ON p.firebase_uid=r.owner_uid LEFT JOIN account_room_moderation m ON m.room=r.id
              WHERE r.name LIKE ? OR r.id LIKE ? ORDER BY r.created_at DESC LIMIT 200''',(time.time()-90,'%'+q+'%','%'+q+'%'))]
@@ -115,8 +118,26 @@ class Operations:
             row=db.execute('SELECT 1 FROM account_rooms WHERE id=?',(room,)).fetchone()
             if not row:raise HTTPException(404,'Room not found')
             db.execute('UPDATE account_rooms SET theme=?,chat_enabled=?,photo_min_level=? WHERE id=?',(data.theme,data.chat_enabled,data.photo_min_level,room))
+            if data.remove_background:db.execute('UPDATE account_rooms SET background_url=NULL WHERE id=?',(room,))
+            if data.remove_picture:db.execute('UPDATE account_rooms SET image_url=NULL WHERE id=?',(room,))
+            if data.appearance_locked is not None:db.execute('UPDATE account_rooms SET appearance_locked=? WHERE id=?',(data.appearance_locked,room))
             self.control.audit(db,uid,'room.presentation',room,data.model_dump())
             return {'saved':True}
+    def room_messages(self,uid,room):
+        with self.control.db() as db:
+            self.staff(db,uid)
+            if not db.execute('SELECT 1 FROM account_rooms WHERE id=?',(room,)).fetchone():raise HTTPException(404,'Room not found')
+            return [dict(r) for r in db.execute('SELECT id,name,sender_uid,text,image_url,created_at FROM account_messages WHERE room_id=? AND removed=0 ORDER BY id DESC LIMIT 100',(room,))]
+    def remove_room_messages(self,uid,room,message_id=None):
+        with self.control.db() as db:
+            db.execute('BEGIN IMMEDIATE');self.staff(db,uid)
+            if not db.execute('SELECT 1 FROM account_rooms WHERE id=?',(room,)).fetchone():raise HTTPException(404,'Room not found')
+            sql='UPDATE account_messages SET removed=1 WHERE room_id=? AND removed=0'
+            args=[room]
+            if message_id is not None:sql+=' AND id=?';args.append(message_id)
+            count=db.execute(sql,args).rowcount
+            self.control.audit(db,uid,'room.remove_messages',room,{'message_id':message_id,'count':count})
+            return {'saved':True,'removed':count}
     def moderate(self,uid,room,data):
         with self.control.db() as db:
             db.execute('BEGIN IMMEDIATE')
@@ -203,6 +224,12 @@ def attach_operations(app,profiles,staff):
     async def maintenance(request:Request):return await asyncio.to_thread(service.maintenance_status,await staff(request))
     @app.get('/sovera/control/rooms')
     async def rooms(request:Request,q:str=Query(default='',max_length=128)):return {'items':await asyncio.to_thread(service.rooms,await staff(request),q)}
+    @app.get('/sovera/control/rooms/{room}/messages')
+    async def room_messages(room:str,request:Request):return {'items':await asyncio.to_thread(service.room_messages,await staff(request),room)}
+    @app.delete('/sovera/control/rooms/{room}/messages')
+    async def clear_room_messages(room:str,request:Request):return await asyncio.to_thread(service.remove_room_messages,await staff(request),room)
+    @app.delete('/sovera/control/rooms/{room}/messages/{message_id}')
+    async def remove_room_message(room:str,message_id:int,request:Request):return await asyncio.to_thread(service.remove_room_messages,await staff(request),room,message_id)
     @app.put('/sovera/control/rooms/{room}/presentation')
     async def presentation(room:str,data:RoomPresentation,request:Request):return await asyncio.to_thread(service.presentation,await staff(request),room,data)
     @app.put('/sovera/control/rooms/{room}')

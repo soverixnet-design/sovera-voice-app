@@ -39,6 +39,50 @@ class OperationsTests(unittest.TestCase):
         with self.control.db() as db:
             self.assertIsNotNone(db.execute("SELECT 1 FROM account_control_audit WHERE action='room.presentation'").fetchone())
 
+    def test_entry_message_cursor_excludes_previous_visit_without_deleting_others_chat(self):
+        from .rooms import MessageInput
+        rooms=Rooms(self.path);room=rooms.save('owner',RoomInput(name='Session chat'))['id']
+        initial=rooms.presence('alice',room)['message_cursor']
+        first=rooms.send('alice',room,MessageInput(text='Before re-entry',request_id=uuid.uuid4()))
+        self.assertGreater(first['id'],initial)
+        rooms.presence('alice',room,leave=True)
+        reentry=rooms.presence('alice',room)['message_cursor']
+        self.assertEqual(reentry,first['id'])
+        self.assertEqual(rooms.messages(room,after=reentry,viewer='alice'),[])
+        rooms.presence('support',room)
+        rooms.send('support',room,MessageInput(text='After re-entry',request_id=uuid.uuid4()))
+        self.assertEqual([m['text'] for m in rooms.messages(room,after=reentry,viewer='alice')],['After re-entry'])
+        self.assertEqual(len(rooms.messages(room,viewer='support')),2)
+
+    def test_remove_room_chat_preserves_replay_and_checks_permissions(self):
+        from .rooms import MessageInput
+        rooms=Rooms(self.path);room=rooms.save('owner',RoomInput(name='Moderated room'))['id']
+        rooms.presence('alice',room)
+        message=MessageInput(text='A message',request_id=uuid.uuid4())
+        result=rooms.send('alice',room,message)
+        ops=Operations(self.path)
+        rows=ops.room_messages('owner',room);self.assertEqual(len(rows),1)
+        with self.assertRaises(HTTPException):ops.remove_room_messages('alice',room)
+        self.assertEqual(ops.remove_room_messages('owner',room,rows[0]['id'])['removed'],1)
+        self.assertEqual(rooms.messages(room,viewer='alice'),[])
+        self.assertEqual(rooms.send('alice',room,message),result)
+        self.assertEqual(rooms.messages(room,viewer='alice'),[])
+        self.assertEqual(ops.room_messages('owner',room),[])
+        self.assertEqual(ops.remove_room_messages('owner',room)['removed'],0)
+
+    def test_moderator_can_remove_and_lock_uploaded_room_appearance(self):
+        rooms=Rooms(self.path);room=rooms.save('owner',RoomInput(name='Room appearance'))['id']
+        with rooms.db() as db:db.execute('UPDATE account_rooms SET image_url=?,background_url=? WHERE id=?',('bad-picture','bad-background',room))
+        ops=Operations(self.path)
+        settings=RoomPresentation(theme='mid',chat_enabled=True,photo_min_level=0,remove_background=True,remove_picture=True,appearance_locked=True)
+        ops.presentation('owner',room,settings)
+        row=next(r for r in ops.rooms('owner') if r['id']==room)
+        self.assertIsNone(row['background_url']);self.assertIsNone(row['image_url']);self.assertEqual(row['appearance_locked'],1)
+        with self.assertRaises(HTTPException):rooms.save('owner',RoomInput(name='Room appearance',theme='rose'),room)
+        rooms.save('owner',RoomInput(name='Renamed room',theme='mid'),room)
+        ops.presentation('owner',room,RoomPresentation(theme='mid',chat_enabled=True,photo_min_level=0,appearance_locked=False))
+        self.assertEqual(rooms.save('owner',RoomInput(name='Room appearance',theme='rose'),room)['theme'],'rose')
+
     def test_room_close_enforced_and_report_is_owner_only(self):
         rooms=Rooms(self.path);room=rooms.save('owner',RoomInput(name='A room'))['id'];rooms.presence('alice',room)
         ops=Operations(self.path)

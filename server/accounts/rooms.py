@@ -65,10 +65,11 @@ class Rooms:
             if 'image_url' not in columns:
                 db.execute('ALTER TABLE account_rooms ADD COLUMN image_url TEXT')
             db.execute('CREATE TABLE IF NOT EXISTS account_room_photos(room TEXT NOT NULL,key TEXT PRIMARY KEY,data BLOB NOT NULL)')
-            for column,declaration in [('background_url','TEXT'),('theme',"TEXT NOT NULL DEFAULT 'mid'"),('chat_enabled','INTEGER NOT NULL DEFAULT 1'),('photo_min_level','INTEGER NOT NULL DEFAULT 0'),('seat_style',"TEXT NOT NULL DEFAULT 'grad'")]:
+            for column,declaration in [('appearance_locked','INTEGER NOT NULL DEFAULT 0'),('background_url','TEXT'),('theme',"TEXT NOT NULL DEFAULT 'mid'"),('chat_enabled','INTEGER NOT NULL DEFAULT 1'),('photo_min_level','INTEGER NOT NULL DEFAULT 0'),('seat_style',"TEXT NOT NULL DEFAULT 'grad'")]:
                 if column not in columns:db.execute('ALTER TABLE account_rooms ADD COLUMN '+column+' '+declaration)
             db.execute('CREATE TABLE IF NOT EXISTS account_chat_photos(key TEXT PRIMARY KEY,room TEXT NOT NULL,uid TEXT NOT NULL,data BLOB NOT NULL,created_at INTEGER NOT NULL)')
             message_columns={r['name'] for r in db.execute('PRAGMA table_info(account_messages)')}
+            if 'removed' not in message_columns:db.execute('ALTER TABLE account_messages ADD COLUMN removed INTEGER NOT NULL DEFAULT 0')
             if 'image_url' not in message_columns:db.execute('ALTER TABLE account_messages ADD COLUMN image_url TEXT')
             if 'room_frame' not in columns:
                 db.execute("ALTER TABLE account_rooms ADD COLUMN room_frame TEXT NOT NULL DEFAULT 'none'")
@@ -109,6 +110,7 @@ class Rooms:
             if room:
                 self.exists(db,room)
                 if not existing or existing['id']!=room: raise HTTPException(403,'Only the room owner can edit it')
+                if existing['appearance_locked'] and (('image_url' in data.model_fields_set and data.image_url!=existing['image_url']) or ('background_url' in data.model_fields_set and data.background_url!=existing['background_url']) or (data.theme is not None and data.theme!=existing['theme'])):raise HTTPException(403,'Room appearance is locked by moderation staff')
                 if 'image_url' in data.model_fields_set:
                     if data.image_url is not None:
                         from .room_photos import PUBLIC
@@ -147,13 +149,14 @@ class Rooms:
                     from .catalog import equipped_assets
                     entry=equipped_assets(db,uid).get('entry')
                     if entry:db.execute('INSERT INTO account_catalog_events(room_id,sender_uid,recipient_uid,item_id,created_at) VALUES(?,?,?,?,?)',(room,uid,uid,entry['id'],int(self.clock())))
-            return {'saved':True}
+            cursor=db.execute('SELECT COALESCE(MAX(id),0) FROM account_messages WHERE room_id=?',(room,)).fetchone()[0]
+            return {'saved':True,'message_cursor':cursor}
     def messages(self,room,after=0,viewer=None):
         with self.db() as db:
             self.exists(db,room)
             if viewer:self.check_member(db,viewer,room)
             sql='''SELECT id,text,image_url,name,country,created_at,sender_uid AS uid
-                FROM account_messages m WHERE room_id=? AND NOT EXISTS(
+                FROM account_messages m WHERE room_id=? AND removed=0 AND NOT EXISTS(
                 SELECT 1 FROM account_blocks b WHERE b.uid=? AND b.target=m.sender_uid)'''
             if after:
                 rows=db.execute(sql+' AND id>? ORDER BY id LIMIT 50',(room,viewer,after)).fetchall()
