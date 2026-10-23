@@ -5,29 +5,29 @@ let state={seats:[],people:[],messages:[]};
 const send=(action,extra={})=>window.SoveraRoom?.postMessage(JSON.stringify({action,...extra}));
 function close(){$('bg').classList.remove('on');giftOpen=false;}
 function sheet(html){giftOpen=false;$('sheet').innerHTML='<div class="grab"></div>'+html;$('bg').classList.add('on');}
-function button(label,action,extra={}){const b=document.createElement('button');b.className='act';b.textContent=label;b.onclick=()=>{close();send(action,extra);};return b;}
+function button(label,action,extra={}){const b=document.createElement('button');b.className='act';const icon=label.match(/^(\p{Extended_Pictographic}\uFE0F?)\s*/u);if(icon){const art=document.createElement('span');art.className='icon3d';art.textContent=icon[1];b.append(art);const text=document.createElement('span');text.textContent=label.slice(icon[0].length);b.append(text);}else b.textContent=label;b.onclick=()=>{close();send(action,extra);};return b;}
 function seatMenu(i){
  const seat=state.seats[i];if(!seat)return;
- sheet('<h3>'+esc(seat.name||'সিট '+(i+1))+'</h3><div class="acts" id="seatActions"></div>');
+ sheet('<h3>'+esc(seat.name||'Seat '+(i+1))+'</h3><div class="acts" id="seatActions"></div>');
  const a=$('seatActions');
- if(seat.uid)a.append(button('👤 প্রোফাইল','profile',{uid:seat.uid}));
- if(!seat.uid&&!seat.locked)a.append(button('🎤 সিটে বসুন','take',{seat:i}));
- if(seat.uid===state.uid){a.append(button(state.muted?'🎤 আনমিউট':'🔇 মিউট','mic'));a.append(button('⬇️ সিট ছাড়ুন','leaveSeat'));}
+ if(seat.uid)a.append(button('👤 Profile','profile',{uid:seat.uid}));
+ if(!seat.uid&&!seat.locked)a.append(button('🎤 Take seat','take',{seat:i}));
+ if(seat.uid===state.uid){a.append(button(state.muted?'🎤 Unmute':'🔇 Mute','mic'));a.append(button('⬇️ Leave seat','leaveSeat'));}
 
- if(seat.uid){const gift=button('🎁 উপহার','gifts');gift.onclick=()=>openGifts(seat.uid);a.append(gift);}
+ if(seat.uid){const gift=button('🎁 Gift','gifts');gift.onclick=()=>openGifts(seat.uid);a.append(gift);}
  if(state.role==='owner'||state.role==='admin'){
-  if(!seat.uid&&!seat.locked){const invite=button('🎤 মাইকে আমন্ত্রণ','invite');invite.onclick=()=>inviteSheet(i);a.append(invite);}
-  const lock=button(seat.locked?'🔓 সিট আনলক':'🔒 সিট লক','seatLock',{seat:i,locked:!seat.locked});a.append(lock);
+  if(!seat.uid&&!seat.locked){const invite=button('🎤 Invite to seat','invite');invite.onclick=()=>inviteSheet(i);a.append(invite);}
+  const lock=button(seat.locked?'🔓 Unlock seat':'🔒 Lock seat','seatLock',{seat:i,locked:!seat.locked});a.append(lock);
   if(seat.uid&&seat.uid!==state.uid){
    const muted=(state.mutedUids||[]).includes(seat.uid);
-   a.append(button(muted?'🔊 মিউট তুলে নিন':'🔇 মিউট', 'moderate',{kind:muted?'unmute':'mute',uid:seat.uid}),
-    button('⬇️ মাইক থেকে নামান','moderate',{kind:'down',uid:seat.uid}),button('🚫 রুম থেকে বের করুন','moderate',{kind:'kick',uid:seat.uid}));
+   a.append(button(muted?'🔊 Unmute':'🔇 Mute', 'moderate',{kind:muted?'unmute':'mute',uid:seat.uid}),
+    button('⬇️ Remove from seat','moderate',{kind:'down',uid:seat.uid}),button('🚫 Remove from room','moderate',{kind:'kick',uid:seat.uid}));
   }
  }
 }
 function inviteSheet(seat){
- sheet('<h3>🎤 মাইকে আমন্ত্রণ</h3><div class="acts" id="invitePeople"></div>');
- for(const p of state.people||[])if(p.uid!==state.uid&&!state.seats.some(s=>s.uid===p.uid))$('invitePeople').append(button(p.name||'রুম সদস্য','invite',{uid:p.uid,seat}));
+ sheet('<h3>🎤 Invite to seat</h3><div class="acts" id="invitePeople"></div>');
+ for(const p of state.people||[])if(p.uid!==state.uid&&!state.seats.some(s=>s.uid===p.uid))$('invitePeople').append(button(p.name||'Room members','invite',{uid:p.uid,seat}));
 }
 function seatHTML(s,i,host){
  const locked=s.locked&&!s.uid,empty=!s.uid&&!locked;
@@ -39,7 +39,7 @@ function seatHTML(s,i,host){
  const faceStyle=frame?'style="inset:auto;width:'+(faceSize*100)+'%;height:'+(faceSize*100)+'%;left:'+((1-faceSize)*50)+'%;top:'+((1-faceSize)*50)+'%"':'';
  const frameHTML=frame?'<img class="equipped-frame" style="width:'+(canvas*100)+'%;height:'+(canvas*100)+'%;left:'+((.5-canvas*x)*100)+'%;top:'+((.5-canvas*y)*100)+'%" alt="" src="'+esc(frame)+'">':'';
  const url=typeof s.avatar==='string'&&s.avatar.startsWith('https://')?s.avatar:null;
- return '<button class="seat '+(locked?'lock':empty?'empty':s.speaking?'talk':'')+'" data-i="'+i+'"><div class="av"><div class="ring"></div><div class="face" '+faceStyle+'>'+(url?'<img alt="" style="width:100%;height:100%;object-fit:cover;border-radius:50%" src="'+esc(url)+'">':locked?'🔒':empty?'＋':'👤')+'</div>'+frameHTML+'<i class="wave"></i><i class="wave b"></i>'+(host?'<div class="crown">👑</div>':'')+((s.uid===state.uid&&state.muted)||(state.mutedUids||[]).includes(s.uid)?'<div class="badge">🔇</div>':'')+'</div><div class="nm">'+esc(s.name||(locked?'লক':'খালি'))+'</div>'+(host?'<div class="tag">হোস্ট সিট</div>':'')+'</button>';
+ return '<button class="seat '+(locked?'lock':empty?'empty':s.speaking?'talk':'')+'" data-i="'+i+'"><div class="av"><div class="ring"></div><div class="face" '+faceStyle+'>'+(url?'<img alt="" style="width:100%;height:100%;object-fit:cover;border-radius:50%" src="'+esc(url)+'">':locked?'🔒':empty?'＋':'👤')+'</div>'+frameHTML+'<i class="wave"></i><i class="wave b"></i>'+(host?'<div class="crown">👑</div>':'')+((s.uid===state.uid&&state.muted)||(state.mutedUids||[]).includes(s.uid)?'<div class="badge">🔇</div>':'')+'</div><div class="nm">'+esc(s.name||(locked?'Locked':'Empty'))+'</div>'+(host?'<div class="tag">Host seat</div>':'')+'</button>';
 }
 window.SoveraLive={update(next){
  state=next;
@@ -56,14 +56,14 @@ window.SoveraLive={update(next){
  const picture=typeof state.imageUrl==='string'&&state.imageUrl.startsWith('https://')?state.imageUrl:null;
  $('rav').replaceChildren();
  if(picture){const img=document.createElement('img');img.src=picture;img.alt='';img.style.cssText='position:absolute;inset:0;width:38px;height:38px;object-fit:cover;border-radius:13px';$('rav').append(img);}else $('rav').textContent='🎙️';
- $('roomBtn').querySelector('small').textContent=state.publicId?'ID: '+state.publicId:'লাইভ ভয়েস রুম';
+ $('roomBtn').querySelector('small').textContent=state.publicId?'ID: '+state.publicId:'Live voice room';
  $('livePeople').textContent=String(state.people.length);
  $('liveWins').textContent=state.dailyWins??'—';
  $('mstat').textContent='🎤 '+state.seats.filter(s=>s.uid).length+'/'+state.seats.length;
  $('cstat').textContent='🪙 '+(state.coins??'—');
  $('cstat').onclick=()=>send('wallet');
  $('liveWins').parentElement.onclick=()=>send('ranking');
- $('lstat').textContent=state.connected?'সংযুক্ত':'সংযোগ হচ্ছে…';
+ $('lstat').textContent=state.connected?'Connected':'Connecting…';
  $('bOwn').style.display=state.role==='owner'||state.role==='admin'?'grid':'none';
  $('host').innerHTML=state.seats.length?seatHTML(state.seats[0],0,true):'';
  $('grid').className='grid'+(state.seats.length>13?' dense':'');
@@ -81,7 +81,7 @@ window.SoveraLive={update(next){
  }
  for(const invitation of state.invites||[]){
   const key='invite:'+invitation.id;
-  if(!seenEffects.has(key)){seenEffects.add(key);sheet('<h3>🎤 মাইকে কথা বলার আমন্ত্রণ</h3><div class="acts" id="acceptInvite"></div>');$('acceptInvite').append(button('সিটে বসুন','take',{seat:invitation.seat}));}
+  if(!seenEffects.has(key)){seenEffects.add(key);sheet('<h3>🎤 Invitation to speak</h3><div class="acts" id="acceptInvite"></div>');$('acceptInvite').append(button('Take seat','take',{seat:invitation.seat}));}
  }
  for(const reaction of state.reactions||[]){
   const key='reaction:'+reaction.id;
@@ -96,7 +96,7 @@ window.SoveraLive={update(next){
  $('toast').textContent=state.error||'';$('toast').style.display=state.error?'block':'none';
 }};
 $('bg').onclick=e=>{if(e.target===$('bg'))close();};
-$('min').onclick=()=>send('minimize');$('exit').onclick=()=>{sheet('<h3>রুম থেকে বের হবেন?</h3><div class="acts" id="exitActions"></div>');$('exitActions').append(button('🚪 বের হন','leave'));};
+$('min').onclick=()=>send('minimize');$('exit').onclick=()=>{sheet('<h3>Leave this room?</h3><div class="acts" id="exitActions"></div>');$('exitActions').append(button('🚪 Leave','leave'));};
 $('mic').onclick=()=>send('mic');$('bGift').onclick=()=>openGifts();$('bMsg').onclick=()=>send('messages');$('bGame').onclick=()=>send('games');$('roomBtn').onclick=roomSettings;
 $('bOwn').onclick=()=>ownerSheet();
 function sendText(){const text=$('txt').value.trim();if(text)send('send',{text});}
@@ -107,15 +107,15 @@ $('imgBtn').onclick=()=>send('photo');
 if(window.visualViewport)visualViewport.addEventListener('resize',()=>{$('app').style.height=visualViewport.height+'px';});
 
 function roomSettings(){
- if(state.role!=='owner'){sheet('<h3>'+esc(state.name)+'</h3><button class="act" id="roomRewards">🏆 সাপ্তাহিক রুম রিওয়ার্ড</button><p>রুমের সেটিংস শুধু মালিক পরিবর্তন করতে পারেন।</p>');$('roomRewards').onclick=()=>{close();send('roomRewards');};return;}
- sheet('<h3>⚙️ রুম সেটিংস</h3><button class="act" id="roomRewards">🏆 সাপ্তাহিক রুম রিওয়ার্ড</button><div class="pic"><button class="act" id="changeCover">📷 রুমের ছবি</button><button class="act" id="changeBackground">🖼️ ব্যাকগ্রাউন্ড</button></div><label class="lbl">রুমের নাম</label><input class="field" id="editName" maxlength="40"><label class="lbl">সিট</label><select class="field" id="editSeats">'+[5,6,9,12,15].map(n=>'<option value="'+n+'">'+n+'</option>').join('')+'</select><label class="lbl">🎨 থিম</label><select class="field" id="editTheme">'+[['mid','মিডনাইট'],['gold','রয়্যাল গোল্ড'],['ocean','ওশান'],['rose','রোজ'],['forest','ফরেস্ট'],['sunset','সানসেট']].map(t=>'<option value="'+t[0]+'">'+t[1]+'</option>').join('')+'</select><label class="lbl"><input type="checkbox" id="editChat"> টেক্সট চ্যাট চালু</label><label class="lbl">ছবি পাঠাতে ন্যূনতম Wealth Level</label><input class="field" type="number" min="0" max="10000" id="editPhotoLevel"><div class="gbar"><button class="send" id="saveRoom">সংরক্ষণ করুন</button></div>');
+ if(state.role!=='owner'){sheet('<h3>'+esc(state.name)+'</h3><button class="act" id="roomRewards">🏆 Weekly room rewards</button><p>Only the owner can change room settings.</p>');$('roomRewards').onclick=()=>{close();send('roomRewards');};return;}
+ sheet('<h3>⚙️ Room settings</h3><button class="act" id="roomRewards">🏆 Weekly room rewards</button><div class="pic"><button class="act" id="changeCover">📷 Room picture</button><button class="act" id="changeBackground">🖼️ Background</button></div><label class="lbl">Room name</label><input class="field" id="editName" maxlength="40"><label class="lbl">Seat</label><select class="field" id="editSeats">'+[5,6,9,12,15].map(n=>'<option value="'+n+'">'+n+'</option>').join('')+'</select><label class="lbl">🎨 Theme</label><select class="field" id="editTheme">'+[['mid','Midnight'],['gold','Royal Gold'],['ocean','Ocean'],['rose','Rose'],['forest','Forest'],['sunset','Sunset']].map(t=>'<option value="'+t[0]+'">'+t[1]+'</option>').join('')+'</select><label class="lbl"><input type="checkbox" id="editChat"> Enable text chat</label><label class="lbl">Minimum level for photos Wealth Level</label><input class="field" type="number" min="0" max="10000" id="editPhotoLevel"><div class="gbar"><button class="send" id="saveRoom">Save</button></div>');
  $('editName').value=state.name;$('editSeats').value=String(state.seats.length);$('editTheme').value=state.theme||'mid';$('editChat').checked=state.chatEnabled!==false;$('editPhotoLevel').value=String(state.photoLevel||0);
  $('changeCover').onclick=()=>send('roomPhoto');$('changeBackground').onclick=()=>{if(settingsDraft)settingsDraft.clearBackground=false;close();send('roomBackground');};
  $('saveRoom').onclick=()=>{send('saveSettings',{name:$('editName').value.trim(),seats:Number($('editSeats').value),theme:$('editTheme').value,chatEnabled:$('editChat').checked,photoLevel:Number($('editPhotoLevel').value)});close();};
 }
 function adminSheet(){
  if(state.role!=='owner')return;
- sheet('<h3>🛡️ রুম অ্যাডমিন</h3><div id="adminPeople"></div>');
+ sheet('<h3>🛡️ Room admins</h3><div id="adminPeople"></div>');
  const people=new Map([...(state.people||[]),...(state.admins||[])].map(p=>[p.uid,p]));
  for(const [uid,p] of people){if(uid===state.uid)continue;const enabled=(state.admins||[]).some(a=>a.uid===uid);const b=button((enabled?'➖ ':'➕ ')+(p.name||uid),'setAdmin',{uid,enabled:!enabled});$('adminPeople').append(b);}
 }
@@ -136,11 +136,11 @@ function renderGifts(){
  const selected=gifts.find(g=>g.id===giftId),all=people.length>0&&people.every(p=>giftRecipients.has(p.uid));
  const locked=!!pending||!!state.giftSending;
  const artwork=g=>safeMedia(g.url)?'<img alt="" src="'+esc(g.url)+'" style="width:54px;height:54px;object-fit:contain">':'🎁';
- sheet('<h3>🎁 উপহার পাঠান <span style="margin-left:auto;font-size:12px;color:var(--gold)">🪙 '+esc(state.coins??'—')+'</span></h3><div class="lbl">কাকে পাঠাবেন</div><div class="chips">'+
- '<button class="chip '+(all?'sel':'')+'" id="giftAll"><div class="c">👥</div>সবাই</button>'+people.map(p=>'<button class="chip '+(giftRecipients.has(p.uid)?'sel':'')+'" data-recipient="'+esc(p.uid)+'"><div class="c">'+(p.avatar_url?'<img alt="" src="'+esc(p.avatar_url)+'" style="width:100%;height:100%;border-radius:50%;object-fit:cover">':'👤')+'</div>'+esc(p.name)+'</button>').join('')+
+ sheet('<h3>🎁 Send a gift <span style="margin-left:auto;font-size:12px;color:var(--gold)">🪙 '+esc(state.coins??'—')+'</span></h3><div class="lbl">Select recipients</div><div class="chips">'+
+ '<button class="chip '+(all?'sel':'')+'" id="giftAll"><div class="c">👥</div>All</button>'+people.map(p=>'<button class="chip '+(giftRecipients.has(p.uid)?'sel':'')+'" data-recipient="'+esc(p.uid)+'"><div class="c">'+(p.avatar_url?'<img alt="" src="'+esc(p.avatar_url)+'" style="width:100%;height:100%;border-radius:50%;object-fit:cover">':'👤')+'</div>'+esc(p.name)+'</button>').join('')+
  '</div><div class="gifts">'+gifts.map(g=>'<button class="gf '+(g.id===giftId?'sel':'')+'" data-gift="'+esc(g.id)+'"><span>'+artwork(g)+'</span>'+esc(g.title)+(g.lucky?'<small>🍀 Lucky · 10% count · bonus off</small>':'')+'<small>🪙 '+esc(g.price)+'</small></button>').join('')+'</div>'+
- (!gifts.length?'<p>'+(state.giftLoading?'গিফট লোড হচ্ছে…':'কোনো প্রকাশিত গিফট নেই। অ্যাডমিন ক্যাটালগ থেকে যোগ করুন।')+'</p>':'')+
- '<div class="gbar"><div class="qty">'+[1,5,10].map(q=>'<button data-quantity="'+q+'" class="'+(q===giftQuantity?'sel':'')+'">×'+q+'</button>').join('')+'</div><button class="send" id="sendGift">'+(state.giftSending?'পাঠানো হচ্ছে…':pending?'একই গিফট আবার চেষ্টা করুন':'পাঠান 🚀')+'</button></div><div class="lbl">মোট: '+(selected?String(BigInt(selected.price)*BigInt(giftQuantity)*BigInt(giftRecipients.size)):'—')+' Coins</div>');
+ (!gifts.length?'<p>'+(state.giftLoading?'Loading gifts…':'No published gifts. Add gifts from the admin catalog.')+'</p>':'')+
+ '<div class="gbar"><div class="qty">'+[1,5,10].map(q=>'<button data-quantity="'+q+'" class="'+(q===giftQuantity?'sel':'')+'">×'+q+'</button>').join('')+'</div><button class="send" id="sendGift">'+(state.giftSending?'Sending…':pending?'Retry the same gift':'Send 🚀')+'</button></div><div class="lbl">Total: '+(selected?String(BigInt(selected.price)*BigInt(giftQuantity)*BigInt(giftRecipients.size)):'—')+' Coins</div>');
  giftOpen=true;giftSignature=JSON.stringify([state.gifts,state.coins,state.giftLoading,state.giftPending,state.giftSending]);
  $('giftAll').onclick=()=>{if(locked)return;giftRecipients=all?new Set():new Set(people.map(p=>p.uid));renderGifts();};
  document.querySelectorAll('[data-recipient]').forEach(b=>b.onclick=()=>{if(locked)return;const uid=b.dataset.recipient;if(giftRecipients.has(uid))giftRecipients.delete(uid);else giftRecipients.add(uid);renderGifts();});
@@ -150,18 +150,18 @@ function renderGifts(){
  $('sendGift').onclick=()=>{
   if(!selected||!giftRecipients.size)return;
   const cost=BigInt(selected.price)*BigInt(giftQuantity)*BigInt(giftRecipients.size);
-  if(state.coins==null||BigInt(state.coins)<cost){toast('কয়েন যথেষ্ট নয়');return;}
+  if(state.coins==null||BigInt(state.coins)<cost){toast('Insufficient Coins');return;}
   send('sendGift',{itemId:giftId,recipients:[...giftRecipients],quantity:giftQuantity,price:selected.price});
  };
 }
-const ER=[['😂','হাসি'],['😍','ভালোবাসা'],['😎','কুল'],['🔥','আগুন'],['👏','হাততালি'],['🎉','পার্টি'],['😭','কান্না'],['😡','রাগ'],['🥳','উৎসব'],['😘','চুমু'],['🤩','বাহ!'],['👍','দারুণ'],['🙏','ধন্যবাদ'],['💯','১০০'],['😴','ঘুম'],['💖','হৃদয়'],['😊', 'মিষ্টি হাসি'],['😇', 'ভালো মানুষ'],['🤣', 'অট্টহাসি'],['😜', 'দুষ্টুমি'],['🤗', 'আলিঙ্গন'],['🤭', 'লাজুক'],['🤔', 'ভাবনা'],['😱', 'অবাক'],['🙈', 'লজ্জা'],['🥰', 'স্নেহ'],['😢', 'দুঃখ'],['😤', 'অভিমান'],['💋', 'চুমু'],['💐', 'ফুল'],['🌹', 'গোলাপ'],['✨', 'ঝলক'],['🌟', 'তারা'],['👑', 'রাজা'],['🎁', 'উপহার'],['🎂', 'জন্মদিন'],['🎶', 'সঙ্গীত'],['💃', 'নাচ'],['🕺', 'নাচি'],['🤝', 'বন্ধু']];
+const ER=[['😂','Smile'],['😍','Love'],['😎','Cool'],['🔥','Fire'],['👏','Applause'],['🎉','Party'],['😭','Crying'],['😡','Angry'],['🥳','Celebrate'],['😘','Kiss'],['🤩','Wow!'],['👍','Amazing'],['🙏','Thanks'],['💯','100'],['😴','Sleep'],['💖','Heart'],['😊', 'Smile'],['😇', 'Kind'],['🤣', 'Laugh'],['😜', 'Playful'],['🤗', 'Hug'],['🤭', 'Shy'],['🤔', 'Thinking'],['😱', 'Surprised'],['🙈', 'Shy'],['🥰', 'Affection'],['😢', 'Sad'],['😤', 'Upset'],['💋', 'Kiss'],['💐', 'Flowers'],['🌹', 'Rose'],['✨', 'Sparkle'],['🌟', 'Star'],['👑', 'King'],['🎁', 'Gift'],['🎂', 'Birthday'],['🎶', 'Music'],['💃', 'Dance'],['🕺', 'Dance'],['🤝', 'Friends']];
 function emojiSheet(){
- sheet('<h3>😊 ইমোজি বক্স</h3><div class="etabs"><button id="seatEmojiTab" class="'+(!emojiTab?'sel':'')+'">🎭 সিটে দেখান</button><button id="textEmojiTab" class="'+(emojiTab?'sel':'')+'">💬 মেসেজে</button></div><div class="lbl">'+(!emojiTab?'আপনার সিটে অ্যানিমেশনসহ দেখাবে':'মেসেজ বক্সে বসবে')+'</div><div class="gifts em">'+ER.map((e,i)=>'<button class="gf" data-emoji="'+i+'"><span>'+e[0]+'</span>'+e[1]+'</button>').join('')+'</div>');
+ sheet('<h3>😊 Emoji box</h3><div class="etabs"><button id="seatEmojiTab" class="'+(!emojiTab?'sel':'')+'">🎭 Show on seat</button><button id="textEmojiTab" class="'+(emojiTab?'sel':'')+'">💬 In chat</button></div><div class="lbl">'+(!emojiTab?'Show an animated reaction on your seat':'Add to message')+'</div><div class="gifts em">'+ER.map((e,i)=>'<button class="gf" data-emoji="'+i+'"><span>'+e[0]+'</span>'+e[1]+'</button>').join('')+'</div>');
  $('seatEmojiTab').onclick=()=>{emojiTab=0;emojiSheet();};$('textEmojiTab').onclick=()=>{emojiTab=1;emojiSheet();};
  document.querySelectorAll('[data-emoji]').forEach(b=>b.onclick=()=>{
   const e=ER[Number(b.dataset.emoji)][0];
-  if(emojiTab){if(state.chatEnabled===false){toast('চ্যাট বন্ধ আছে');return;}$('txt').value+=e;$('txt').oninput();close();$('txt').focus();}
-  else{if(!state.seats.some(s=>s.uid===state.uid)){toast('আগে একটি সিটে বসুন');return;}send('reaction',{emoji:e});close();}
+  if(emojiTab){if(state.chatEnabled===false){toast('Chat is disabled');return;}$('txt').value+=e;$('txt').oninput();close();$('txt').focus();}
+  else{if(!state.seats.some(s=>s.uid===state.uid)){toast('Take a seat first');return;}send('reaction',{emoji:e});close();}
  });
 }
 function seatElement(i){return document.querySelector('.seat[data-i="'+i+'"]');}
@@ -182,40 +182,40 @@ function flyGift(event){
 }
 function saveDraft(){if(state.role!=='owner')return;send('saveSettings',settingsDraft);close();}
 function roomSettings(){
- if(state.role!=='owner'){sheet('<h3>'+esc(state.name)+'</h3><button class="act" id="roomRewards">🏆 সাপ্তাহিক রুম রিওয়ার্ড</button><p>রুমের সেটিংস শুধু মালিক পরিবর্তন করতে পারেন।</p>');$('roomRewards').onclick=()=>{close();send('roomRewards');};return;}
+ if(state.role!=='owner'){sheet('<h3>'+esc(state.name)+'</h3><button class="act" id="roomRewards">🏆 Weekly room rewards</button><p>Only the owner can change room settings.</p>');$('roomRewards').onclick=()=>{close();send('roomRewards');};return;}
  settingsDraft={name:state.name,seats:state.seats.length,theme:state.theme||'mid',chatEnabled:state.chatEnabled!==false,photoLevel:state.photoLevel||0,seatStyle:state.seatStyle||'grad'};
  settingsSheet();
 }
 function settingsSheet(){
- sheet('<h3>⚙️ রুম সেটিংস</h3><button class="act" id="roomRewards">🏆 সাপ্তাহিক রুম রিওয়ার্ড</button><div class="pic"><button class="act" id="changeCover">📷 রুমের ছবি</button><div style="flex:1"><div class="lbl">রুমের নাম</div><input class="field" id="editName" maxlength="40"></div></div><div class="row" id="themeSettings"><div>🎨 রুমের থিম<small>রঙ ও ব্যাকগ্রাউন্ড ছবি</small></div><span>›</span></div><div class="row" id="seatSettings"><div>🪑 সিট ব্যবস্থা<small>সিট সংখ্যা ও ফ্রেম স্টাইল</small></div><span>›</span></div><div class="gbar"><button class="send" id="saveRoom">সংরক্ষণ করুন</button></div>');
+ sheet('<h3>⚙️ Room settings</h3><button class="act" id="roomRewards">🏆 Weekly room rewards</button><div class="pic"><button class="act" id="changeCover">📷 Room picture</button><div style="flex:1"><div class="lbl">Room name</div><input class="field" id="editName" maxlength="40"></div></div><div class="row" id="themeSettings"><div>🎨 Room theme<small>Colors and background image</small></div><span>›</span></div><div class="row" id="seatSettings"><div>🪑 Seat layout<small>Seat count and frame style</small></div><span>›</span></div><div class="gbar"><button class="send" id="saveRoom">Save</button></div>');
  $('editName').value=settingsDraft.name;$('editName').oninput=()=>settingsDraft.name=$('editName').value;
  $('roomRewards').onclick=()=>{close();send('roomRewards');};
  $('changeCover').onclick=()=>send('roomPhoto');$('themeSettings').onclick=themeSheet;$('seatSettings').onclick=seatSettings;$('saveRoom').onclick=saveDraft;
 }
 function themeSheet(){
- const themes=[['mid','মিডনাইট','#6d28d9'],['gold','রয়্যাল গোল্ড','#b45309'],['ocean','ওশান','#0369a1'],['rose','রোজ','#be185d'],['forest','ফরেস্ট','#15803d'],['sunset','সানসেট','#ea580c']];
- sheet('<h3><button class="back" id="themeBack">‹</button>🎨 রুমের থিম</h3><div class="themes">'+themes.map(t=>'<button class="th '+(settingsDraft.theme===t[0]?'sel':'')+'" data-theme="'+t[0]+'" style="background:linear-gradient(160deg,'+t[2]+',#100a20)">'+t[1]+'</button>').join('')+'</div><button class="act" id="changeBackground">🖼️ গ্যালারি থেকে ব্যাকগ্রাউন্ড</button><button class="act" id="clearBackground">ছবি সরিয়ে থিমে ফিরুন</button><button class="send" id="saveTheme">সংরক্ষণ করুন</button>');
+ const themes=[['mid','Midnight','#6d28d9'],['gold','Royal Gold','#b45309'],['ocean','Ocean','#0369a1'],['rose','Rose','#be185d'],['forest','Forest','#15803d'],['sunset','Sunset','#ea580c']];
+ sheet('<h3><button class="back" id="themeBack">‹</button>🎨 Room theme</h3><div class="themes">'+themes.map(t=>'<button class="th '+(settingsDraft.theme===t[0]?'sel':'')+'" data-theme="'+t[0]+'" style="background:linear-gradient(160deg,'+t[2]+',#100a20)">'+t[1]+'</button>').join('')+'</div><button class="act" id="changeBackground">🖼️ Background from gallery</button><button class="act" id="clearBackground">Remove image and use theme</button><button class="send" id="saveTheme">Save</button>');
  $('themeBack').onclick=settingsSheet;document.querySelectorAll('[data-theme]').forEach(b=>b.onclick=()=>{settingsDraft.theme=b.dataset.theme;settingsDraft.clearBackground=true;themeSheet();});
- $('changeBackground').onclick=()=>{if(settingsDraft)settingsDraft.clearBackground=false;close();send('roomBackground');};$('clearBackground').onclick=()=>{settingsDraft.clearBackground=true;toast('সংরক্ষণ করলে ব্যাকগ্রাউন্ড সরবে');};$('saveTheme').onclick=saveDraft;
+ $('changeBackground').onclick=()=>{if(settingsDraft)settingsDraft.clearBackground=false;close();send('roomBackground');};$('clearBackground').onclick=()=>{settingsDraft.clearBackground=true;toast('Save to remove the background');};$('saveTheme').onclick=saveDraft;
 }
 function seatSettings(){
- sheet('<h3><button class="back" id="seatBack">‹</button>🪑 সিট ব্যবস্থা</h3><div class="lbl">মোট সিট (হোস্টসহ)</div><div class="step"><button id="minusSeat">−</button><b>'+settingsDraft.seats+'</b><button id="plusSeat">+</button></div><div class="lbl">কমপক্ষে ৫টি, সর্বোচ্চ ২১টি</div><div class="fr">'+[['grad','রঙিন'],['gold','গোল্ড'],['neon','নিয়ন'],['sq','চৌকো']].map(f=>'<button data-style="'+f[0]+'" class="'+(settingsDraft.seatStyle===f[0]?'sel':'')+'"><div class="pv"></div>'+f[1]+'</button>').join('')+'</div><button class="send" id="saveSeats">সংরক্ষণ করুন</button>');
+ sheet('<h3><button class="back" id="seatBack">‹</button>🪑 Seat layout</h3><div class="lbl">Total seats (Including host)</div><div class="step"><button id="minusSeat">−</button><b>'+settingsDraft.seats+'</b><button id="plusSeat">+</button></div><div class="lbl">Minimum 5, Maximum 21</div><div class="fr">'+[['grad','Colorful'],['gold','Gold'],['neon','Neon'],['sq','Square']].map(f=>'<button data-style="'+f[0]+'" class="'+(settingsDraft.seatStyle===f[0]?'sel':'')+'"><div class="pv"></div>'+f[1]+'</button>').join('')+'</div><button class="send" id="saveSeats">Save</button>');
  $('seatBack').onclick=settingsSheet;$('minusSeat').onclick=()=>{settingsDraft.seats=Math.max(5,settingsDraft.seats-1);seatSettings();};$('plusSeat').onclick=()=>{settingsDraft.seats=Math.min(21,settingsDraft.seats+1);seatSettings();};
  document.querySelectorAll('[data-style]').forEach(b=>b.onclick=()=>{settingsDraft.seatStyle=b.dataset.style;seatSettings();});$('saveSeats').onclick=saveDraft;
 }
 function ownerSheet(){
  if(!['owner','admin'].includes(state.role))return;
- sheet('<h3>👑 মালিক ম্যানেজমেন্ট</h3><div class="row"><div>সবাইকে মিউট</div><button class="act" id="muteAll">🔇</button><button class="act" id="unmuteAll">🔊</button></div><div id="ownerRows"></div><div class="acts" id="ownerActions"></div>');
+ sheet('<h3>👑 Owner controls</h3><div class="row"><div>Mute all</div><button class="act" id="muteAll">🔇</button><button class="act" id="unmuteAll">🔊</button></div><div id="ownerRows"></div><div class="acts" id="ownerActions"></div>');
  $('muteAll').onclick=()=>send('moderate',{kind:'mute_all'});$('unmuteAll').onclick=()=>send('moderate',{kind:'unmute_all'});
- $('ownerActions').append(button('🔒 খালি সিট লক','lockAll',{locked:true}),button('🔓 সিট আনলক','lockAll',{locked:false}));
- const banned=button('🚫 ব্লক লিস্ট','banned');banned.onclick=bannedSheet;$('ownerActions').append(banned);
+ $('ownerActions').append(button('🔒 Lock empty seats','lockAll',{locked:true}),button('🔓 Unlock seat','lockAll',{locked:false}));
+ const banned=button('🚫 Blocked members','banned');banned.onclick=bannedSheet;$('ownerActions').append(banned);
  if(state.role==='owner'){
-  const settings=button('⚙️ রুম সেটিংস','settings');settings.onclick=roomSettings;
-  const admins=button('🛡️ অ্যাডমিন','admins');admins.onclick=adminSheet;
+  const settings=button('⚙️ Room settings','settings');settings.onclick=roomSettings;
+  const admins=button('🛡️ Admin','admins');admins.onclick=adminSheet;
   $('ownerActions').append(settings,admins);
-  const row=document.createElement('div');row.className='row';row.innerHTML='<label>টেক্সট চ্যাট চালু <input type="checkbox" id="ownerChat"></label><label>ছবি পাঠাতে ন্যূনতম লেভেল<input class="field" type="number" id="ownerLevel" min="0" max="10000"></label><button class="send" id="ownerSave">সংরক্ষণ করুন</button>';$('ownerRows').append(row);
+  const row=document.createElement('div');row.className='row';row.innerHTML='<label>Enable text chat <input type="checkbox" id="ownerChat"></label><label>Minimum level to send photos<input class="field" type="number" id="ownerLevel" min="0" max="10000"></label><button class="send" id="ownerSave">Save</button>';$('ownerRows').append(row);
   $('ownerChat').checked=state.chatEnabled!==false;$('ownerLevel').value=state.photoLevel||0;
   $('ownerSave').onclick=()=>{send('saveSettings',{name:state.name,seats:state.seats.length,theme:state.theme||'mid',seatStyle:state.seatStyle||'grad',chatEnabled:$('ownerChat').checked,photoLevel:Number($('ownerLevel').value)});close();};
  }
 }
-function bannedSheet(){sheet('<h3>🚫 রুমের ব্লক লিস্ট</h3><div class="acts" id="blockedPeople"></div>');for(const p of state.banned||[])$('blockedPeople').append(button('আনব্লক · '+p.name,'moderate',{kind:'unban',uid:p.uid}));}
+function bannedSheet(){sheet('<h3>🚫 Room block list</h3><div class="acts" id="blockedPeople"></div>');for(const p of state.banned||[])$('blockedPeople').append(button('Unblock · '+p.name,'moderate',{kind:'unban',uid:p.uid}));}

@@ -1,3 +1,4 @@
+import 'package:flutter/services.dart' show rootBundle;
 import 'dart:convert';
 import 'firebase_rewards.dart';
 import 'sovera_icons.dart';
@@ -104,6 +105,8 @@ class _FirebaseGreedyWheelPageState extends State<FirebaseGreedyWheelPage>{
                 ?NavigationDecision.navigate:NavigationDecision.prevent;
           },
           onPageFinished:(_)async{
+            final englishUI=await rootBundle.loadString('assets/games/english-ui.js');
+            await ctl.runJavaScript(englishUI);
             // Never put game JWT in navigation URL, access logs, crash logs,
             // Flutter widget labels or Firebase token storage.
             final payload=jsonEncode({'server':'https://voice.soverixnet.com/greedy',

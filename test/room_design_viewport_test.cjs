@@ -37,7 +37,7 @@ const {mkdirSync}=require('node:fs');
    await page.locator('#emo').click();await page.locator('[data-emoji="0"]').click();
    assert.equal(await page.evaluate(()=>window.sent.at(-1).action),'reaction');
    assert.equal(await page.locator('.seat.talk').count(),1);
-   assert.equal(await page.locator('#roomBtn small').innerText(),'লাইভ ভয়েস রুম');
+   assert.equal(await page.locator('#roomBtn small').innerText(),'Live voice room');
    await page.locator('#bOwn').click();await page.locator('#muteAll').click();
    assert.equal(await page.evaluate(()=>window.sent.at(-1).kind),'mute_all');
    await page.locator('#bg').click({position:{x:1,y:1}});

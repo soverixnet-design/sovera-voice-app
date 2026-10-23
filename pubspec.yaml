@@ -31,6 +31,7 @@ flutter:
     - assets/ui-icons/
     - assets/sovera-logo-transparent.png
     - assets/games/food-wheel.html
+    - assets/games/english-ui.js
     - assets/sounds/
     - assets/effects/
     - assets/medals/
