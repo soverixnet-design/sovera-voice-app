@@ -94,7 +94,7 @@ window.SoveraLive={update(next){
   if(event.asset?.kind==='gift'&&!seenEffects.has(key)){seenEffects.add(key);flyGift(event);}
  }
  if(seenEffects.size>1000){const keep=[...seenEffects].slice(-500);seenEffects.clear();keep.forEach(k=>seenEffects.add(k));}
- if(giftOpen&&JSON.stringify([state.gifts,state.coins,state.giftLoading,state.giftPending,state.giftSending])!==giftSignature)renderGifts();
+ if(giftOpen&&JSON.stringify([state.gifts,state.coins,state.giftLoading,state.giftError,state.giftPending,state.giftSending])!==giftSignature)renderGifts();
  $('toast').textContent=state.error||'';$('toast').style.display=state.error?'block':'none';
 }};
 $('bg').onclick=e=>{if(e.target===$('bg'))close();};
@@ -158,9 +158,11 @@ function renderGifts(){
  sheet('<h3>🎁 Send a gift <span style="margin-left:auto;font-size:12px;color:var(--gold)">🪙 '+esc(state.coins??'—')+'</span></h3><div class="lbl">Select recipients</div><div class="chips">'+
  '<button class="chip '+(all?'sel':'')+'" id="giftAll"><div class="c">👥</div>All</button>'+people.map(p=>'<button class="chip '+(giftRecipients.has(p.uid)?'sel':'')+'" data-recipient="'+esc(p.uid)+'"><div class="c">'+(p.avatar_url?'<img alt="" src="'+esc(p.avatar_url)+'" style="width:100%;height:100%;border-radius:50%;object-fit:cover">':'👤')+'</div>'+esc(p.name)+'</button>').join('')+
  '</div><div class="gifts">'+gifts.map(g=>'<button class="gf '+(g.id===giftId?'sel':'')+'" data-gift="'+esc(g.id)+'"><span>'+artwork(g)+'</span>'+esc(g.title)+(g.lucky?'<small>🍀 Lucky · 10% count · bonus off</small>':'')+'<small>🪙 '+esc(g.price)+'</small></button>').join('')+'</div>'+
- (!gifts.length?'<p>'+(state.giftLoading?'Loading gifts…':'No published gifts. Add gifts from the admin catalog.')+'</p>':'')+
+ (state.giftError?'<p role="alert">'+esc(state.giftError)+'</p>':!gifts.length?'<p>'+(state.giftLoading?'Loading gifts…':'No published gifts. Add gifts from the admin catalog.')+'</p>':'')+
+ '<button class="act" id="refreshGifts">↻ Refresh gifts and wallet</button><button class="act" id="giftWallet">🪙 Open wallet</button>'+
  '<div class="gbar"><div class="qty">'+[1,5,10].map(q=>'<button data-quantity="'+q+'" class="'+(q===giftQuantity?'sel':'')+'">×'+q+'</button>').join('')+'</div><button class="send" id="sendGift">'+(state.giftSending?'Sending…':pending?'Retry the same gift':'Send 🚀')+'</button></div><div class="lbl">Total: '+(selected?String(BigInt(selected.price)*BigInt(giftQuantity)*BigInt(giftRecipients.size)):'—')+' Coins</div>');
- giftOpen=true;giftSignature=JSON.stringify([state.gifts,state.coins,state.giftLoading,state.giftPending,state.giftSending]);
+ giftOpen=true;giftSignature=JSON.stringify([state.gifts,state.coins,state.giftLoading,state.giftError,state.giftPending,state.giftSending]);
+ $('refreshGifts').disabled=!!state.giftLoading;$('refreshGifts').onclick=()=>send('gifts');$('giftWallet').onclick=()=>{close();send('wallet');};
  $('giftAll').onclick=()=>{if(locked)return;giftRecipients=all?new Set():new Set(people.map(p=>p.uid));renderGifts();};
  document.querySelectorAll('[data-recipient]').forEach(b=>b.onclick=()=>{if(locked)return;const uid=b.dataset.recipient;if(giftRecipients.has(uid))giftRecipients.delete(uid);else giftRecipients.add(uid);renderGifts();});
  document.querySelectorAll('[data-gift]').forEach(b=>b.onclick=()=>{if(!locked){giftId=b.dataset.gift;renderGifts();}});
