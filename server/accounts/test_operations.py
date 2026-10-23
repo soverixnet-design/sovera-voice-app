@@ -39,6 +39,20 @@ class OperationsTests(unittest.TestCase):
         with self.control.db() as db:
             self.assertIsNotNone(db.execute("SELECT 1 FROM account_control_audit WHERE action='room.presentation'").fetchone())
 
+    def test_ranking_intro_is_owner_controlled_and_validated(self):
+        from .operations import RankingIntro
+        from pydantic import ValidationError
+        ops=Operations(self.path)
+        self.assertEqual(ops.ranking_intro()['seconds'],5)
+        policy=RankingIntro(enabled=True,seconds=10,metric='play',period='monthly')
+        with self.assertRaises(HTTPException):ops.save_ranking_intro('support',policy)
+        ops.save_ranking_intro('owner',policy)
+        self.assertEqual(Operations(self.path).ranking_intro(),policy.model_dump())
+        self.assertEqual(self.client.get('/sovera/account/ranking-intro').json()['seconds'],10)
+        with self.assertRaises(ValidationError):RankingIntro(seconds=60)
+        ops.save_ranking_intro('owner',RankingIntro(enabled=False))
+        self.assertFalse(ops.ranking_intro()['enabled'])
+
     def test_entry_message_cursor_excludes_previous_visit_without_deleting_others_chat(self):
         from .rooms import MessageInput
         rooms=Rooms(self.path);room=rooms.save('owner',RoomInput(name='Session chat'))['id']

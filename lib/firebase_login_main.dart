@@ -1,3 +1,4 @@
+import 'ranking_welcome.dart';
 import 'firebase_room_session.dart';
 // Separate sign-in verification target. Legacy room/wallet APIs are not invoked.
 import 'package:firebase_auth/firebase_auth.dart';
@@ -70,10 +71,28 @@ class FirebaseLoginApp extends StatelessWidget {
         if (snapshot.connectionState == ConnectionState.waiting) {
           return const Scaffold(body: Center(child: CircularProgressIndicator()));
         }
-        return snapshot.data == null ? const FirebaseLoginPage() : FirebaseSoveraHome(key:ValueKey(snapshot.data!.uid),user: snapshot.data!);
+        return snapshot.data == null ? const FirebaseLoginPage() : _RankingStartup(key:ValueKey(snapshot.data!.uid),user:snapshot.data!);
       },
     ),
   );
+}
+
+class _RankingStartup extends StatefulWidget {
+  final User user;
+  const _RankingStartup({super.key,required this.user});
+  @override State<_RankingStartup> createState()=>_RankingStartupState();
+}
+class _RankingStartupState extends State<_RankingStartup>{
+  final client=http.Client();
+  late final api=FirebaseProfileApi(uid:widget.user.uid,token:()=>widget.user.getIdToken(),client:client);
+  Future<Map<String,dynamic>> load()async{
+    final policy=await api.call('GET',suffix:'/ranking-intro');
+    if(policy['enabled']!=true)return policy;
+    final board=await api.call('GET',suffix:'/rankings?metric=${policy['metric']}&period=${policy['period']}');
+    return {...policy,'items':board['items']};
+  }
+  @override void dispose(){client.close();super.dispose();}
+  @override Widget build(BuildContext context)=>RankingWelcomeGate(load:load,child:FirebaseSoveraHome(user:widget.user));
 }
 
 class FirebaseLoginPage extends StatefulWidget {

@@ -16,6 +16,13 @@ from pydantic import BaseModel, ConfigDict, Field
 from .control import Control
 from .control_security import CAPS
 
+class RankingIntro(BaseModel):
+    model_config=ConfigDict(extra='forbid')
+    enabled:bool=True
+    seconds:Literal[5,10]=5
+    metric:Literal['rich','charm','play','recharge']='rich'
+    period:Literal['daily','weekly','monthly']='weekly'
+
 class RoomPresentation(BaseModel):
     model_config=ConfigDict(extra='forbid')
     theme:Literal['mid','gold','ocean','rose','forest','sunset']
@@ -48,6 +55,7 @@ class ScheduledInput(BaseModel):
 
 def schema(db):
     db.executescript('''
+    CREATE TABLE IF NOT EXISTS account_ranking_intro(id INTEGER PRIMARY KEY CHECK(id=1),payload TEXT NOT NULL);
     CREATE TABLE IF NOT EXISTS account_room_moderation(room TEXT PRIMARY KEY,status TEXT NOT NULL,reason TEXT NOT NULL,actor TEXT NOT NULL,updated_at INTEGER NOT NULL);
     CREATE TABLE IF NOT EXISTS account_ticket_state(ticket INTEGER PRIMARY KEY,status TEXT NOT NULL,assignee TEXT NOT NULL,note TEXT NOT NULL,updated_at INTEGER NOT NULL);
     CREATE TABLE IF NOT EXISTS account_access_log(uid TEXT NOT NULL,device TEXT NOT NULL,user_agent TEXT NOT NULL,remote_ip TEXT NOT NULL,first_seen INTEGER NOT NULL,last_seen INTEGER NOT NULL,PRIMARY KEY(uid,device));
@@ -83,6 +91,16 @@ class Operations:
         if self.control.role(db,uid)!='owner':raise HTTPException(403,'Owner permission required')
     def staff(self,db,uid):
         if self.control.role(db,uid) not in ('owner','admin','support'):raise HTTPException(403,'Moderation staff required')
+    def ranking_intro(self):
+        with self.control.db() as db:
+            row=db.execute('SELECT payload FROM account_ranking_intro WHERE id=1').fetchone()
+            return json.loads(row[0]) if row else RankingIntro().model_dump()
+    def save_ranking_intro(self,uid,data):
+        with self.control.db() as db:
+            db.execute('BEGIN IMMEDIATE');self.owner(db,uid)
+            db.execute('INSERT INTO account_ranking_intro VALUES(1,?) ON CONFLICT(id) DO UPDATE SET payload=excluded.payload',(data.model_dump_json(),))
+            self.control.audit(db,uid,'ranking_intro.update','global',data.model_dump())
+        return data.model_dump()
     def overview(self,uid,days=30):
         with self.control.db() as db:
             self.owner(db,uid);now=int(time.time());start=now-days*86400
@@ -218,6 +236,15 @@ class Operations:
 
 def attach_operations(app,profiles,staff):
     service=Operations(profiles.path)
+    @app.get('/sovera/account/ranking-intro')
+    async def public_ranking_intro():return await asyncio.to_thread(service.ranking_intro)
+    @app.get('/sovera/control/ranking-intro')
+    async def ranking_intro(request:Request):
+        uid=await staff(request)
+        with service.control.db() as db:service.owner(db,uid)
+        return await asyncio.to_thread(service.ranking_intro)
+    @app.put('/sovera/control/ranking-intro')
+    async def save_ranking_intro(data:RankingIntro,request:Request):return await asyncio.to_thread(service.save_ranking_intro,await staff(request),data)
     @app.get('/sovera/control/operations')
     async def overview(request:Request,days:int=Query(default=30,ge=1,le=366)):return await asyncio.to_thread(service.overview,await staff(request),days)
     @app.get('/sovera/control/operations/maintenance')
