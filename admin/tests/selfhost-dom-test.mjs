@@ -3,7 +3,7 @@ import {readFileSync} from 'node:fs';
 import assert from 'node:assert/strict';
 const w=new Window({url:'https://admin.soverixnet.com',width:390,height:844});
 w.document.body.innerHTML='<div id="app"></div>';
-let role='owner',attempts=[],catalogSaves=[],sellerSaves=[],notices=[],rewardSaves=[];
+let role='owner',attempts=[],catalogSaves=[],sellerSaves=[],notices=[],rewardSaves=[],roomPolicySaves=[];
 const frame={id:'11111111-1111-4111-8111-111111111111',kind:'frame',title:'Violet frame',media_id:'a'.repeat(64),price:20,active:true,position:0,avatar_scale:.46,avatar_x:.5,avatar_y:.5};
 w.confirm=()=>true;
 w.fetch=async(url,options)=>{
@@ -16,6 +16,8 @@ w.fetch=async(url,options)=>{
  else if(name==='programs')data={items:[],referral_policy:{enabled:false,recharge_target:100,reward_coins:10,inviter_limit:5,join_days:7}};
  else if(name==='sellers'){if(options.method==='POST'){sellerSaves.push(JSON.parse(options.body));data={saved:true};}else data={items:[{uid:'alice',name:'Seller',coins:'120',public_id:'10000002'}]};}
  else if(name.startsWith('users?q='))data={items:[{uid:'alice',name:'Seller',public_id:'10000002'}]};
+ else if(name==='ranking-intro')data={enabled:true,seconds:5,metric:'rich',period:'weekly'};
+ else if(name==='room-rewards'){if(options.method==='PUT')roomPolicySaves.push(JSON.parse(options.body));data={current:{enabled:true,percent:10},scheduled:[],next_week:1800000000};}
  else if(name==='rewards'){if(options.method==='POST'){rewardSaves.push(JSON.parse(options.body));if(rewardSaves.length===1)return {ok:false,status:503,json:async()=>({detail:'Retry reward connection'})};data={saved:true};}else data={items:[],server_now:Math.floor(Date.now()/1000)};}
  else if(name==='official-messages'){notices.push(JSON.parse(options.body));data={saved:true};}
  else if(name==='users')data={items:[{uid:'alice',name:'<img id="attack" src=x>',country:'BD',wallet_status:'active',coins:50,diamonds:5}]};
@@ -68,6 +70,10 @@ await w.document.querySelector('#official-form').onsubmit({preventDefault(){}});
 assert.equal(notices.at(-1).target_uid,'alice');
 assert.equal(notices.at(-1).text,'Private update');
 w.controlTest.setView('rewards');await w.controlTest.render();
+assert.match(w.document.querySelector('#panel').textContent,/Weekly room gift rewards/);
+w.document.querySelector('#room-reward-percent').value='20';
+await w.document.querySelector('#room-reward-policy').onsubmit({preventDefault(){}});
+assert.deepEqual(roomPolicySaves.at(-1),{enabled:true,percent:20});
 w.document.querySelector('#reward-title').value='Weekly prize';
 w.document.querySelector('#reward-start').value='2026-12-01T00:00';
 w.document.querySelector('#reward-end').value='2026-12-08T00:00';
