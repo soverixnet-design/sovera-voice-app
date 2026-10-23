@@ -1,3 +1,4 @@
+import 'firebase_room_rewards.dart';
 import 'dart:convert';
 import 'voice_background.dart';
 import 'room_design_view.dart';
@@ -432,6 +433,7 @@ class _FirebaseRoomChatState extends State<FirebaseRoomChat> with WidgetsBinding
     if(action=='profile'&&event['uid'] is String){
       await Navigator.push<void>(context,MaterialPageRoute(builder:(_)=>FirebaseMemberProfile(api:widget.api,uid:event['uid'] as String)));return;
     }
+    if(action=='roomRewards')await Navigator.push<void>(context,MaterialPageRoute(builder:(_)=>FirebaseRoomRewards(api:widget.api,roomId:widget.room['id'] as String)));
     if(action=='wallet')await Navigator.push<void>(context,MaterialPageRoute(builder:(_)=>FirebaseServerWalletPage(api:widget.api)));
     if(action=='ranking')await Navigator.push<void>(context,MaterialPageRoute(builder:(_)=>FirebaseRewardsPage(api:widget.api,initialMetric:'play',initialPeriod:'daily')));
     if(action=='messages')await Navigator.push<void>(context,MaterialPageRoute(builder:(_)=>FirebaseMessageInbox(api:widget.api)));

@@ -336,6 +336,8 @@ def attach_control(app,profiles,actor):
 
     from .operations import attach_operations
     attach_operations(app,profiles,staff_actor)
+    from .room_rewards import attach_room_rewards
+    attach_room_rewards(app,profiles,actor,staff_actor)
 
     from .programs import attach_programs
     attach_programs(app,profiles,actor,staff_actor)

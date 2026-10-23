@@ -17,7 +17,7 @@ STAGE=$(mktemp -d /opt/sovera-room-stage.XXXXXX)
 chmod 755 "$STAGE"
 BACKUP=
 CHANGED=0
-FILES=(control_password.py control_security.py operations.py programs.py maintenance.py test_operations.py rewards.py test_rewards.py members.py test_members.py test_legacy_wallet.py import_legacy_wallet.py test_auto_wallet.py messaging.py test_messaging.py control.py community.py room_photos.py test_room_photos.py broadcasts.py test_broadcasts.py greedy_wallet.py catalog.py app.py wallet.py rooms.py voice.py room_controls.py test_room_controls.py profile_media.py original_gift_art.py seed_gifts.py test_profile_media.py test_wallet.py test_catalog.py)
+FILES=(room_rewards.py test_room_rewards.py control_password.py control_security.py operations.py programs.py maintenance.py test_operations.py rewards.py test_rewards.py members.py test_members.py test_legacy_wallet.py import_legacy_wallet.py test_auto_wallet.py messaging.py test_messaging.py control.py community.py room_photos.py test_room_photos.py broadcasts.py test_broadcasts.py greedy_wallet.py catalog.py app.py wallet.py rooms.py voice.py room_controls.py test_room_controls.py profile_media.py original_gift_art.py seed_gifts.py test_profile_media.py test_wallet.py test_catalog.py)
 GAMEFILES=(start.js limits.js selftest.js)
 ADMIN=/opt/livekit/caddy_data/sovera-control
 [ -d "$ADMIN" ] || { echo "Existing admin installation required"; exit 1; }
@@ -67,7 +67,7 @@ for name in "${GAMEFILES[@]}"; do
   curl -fLsS --retry 3 --connect-timeout 10 --max-time 60 "$SOURCE/server/greedy/$name" -o "$STAGE/game/src/$name"
   "$NODE" --check "$STAGE/game/src/$name"
 done
-(cd "$STAGE" && "$PYTHON" -m unittest server.accounts.test_operations server.accounts.test_control_password server.accounts.test_rewards server.accounts.test_members server.accounts.test_auto_wallet server.accounts.test_legacy_wallet server.accounts.test_messaging server.accounts.test_control server.accounts.test_room_photos server.accounts.test_broadcasts server.accounts.test_wallet server.accounts.test_catalog server.accounts.test_accounts server.accounts.test_profile_media server.accounts.test_room_controls server.accounts.test_voice server.accounts.test_greedy_wallet server.accounts.test_greedy_access -q)
+(cd "$STAGE" && "$PYTHON" -m unittest server.accounts.test_room_rewards server.accounts.test_operations server.accounts.test_control_password server.accounts.test_rewards server.accounts.test_members server.accounts.test_auto_wallet server.accounts.test_legacy_wallet server.accounts.test_messaging server.accounts.test_control server.accounts.test_room_photos server.accounts.test_broadcasts server.accounts.test_wallet server.accounts.test_catalog server.accounts.test_accounts server.accounts.test_profile_media server.accounts.test_room_controls server.accounts.test_voice server.accounts.test_greedy_wallet server.accounts.test_greedy_access -q)
 curl -fLsS --retry 3 --connect-timeout 10 --max-time 60 "$SOURCE/server/voice/app.py" -o "$STAGE/server/voice/app.py"
 (cd "$STAGE" && "$PYTHON" -m unittest server.accounts.test_room_controls server.accounts.test_voice -q)
 echo 'Testing a shared round above one million using isolated test balances...'

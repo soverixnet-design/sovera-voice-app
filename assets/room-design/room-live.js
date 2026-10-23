@@ -107,8 +107,8 @@ $('imgBtn').onclick=()=>send('photo');
 if(window.visualViewport)visualViewport.addEventListener('resize',()=>{$('app').style.height=visualViewport.height+'px';});
 
 function roomSettings(){
- if(state.role!=='owner'){sheet('<h3>'+esc(state.name)+'</h3><p>রুমের সেটিংস শুধু মালিক পরিবর্তন করতে পারেন।</p>');return;}
- sheet('<h3>⚙️ রুম সেটিংস</h3><div class="pic"><button class="act" id="changeCover">📷 রুমের ছবি</button><button class="act" id="changeBackground">🖼️ ব্যাকগ্রাউন্ড</button></div><label class="lbl">রুমের নাম</label><input class="field" id="editName" maxlength="40"><label class="lbl">সিট</label><select class="field" id="editSeats">'+[5,6,9,12,15].map(n=>'<option value="'+n+'">'+n+'</option>').join('')+'</select><label class="lbl">🎨 থিম</label><select class="field" id="editTheme">'+[['mid','মিডনাইট'],['gold','রয়্যাল গোল্ড'],['ocean','ওশান'],['rose','রোজ'],['forest','ফরেস্ট'],['sunset','সানসেট']].map(t=>'<option value="'+t[0]+'">'+t[1]+'</option>').join('')+'</select><label class="lbl"><input type="checkbox" id="editChat"> টেক্সট চ্যাট চালু</label><label class="lbl">ছবি পাঠাতে ন্যূনতম Wealth Level</label><input class="field" type="number" min="0" max="10000" id="editPhotoLevel"><div class="gbar"><button class="send" id="saveRoom">সংরক্ষণ করুন</button></div>');
+ if(state.role!=='owner'){sheet('<h3>'+esc(state.name)+'</h3><button class="act" id="roomRewards">🏆 সাপ্তাহিক রুম রিওয়ার্ড</button><p>রুমের সেটিংস শুধু মালিক পরিবর্তন করতে পারেন।</p>');$('roomRewards').onclick=()=>{close();send('roomRewards');};return;}
+ sheet('<h3>⚙️ রুম সেটিংস</h3><button class="act" id="roomRewards">🏆 সাপ্তাহিক রুম রিওয়ার্ড</button><div class="pic"><button class="act" id="changeCover">📷 রুমের ছবি</button><button class="act" id="changeBackground">🖼️ ব্যাকগ্রাউন্ড</button></div><label class="lbl">রুমের নাম</label><input class="field" id="editName" maxlength="40"><label class="lbl">সিট</label><select class="field" id="editSeats">'+[5,6,9,12,15].map(n=>'<option value="'+n+'">'+n+'</option>').join('')+'</select><label class="lbl">🎨 থিম</label><select class="field" id="editTheme">'+[['mid','মিডনাইট'],['gold','রয়্যাল গোল্ড'],['ocean','ওশান'],['rose','রোজ'],['forest','ফরেস্ট'],['sunset','সানসেট']].map(t=>'<option value="'+t[0]+'">'+t[1]+'</option>').join('')+'</select><label class="lbl"><input type="checkbox" id="editChat"> টেক্সট চ্যাট চালু</label><label class="lbl">ছবি পাঠাতে ন্যূনতম Wealth Level</label><input class="field" type="number" min="0" max="10000" id="editPhotoLevel"><div class="gbar"><button class="send" id="saveRoom">সংরক্ষণ করুন</button></div>');
  $('editName').value=state.name;$('editSeats').value=String(state.seats.length);$('editTheme').value=state.theme||'mid';$('editChat').checked=state.chatEnabled!==false;$('editPhotoLevel').value=String(state.photoLevel||0);
  $('changeCover').onclick=()=>send('roomPhoto');$('changeBackground').onclick=()=>{if(settingsDraft)settingsDraft.clearBackground=false;close();send('roomBackground');};
  $('saveRoom').onclick=()=>{send('saveSettings',{name:$('editName').value.trim(),seats:Number($('editSeats').value),theme:$('editTheme').value,chatEnabled:$('editChat').checked,photoLevel:Number($('editPhotoLevel').value)});close();};
@@ -182,13 +182,14 @@ function flyGift(event){
 }
 function saveDraft(){if(state.role!=='owner')return;send('saveSettings',settingsDraft);close();}
 function roomSettings(){
- if(state.role!=='owner'){sheet('<h3>'+esc(state.name)+'</h3><p>রুমের সেটিংস শুধু মালিক পরিবর্তন করতে পারেন।</p>');return;}
+ if(state.role!=='owner'){sheet('<h3>'+esc(state.name)+'</h3><button class="act" id="roomRewards">🏆 সাপ্তাহিক রুম রিওয়ার্ড</button><p>রুমের সেটিংস শুধু মালিক পরিবর্তন করতে পারেন।</p>');$('roomRewards').onclick=()=>{close();send('roomRewards');};return;}
  settingsDraft={name:state.name,seats:state.seats.length,theme:state.theme||'mid',chatEnabled:state.chatEnabled!==false,photoLevel:state.photoLevel||0,seatStyle:state.seatStyle||'grad'};
  settingsSheet();
 }
 function settingsSheet(){
- sheet('<h3>⚙️ রুম সেটিংস</h3><div class="pic"><button class="act" id="changeCover">📷 রুমের ছবি</button><div style="flex:1"><div class="lbl">রুমের নাম</div><input class="field" id="editName" maxlength="40"></div></div><div class="row" id="themeSettings"><div>🎨 রুমের থিম<small>রঙ ও ব্যাকগ্রাউন্ড ছবি</small></div><span>›</span></div><div class="row" id="seatSettings"><div>🪑 সিট ব্যবস্থা<small>সিট সংখ্যা ও ফ্রেম স্টাইল</small></div><span>›</span></div><div class="gbar"><button class="send" id="saveRoom">সংরক্ষণ করুন</button></div>');
+ sheet('<h3>⚙️ রুম সেটিংস</h3><button class="act" id="roomRewards">🏆 সাপ্তাহিক রুম রিওয়ার্ড</button><div class="pic"><button class="act" id="changeCover">📷 রুমের ছবি</button><div style="flex:1"><div class="lbl">রুমের নাম</div><input class="field" id="editName" maxlength="40"></div></div><div class="row" id="themeSettings"><div>🎨 রুমের থিম<small>রঙ ও ব্যাকগ্রাউন্ড ছবি</small></div><span>›</span></div><div class="row" id="seatSettings"><div>🪑 সিট ব্যবস্থা<small>সিট সংখ্যা ও ফ্রেম স্টাইল</small></div><span>›</span></div><div class="gbar"><button class="send" id="saveRoom">সংরক্ষণ করুন</button></div>');
  $('editName').value=settingsDraft.name;$('editName').oninput=()=>settingsDraft.name=$('editName').value;
+ $('roomRewards').onclick=()=>{close();send('roomRewards');};
  $('changeCover').onclick=()=>send('roomPhoto');$('themeSettings').onclick=themeSheet;$('seatSettings').onclick=seatSettings;$('saveRoom').onclick=saveDraft;
 }
 function themeSheet(){

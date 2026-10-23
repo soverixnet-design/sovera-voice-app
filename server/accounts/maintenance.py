@@ -57,7 +57,8 @@ def record_backup(path,manifest):
 def tick(path):
     from .operations import Operations
     from .rewards import Rewards
-    ops=Operations(path);ops.scheduled_tick();awards=Rewards(path).tick()
+    from .room_rewards import RoomRewards
+    ops=Operations(path);ops.scheduled_tick();awards=Rewards(path).tick()+RoomRewards(path).tick()
     with ops.control.db() as db:
         db.execute('CREATE TABLE IF NOT EXISTS account_job_status(key TEXT PRIMARY KEY,last_run INTEGER NOT NULL,ok INTEGER NOT NULL,note TEXT NOT NULL)')
         db.execute("INSERT INTO account_job_status VALUES('maintenance',?,1,?) ON CONFLICT(key) DO UPDATE SET last_run=excluded.last_run,ok=1,note=excluded.note",(int(time.time()),f'{awards} reward claims applied'))
