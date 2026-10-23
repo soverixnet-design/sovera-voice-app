@@ -110,8 +110,8 @@ jobs:
           path: build/app/outputs/flutter-apk/app-armeabi-v7a-release.apk
 
   publish:
-    needs: [android, admin, voice_server, greedy_wallet]
-    if: github.ref == 'refs/heads/admin-control-preview'
+    needs: [android, admin, voice_server, greedy_wallet, room_design]
+    if: github.ref == 'refs/heads/admin-control-preview' || github.ref == 'refs/heads/wallet-navigation-refresh'
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -137,6 +137,9 @@ jobs:
           tag="v0.19.0-rc.${GITHUB_RUN_NUMBER}"
           cat > release/notes.md <<'NOTES'
           Sovera 0.19.0 release candidate
+
+          Source commit: __RELEASE_SOURCE_COMMIT__
+          Includes seller package, seller wallet transfer and unread official notice updates.
 
           - Admin authenticator 2FA, recovery codes, session revocation and expiring capability restrictions.
           - Central room moderation, support routing, activity reports and CSV exports.
@@ -177,4 +180,5 @@ jobs:
           Real two-device audio and installation/Google sign-in still need device verification.
           Existing VPS needs the attached update_room.sh for new API features.
           NOTES
+          sed -i "s/__RELEASE_SOURCE_COMMIT__/$RELEASE_COMMIT/g" release/notes.md
           gh release create "$tag" release/Sovera-0.19.0-arm64.apk release/Sovera-0.19.0-armv7.apk release/SHA256SUMS.txt release/update_room.sh --target "$RELEASE_COMMIT" --title "Sovera 0.19.0 - Professional Admin & Member Benefits" --prerelease --notes-file release/notes.md
