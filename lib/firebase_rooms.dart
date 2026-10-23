@@ -233,12 +233,12 @@ class _FirebaseRoomChatState extends State<FirebaseRoomChat> with WidgetsBinding
       if(widget.useUploadedDesign){
         try{
           final wallet=await widget.api.call('GET',suffix:'/wallet');
+          if(mounted)setState(()=>designCoins=wallet['verified']==true?wallet['coins']?.toString():null);
+        }catch(_){if(mounted)setState(()=>designCoins=null);}
+        try{
           final ranking=await widget.api.call('GET',suffix:'/rankings?metric=play&period=daily');
-          if(mounted)setState((){
-            designCoins=wallet['verified']==true?wallet['coins']?.toString():null;
-            final mine=ranking['mine'];designWins=mine is Map?mine['score'].toString():'0';
-          });
-        }catch(_){if(mounted)setState((){designCoins=null;designWins=null;});}
+          if(mounted)setState((){final mine=ranking['mine'];designWins=mine is Map?mine['score'].toString():'0';});
+        }catch(_){if(mounted)setState(()=>designWins=null);}
       }
       final data=await widget.api.call('GET',suffix:'$path/messages');
       chatEntryCursor??=(data['messages'] as List).fold<int>(0,(latest,row)=>max(latest,(row['id'] as num).toInt()));

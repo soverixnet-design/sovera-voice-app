@@ -27,14 +27,14 @@ class FirebaseProfileApi {
     final response = await http.Response.fromStream(await client.send(req).timeout(const Duration(seconds: 15)))
         .timeout(const Duration(seconds: 15));
     if (response.statusCode == 401) throw const ProfileApiError('Your session expired. Sign out and sign in again.');
-    if(response.statusCode==403){String detail='Access is unavailable.';try{final body=jsonDecode(response.body);if(body is Map&&body['detail'] is String)detail=body['detail'] as String;}catch(_){}throw ProfileApiError(detail,status:403);}
+    if(response.statusCode==403){String detail='Access is unavailable.';try{final body=jsonDecode(response.body);if(body is Map){final value=body['detail'];if(value is String){detail=value;}else if(value is List){detail=value.whereType<Map>().map((issue)=>'${(issue['loc'] as List? ?? []).where((v)=>v!='body').join('.')}: ${issue['msg'] ?? 'Invalid value'}').join('; ');}}}catch(_){}throw ProfileApiError(detail,status:403);}
     if(response.statusCode==429) throw const ProfileApiError('Please wait a moment before sending again.');
     if(response.statusCode==409 && response.body.contains('Save your profile first')) throw const ProfileApiError('Save your profile before opening a room.');
-    if(response.statusCode==409){String detail='Request could not be completed.';try{final body=jsonDecode(response.body);if(body is Map&&body['detail'] is String)detail=body['detail'] as String;}catch(_){}throw ProfileApiError(detail,status:409);}
+    if(response.statusCode==409){String detail='Request could not be completed.';try{final body=jsonDecode(response.body);if(body is Map){final value=body['detail'];if(value is String){detail=value;}else if(value is List){detail=value.whereType<Map>().map((issue)=>'${(issue['loc'] as List? ?? []).where((v)=>v!='body').join('.')}: ${issue['msg'] ?? 'Invalid value'}').join('; ');}}}catch(_){}throw ProfileApiError(detail,status:409);}
     if(response.statusCode==404)throw const ProfileApiError('This room feature is unavailable on the server. The server needs an update.',status:404);
     if(response.statusCode==400||response.statusCode==422||response.statusCode==503){
       String detail=response.statusCode==503?'The room service is temporarily unavailable. Please retry.':'Please check the room settings or selected photo.';
-      try{final body=jsonDecode(response.body);if(body is Map&&body['detail'] is String)detail=body['detail'] as String;}catch(_){}
+      try{final body=jsonDecode(response.body);if(body is Map){final value=body['detail'];if(value is String){detail=value;}else if(value is List){detail=value.whereType<Map>().map((issue)=>'${(issue['loc'] as List? ?? []).where((v)=>v!='body').join('.')}: ${issue['msg'] ?? 'Invalid value'}').join('; ');}}}catch(_){}
       throw ProfileApiError(detail,status:response.statusCode);
     }
     if (response.statusCode != 200) throw const ProfileApiError('Profile could not be saved or loaded. Please retry.');
